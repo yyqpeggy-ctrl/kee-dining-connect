@@ -6,17 +6,22 @@ import {
   Wine,
   ClipboardList,
   ChefHat,
+  Store,
 } from "lucide-react";
+import StoreSelector from "./StoreSelector";
+import { useStore } from "@/contexts/StoreContext";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "仪表盘" },
   { to: "/tables", icon: UtensilsCrossed, label: "桌台管理" },
   { to: "/inventory", icon: Wine, label: "库存管理" },
   { to: "/orders", icon: ClipboardList, label: "订单管理" },
+  { to: "/stores", icon: Store, label: "门店管理" },
 ];
 
 const AppSidebar = () => {
   const location = useLocation();
+  const { currentStore, setCurrentStore } = useStore();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-[220px] bg-sidebar border-r border-sidebar-border flex flex-col">
@@ -29,6 +34,11 @@ const AppSidebar = () => {
           <h1 className="text-sm font-bold font-display text-foreground tracking-tight">食智云</h1>
           <p className="text-[10px] text-muted-foreground">餐饮智能管理</p>
         </div>
+      </div>
+
+      {/* Store Selector */}
+      <div className="px-3 py-3 border-b border-sidebar-border">
+        <StoreSelector currentStore={currentStore} onStoreChange={setCurrentStore} />
       </div>
 
       {/* Nav */}
@@ -73,7 +83,7 @@ const AppSidebar = () => {
           </div>
           <div>
             <p className="text-xs font-medium text-foreground">管理员</p>
-            <p className="text-[10px] text-muted-foreground">总店</p>
+            <p className="text-[10px] text-muted-foreground">{currentStore.name}</p>
           </div>
         </div>
       </div>
