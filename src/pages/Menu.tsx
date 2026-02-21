@@ -130,7 +130,8 @@ const Menu = () => {
   };
 
   const handleSave = () => {
-    if (!form.name_zh || !form.name_en || form.price <= 0) {
+    const priceRequired = form.category !== "entertainment";
+    if (!form.name_zh || !form.name_en || (priceRequired && form.price <= 0)) {
       toast({ title: isZh ? "请填写必填字段" : "Please fill required fields", variant: "destructive" });
       return;
     }
@@ -182,7 +183,7 @@ const Menu = () => {
         const CHART_COLORS = ["hsl(36, 90%, 55%)", "hsl(24, 85%, 50%)", "hsl(152, 60%, 45%)", "hsl(210, 70%, 55%)", "hsl(280, 60%, 55%)", "hsl(340, 70%, 55%)"];
 
         // Category stats
-        const categoryStats = CATEGORIES.map((cat, idx) => {
+        const categoryStats = CATEGORIES.filter(cat => cat !== "entertainment").map((cat, idx) => {
           const catItems = items.filter(i => i.category === cat && i.price > 0 && i.cost_price > 0);
           const totalRevenue = catItems.reduce((s, i) => s + i.price, 0);
           const totalCost = catItems.reduce((s, i) => s + (i.cost_price || 0), 0);
@@ -194,7 +195,7 @@ const Menu = () => {
 
         // High cost alert: items with margin < 50%
         const highCostItems = items
-          .filter(i => i.price > 0 && i.cost_price > 0 && ((i.price - i.cost_price) / i.price * 100) < 50)
+          .filter(i => i.category !== "entertainment" && i.price > 0 && i.cost_price > 0 && ((i.price - i.cost_price) / i.price * 100) < 50)
           .sort((a, b) => ((a.price - (a.cost_price || 0)) / a.price) - ((b.price - (b.cost_price || 0)) / b.price))
           .slice(0, 8);
 
@@ -326,7 +327,11 @@ const Menu = () => {
                       <TableCell>
                         <Badge variant="secondary" className="gap-1">{categoryIcons[item.category]} {categoryLabel(item.category)}</Badge>
                       </TableCell>
-                      <TableCell className="text-right font-semibold text-foreground">¥{Number(item.price).toFixed(0)}</TableCell>
+                      <TableCell className="text-right font-semibold text-foreground">
+                        {item.category === "entertainment" ? (
+                          <Badge variant="secondary" className="bg-primary/10 text-primary border-0">{isZh ? "免费" : "Free"}</Badge>
+                        ) : `¥${Number(item.price).toFixed(0)}`}
+                      </TableCell>
                       <TableCell className="text-right">
                         <button
                           onClick={() => hasIngredients && setExpandedRow(isExpanded ? null : item.id)}
@@ -345,7 +350,9 @@ const Menu = () => {
                         </button>
                       </TableCell>
                       <TableCell className="text-right">
-                        {item.price > 0 ? (
+                        {item.category === "entertainment" ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : item.price > 0 ? (
                           <Badge variant={margin > 60 ? "default" : "secondary"}>
                             {margin.toFixed(0)}%
                           </Badge>
@@ -433,17 +440,24 @@ const Menu = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t("menuMgmt.category")}</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v, ...(v === "entertainment" ? { price: 0, cost_price: 0 } : {}) })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{categoryLabel(c)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>{t("menuMgmt.price")} (¥)</Label>
-                <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
-              </div>
+              {form.category !== "entertainment" && (
+                <div>
+                  <Label>{t("menuMgmt.price")} (¥)</Label>
+                  <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+                </div>
+              )}
+              {form.category === "entertainment" && (
+                <div className="flex items-center pt-6">
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-0 text-sm">{isZh ? "🎉 公共区域免费活动" : "🎉 Free Public Activity"}</Badge>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
