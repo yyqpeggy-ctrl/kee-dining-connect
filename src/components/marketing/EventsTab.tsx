@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2, Megaphone, Send, ExternalLink, Globe } from "lucide-react";
+import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2, Megaphone, Send, ExternalLink, Globe, RefreshCw, Star, MessageSquare, UserCheck, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface PromotionChannel {
   platform: string;
@@ -137,6 +140,7 @@ const statusConfig = {
 const EventsTab = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+  const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"cards" | "calendar">("cards");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 1, 1));
@@ -145,6 +149,11 @@ const EventsTab = () => {
   const [editForm, setEditForm] = useState<Partial<Event>>({});
   const [newResource, setNewResource] = useState("");
   const [editResources, setEditResources] = useState<string[]>([]);
+  const [syncLoading, setSyncLoading] = useState<string | null>(null); // "publish_huodongxing", "sync_signups_cumen", etc.
+  const [syncedSignups, setSyncedSignups] = useState<any[]>([]);
+  const [syncedReviews, setSyncedReviews] = useState<any[]>([]);
+  const [promoDetailTab, setPromoDetailTab] = useState<"channels" | "signups" | "reviews">("channels");
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
   const filtered = filter === "all" ? events : events.filter(e => e.status === filter);
 
@@ -188,6 +197,10 @@ const EventsTab = () => {
     setEditForm({});
     setEditResources([...event.resources]);
     setNewResource("");
+    setSyncedSignups([]);
+    setSyncedReviews([]);
+    setPromoDetailTab("channels");
+    setLastSyncTime(null);
   };
 
   const startEditing = () => {
@@ -220,6 +233,83 @@ const EventsTab = () => {
 
   const removeResource = (idx: number) => {
     setEditResources(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const callEventSync = useCallback(async (action: string, platform: string, eventData?: any) => {
+    const loadingKey = `${action}_${platform}`;
+    setSyncLoading(loadingKey);
+    try {
+      const { data, error } = await supabase.functions.invoke("event-platform-sync", {
+        body: { action, platform: platform.toLowerCase(), eventData, externalId: `ext_${platform}` },
+      });
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      toast({ title: isZh ? "同步失败" : "Sync Failed", description: err.message, variant: "destructive" });
+      return null;
+    } finally {
+      setSyncLoading(null);
+    }
+  }, [isZh, toast]);
+
+  const handlePublish = async (platform: string) => {
+    if (!selectedEvent) return;
+    const data = await callEventSync("publish", platform, {
+      name: selectedEvent.nameEn,
+      nameZh: selectedEvent.nameZh,
+      date: selectedEvent.date,
+      time: selectedEvent.time,
+      description: selectedEvent.descEn,
+      descriptionZh: selectedEvent.descZh,
+      expectedGuests: selectedEvent.expectedGuests,
+    });
+    if (data?.success) {
+      toast({ title: isZh ? "发布成功" : "Published!", description: isZh ? `已发布到${platform}` : `Published to ${platform}` });
+    }
+  };
+
+  const handlePublishAll = async () => {
+    if (!selectedEvent) return;
+    const platforms = selectedEvent.promotions.filter(p => p.status !== "published").map(p => p.platform.toLowerCase());
+    if (platforms.length === 0) { toast({ title: isZh ? "全部已发布" : "All Published" }); return; }
+    setSyncLoading("publish_all");
+    try {
+      const { data, error } = await supabase.functions.invoke("event-platform-sync", {
+        body: { action: "publish_all", platform: "all", eventData: { platforms, name: selectedEvent.nameEn, nameZh: selectedEvent.nameZh, date: selectedEvent.date, time: selectedEvent.time } },
+      });
+      if (error) throw error;
+      if (data?.success) toast({ title: isZh ? "全渠道发布成功" : "Published to All Channels", description: isZh ? `已发布到 ${platforms.length} 个平台` : `Published to ${platforms.length} platforms` });
+    } catch (err: any) {
+      toast({ title: isZh ? "发布失败" : "Publish Failed", description: err.message, variant: "destructive" });
+    } finally { setSyncLoading(null); }
+  };
+
+  const handleSyncSignups = async (platform?: string) => {
+    if (!selectedEvent) return;
+    const action = platform ? "sync_signups" : "sync_all_signups";
+    const p = platform || "all";
+    const data = await callEventSync(action, p, platform ? undefined : {
+      platforms: selectedEvent.promotions.filter(pr => pr.status === "published").map(pr => pr.platform.toLowerCase()),
+    });
+    if (data?.success) {
+      const signups = data.signups || (data.results?.flatMap((r: any) => r.signups) || []);
+      setSyncedSignups(signups);
+      setLastSyncTime(new Date().toLocaleString(isZh ? 'zh-CN' : 'en-US'));
+      setPromoDetailTab("signups");
+      toast({ title: isZh ? "同步成功" : "Sync Complete", description: isZh ? `获取到 ${signups.length} 条报名数据` : `Fetched ${signups.length} signups` });
+    }
+  };
+
+  const handleSyncReviews = async (platform?: string) => {
+    if (!selectedEvent) return;
+    const p = platform || selectedEvent.promotions[0]?.platform || "huodongxing";
+    const data = await callEventSync("sync_reviews", p);
+    if (data?.success) {
+      setSyncedReviews(data.reviews || []);
+      setLastSyncTime(new Date().toLocaleString(isZh ? 'zh-CN' : 'en-US'));
+      setPromoDetailTab("reviews");
+      toast({ title: isZh ? "评价同步成功" : "Reviews Synced", description: isZh ? `获取到 ${data.reviews?.length || 0} 条评价` : `Fetched ${data.reviews?.length || 0} reviews` });
+    }
   };
 
   return (
@@ -615,59 +705,168 @@ const EventsTab = () => {
 
                 <Separator />
 
-                {/* Recruitment & Promotion Channels */}
+                {/* Recruitment & Promotion Channels - Enhanced */}
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-3 flex items-center gap-1.5"><Megaphone className="w-4 h-4 text-primary" />{isZh ? "召集推广 · 发布渠道" : "Recruitment & Promotion Channels"}</p>
-                  <div className="space-y-2">
-                    {selectedEvent.promotions.map((promo, idx) => {
-                      const promoStatusConfig = {
-                        published: { labelZh: "已发布", labelEn: "Published", color: "text-green-600 bg-green-50 dark:bg-green-950/30" },
-                        draft: { labelZh: "草稿", labelEn: "Draft", color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30" },
-                        not_posted: { labelZh: "未发布", labelEn: "Not Posted", color: "text-muted-foreground bg-muted" },
-                      };
-                      const ps = promoStatusConfig[promo.status];
-                      return (
-                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                              <Globe className="w-4 h-4 text-primary" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{isZh ? promo.platformZh : promo.platform}</p>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ps.color}`}>{isZh ? ps.labelZh : ps.labelEn}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            {promo.status === "published" && (
-                              <div className="text-right text-xs">
-                                <p className="text-muted-foreground">{isZh ? "曝光" : "Reach"}: <span className="font-medium text-foreground">{(promo.reach || 0).toLocaleString()}</span></p>
-                                <p className="text-muted-foreground">{isZh ? "报名" : "Signups"}: <span className="font-medium text-foreground">{promo.signups || 0}</span></p>
+                  <p className="text-sm font-medium text-foreground mb-3 flex items-center gap-1.5"><Megaphone className="w-4 h-4 text-primary" />{isZh ? "召集推广 · 平台对接" : "Recruitment & Platform Sync"}</p>
+                  {lastSyncTime && <p className="text-[10px] text-muted-foreground mb-2">{isZh ? "上次同步" : "Last sync"}: {lastSyncTime}</p>}
+
+                  <Tabs value={promoDetailTab} onValueChange={(v) => setPromoDetailTab(v as any)}>
+                    <TabsList className="w-full">
+                      <TabsTrigger value="channels" className="flex-1 gap-1 text-xs"><Globe className="w-3 h-3" />{isZh ? "发布渠道" : "Channels"}</TabsTrigger>
+                      <TabsTrigger value="signups" className="flex-1 gap-1 text-xs"><UserCheck className="w-3 h-3" />{isZh ? "报名数据" : "Signups"} {syncedSignups.length > 0 && <Badge variant="secondary" className="text-[9px] px-1 h-4 ml-1">{syncedSignups.length}</Badge>}</TabsTrigger>
+                      <TabsTrigger value="reviews" className="flex-1 gap-1 text-xs"><MessageSquare className="w-3 h-3" />{isZh ? "评价反馈" : "Reviews"} {syncedReviews.length > 0 && <Badge variant="secondary" className="text-[9px] px-1 h-4 ml-1">{syncedReviews.length}</Badge>}</TabsTrigger>
+                    </TabsList>
+
+                    {/* Channels Tab */}
+                    <TabsContent value="channels" className="mt-3 space-y-2">
+                      {selectedEvent.promotions.map((promo, idx) => {
+                        const promoStatusConfig = {
+                          published: { labelZh: "已发布", labelEn: "Published", color: "text-green-600 bg-green-50 dark:bg-green-950/30" },
+                          draft: { labelZh: "草稿", labelEn: "Draft", color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30" },
+                          not_posted: { labelZh: "未发布", labelEn: "Not Posted", color: "text-muted-foreground bg-muted" },
+                        };
+                        const ps = promoStatusConfig[promo.status];
+                        const isThisLoading = syncLoading === `publish_${promo.platform.toLowerCase()}`;
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                                <Globe className="w-4 h-4 text-primary" />
                               </div>
-                            )}
-                            {promo.status === "published" && promo.url && (
-                              <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => window.open(promo.url, "_blank")}>
-                                <ExternalLink className="w-3 h-3" />{isZh ? "查看" : "View"}
-                              </Button>
-                            )}
-                            {promo.status === "draft" && (
-                              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
-                                <Send className="w-3 h-3" />{isZh ? "发布" : "Publish"}
-                              </Button>
-                            )}
-                            {promo.status === "not_posted" && (
-                              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
-                                <Plus className="w-3 h-3" />{isZh ? "创建广告" : "Create Ad"}
-                              </Button>
-                            )}
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{isZh ? promo.platformZh : promo.platform}</p>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ps.color}`}>{isZh ? ps.labelZh : ps.labelEn}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {promo.status === "published" && (
+                                <div className="text-right text-xs">
+                                  <p className="text-muted-foreground">{isZh ? "曝光" : "Reach"}: <span className="font-medium text-foreground">{(promo.reach || 0).toLocaleString()}</span></p>
+                                  <p className="text-muted-foreground">{isZh ? "报名" : "Signups"}: <span className="font-medium text-foreground">{promo.signups || 0}</span></p>
+                                </div>
+                              )}
+                              {promo.status === "published" && (
+                                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" disabled={syncLoading === `sync_signups_${promo.platform.toLowerCase()}`} onClick={() => handleSyncSignups(promo.platform)}>
+                                  {syncLoading === `sync_signups_${promo.platform.toLowerCase()}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}{isZh ? "同步" : "Sync"}
+                                </Button>
+                              )}
+                              {promo.status === "published" && promo.url && (
+                                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => window.open(promo.url, "_blank")}>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {promo.status === "draft" && (
+                                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" disabled={isThisLoading} onClick={() => handlePublish(promo.platform)}>
+                                  {isThisLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}{isZh ? "发布" : "Publish"}
+                                </Button>
+                              )}
+                              {promo.status === "not_posted" && (
+                                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" disabled={isThisLoading} onClick={() => handlePublish(promo.platform)}>
+                                  {isThisLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}{isZh ? "创建并发布" : "Create & Publish"}
+                                </Button>
+                              )}
+                            </div>
                           </div>
+                        );
+                      })}
+                      <div className="mt-3 flex gap-2">
+                        <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => handleSyncSignups()} disabled={syncLoading === "sync_signups_all"}>
+                          {syncLoading === "sync_signups_all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}{isZh ? "全渠道同步报名" : "Sync All Signups"}
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => handleSyncReviews()} disabled={syncLoading === "sync_reviews_all"}>
+                          {syncLoading === "sync_reviews_all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageSquare className="w-3 h-3" />}{isZh ? "同步评价" : "Sync Reviews"}
+                        </Button>
+                        <Button size="sm" variant="default" className="gap-1 text-xs" onClick={handlePublishAll} disabled={syncLoading === "publish_all"}>
+                          {syncLoading === "publish_all" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}{isZh ? "一键全渠道发布" : "Publish All"}
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    {/* Signups Tab */}
+                    <TabsContent value="signups" className="mt-3">
+                      {syncedSignups.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <UserCheck className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">{isZh ? "暂无报名数据，请先同步" : "No signups yet. Sync to fetch data."}</p>
+                          <Button size="sm" variant="outline" className="mt-3 gap-1 text-xs" onClick={() => handleSyncSignups()}>
+                            <RefreshCw className="w-3 h-3" />{isZh ? "立即同步" : "Sync Now"}
+                          </Button>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="outline" className="gap-1 text-xs"><Plus className="w-3 h-3" />{isZh ? "添加推广渠道" : "Add Channel"}</Button>
-                    <Button size="sm" variant="default" className="gap-1 text-xs"><Send className="w-3 h-3" />{isZh ? "一键全渠道发布" : "Publish to All"}</Button>
-                  </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-xs text-muted-foreground">{isZh ? `共 ${syncedSignups.length} 人报名` : `${syncedSignups.length} signups total`}</p>
+                            <Button size="sm" variant="ghost" className="h-6 gap-1 text-[10px]" onClick={() => handleSyncSignups()}>
+                              <RefreshCw className="w-2.5 h-2.5" />{isZh ? "刷新" : "Refresh"}
+                            </Button>
+                          </div>
+                          {syncedSignups.map((s, i) => (
+                            <div key={s.id || i} className="flex items-center justify-between p-2 rounded-md border border-border bg-card text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary">
+                                  {(isZh ? s.nameZh : s.nameEn)?.charAt(0) || "?"}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-foreground">{isZh ? s.nameZh : s.nameEn}</p>
+                                  <p className="text-muted-foreground">{s.phone}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={s.ticketType === "vip" ? "default" : "secondary"} className="text-[9px]">{s.ticketType === "vip" ? "VIP" : isZh ? "标准" : "Standard"}</Badge>
+                                <Badge variant={s.status === "confirmed" ? "default" : "outline"} className="text-[9px]">{s.status === "confirmed" ? (isZh ? "已确认" : "Confirmed") : (isZh ? "待确认" : "Pending")}</Badge>
+                                <span className="text-muted-foreground text-[10px]">{s.source}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Reviews Tab */}
+                    <TabsContent value="reviews" className="mt-3">
+                      {syncedReviews.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p className="text-sm">{isZh ? "暂无评价数据，请先同步" : "No reviews yet. Sync to fetch data."}</p>
+                          <Button size="sm" variant="outline" className="mt-3 gap-1 text-xs" onClick={() => handleSyncReviews()}>
+                            <RefreshCw className="w-3 h-3" />{isZh ? "同步评价" : "Sync Reviews"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-xs text-muted-foreground">{isZh ? `共 ${syncedReviews.length} 条评价` : `${syncedReviews.length} reviews`}</p>
+                            <Button size="sm" variant="ghost" className="h-6 gap-1 text-[10px]" onClick={() => handleSyncReviews()}>
+                              <RefreshCw className="w-2.5 h-2.5" />{isZh ? "刷新" : "Refresh"}
+                            </Button>
+                          </div>
+                          {syncedReviews.map((r, i) => (
+                            <div key={r.id || i} className="p-2.5 rounded-lg border border-border bg-card space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-foreground">{r.author}</span>
+                                  <div className="flex">
+                                    {Array.from({ length: 5 }, (_, s) => (
+                                      <Star key={s} className={`w-3 h-3 ${s < r.rating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`} />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-[9px]">{r.source}</Badge>
+                                  {r.replied && <Badge variant="outline" className="text-[9px]">{isZh ? "已回复" : "Replied"}</Badge>}
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{isZh ? r.contentZh : r.contentEn}</p>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleDateString(isZh ? 'zh-CN' : 'en-US')}</span>
+                                {!r.replied && <Button size="sm" variant="ghost" className="h-5 text-[10px] gap-1"><MessageSquare className="w-2.5 h-2.5" />{isZh ? "回复" : "Reply"}</Button>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 </div>
               </>
             );
