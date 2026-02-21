@@ -38,7 +38,7 @@ function getMockData() {
         totalViews: 2100000,
         posts: 92,
         engagement: "3.1%",
-        connected: false,
+        connected: true,
       },
     ],
     recentPosts: [
