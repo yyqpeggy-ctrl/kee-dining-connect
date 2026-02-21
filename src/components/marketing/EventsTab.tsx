@@ -7,10 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2 } from "lucide-react";
+import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2, Megaphone, Send, ExternalLink, Globe } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+
+interface PromotionChannel {
+  platform: string;
+  platformZh: string;
+  status: "published" | "draft" | "not_posted";
+  url?: string;
+  reach?: number;
+  signups?: number;
+}
 
 interface Event {
   id: string;
@@ -29,6 +38,7 @@ interface Event {
   descEn: string;
   icon: typeof Trophy;
   resources: string[];
+  promotions: PromotionChannel[];
 }
 
 const events: Event[] = [
@@ -38,7 +48,13 @@ const events: Event[] = [
     status: "upcoming", expectedGuests: 60, registeredGuests: 42,
     budget: 3000, revenue: 8500,
     descZh: "每周五飞镖锦标赛，冠军奖品+特价酒水套餐", descEn: "Weekly darts championship with prizes & drink specials",
-    icon: Trophy, resources: ["飞镖靶 x4", "计分板", "奖品礼包", "DJ音响"]
+    icon: Trophy, resources: ["飞镖靶 x4", "计分板", "奖品礼包", "DJ音响"],
+    promotions: [
+      { platform: "Huodongxing", platformZh: "活动行", status: "published", url: "https://huodongxing.com", reach: 3200, signups: 18 },
+      { platform: "Cumen", platformZh: "粗门", status: "published", url: "https://cumen.fun", reach: 1500, signups: 12 },
+      { platform: "Douyin", platformZh: "抖音", status: "draft", reach: 0, signups: 0 },
+      { platform: "WeChat", platformZh: "微信公众号", status: "published", reach: 5600, signups: 12 },
+    ]
   },
   {
     id: "2", nameZh: "生日派对包场", nameEn: "Birthday Party Package",
@@ -46,7 +62,11 @@ const events: Event[] = [
     status: "planning", expectedGuests: 35, registeredGuests: 35,
     budget: 5000, revenue: 12000,
     descZh: "含KTV包厢、定制蛋糕、Tapas拼盘及畅饮套餐", descEn: "KTV room, custom cake, tapas platter & open bar",
-    icon: Cake, resources: ["KTV包厢", "定制蛋糕", "气球装饰", "Tapas拼盘 x3"]
+    icon: Cake, resources: ["KTV包厢", "定制蛋糕", "气球装饰", "Tapas拼盘 x3"],
+    promotions: [
+      { platform: "WeChat", platformZh: "微信公众号", status: "published", reach: 2100, signups: 8 },
+      { platform: "Xiaohongshu", platformZh: "小红书", status: "draft", reach: 0, signups: 0 },
+    ]
   },
   {
     id: "3", nameZh: "Hash House Harriers 跑步活动", nameEn: "Hash House Harriers Run",
@@ -54,7 +74,13 @@ const events: Event[] = [
     status: "upcoming", expectedGuests: 80, registeredGuests: 55,
     budget: 4000, revenue: 15000,
     descZh: "起终点均在餐厅，跑后提供特价啤酒和Tapas", descEn: "Start & finish at venue, post-run beer & tapas specials",
-    icon: Dumbbell, resources: ["路线标记", "补给站物资", "完赛啤酒券 x80", "急救包"]
+    icon: Dumbbell, resources: ["路线标记", "补给站物资", "完赛啤酒券 x80", "急救包"],
+    promotions: [
+      { platform: "Huodongxing", platformZh: "活动行", status: "published", url: "https://huodongxing.com", reach: 8500, signups: 32 },
+      { platform: "Cumen", platformZh: "粗门", status: "published", url: "https://cumen.fun", reach: 4200, signups: 18 },
+      { platform: "Keep", platformZh: "Keep", status: "draft", reach: 0, signups: 0 },
+      { platform: "WeChat", platformZh: "微信公众号", status: "published", reach: 3200, signups: 5 },
+    ]
   },
   {
     id: "4", nameZh: "周末生活方式集市", nameEn: "Weekend Lifestyle Market",
@@ -62,7 +88,13 @@ const events: Event[] = [
     status: "planning", expectedGuests: 200, registeredGuests: 0,
     budget: 8000, revenue: 25000,
     descZh: "手工艺品、本地设计师、美食摊位，提升品牌曝光", descEn: "Artisan crafts, local designers, food stalls for brand exposure",
-    icon: ShoppingBag, resources: ["摊位 x15", "帐篷", "音响系统", "宣传物料", "安保人员 x2"]
+    icon: ShoppingBag, resources: ["摊位 x15", "帐篷", "音响系统", "宣传物料", "安保人员 x2"],
+    promotions: [
+      { platform: "Huodongxing", platformZh: "活动行", status: "published", url: "https://huodongxing.com", reach: 12000, signups: 0 },
+      { platform: "Cumen", platformZh: "粗门", status: "not_posted", reach: 0, signups: 0 },
+      { platform: "Douyin", platformZh: "抖音", status: "published", reach: 15000, signups: 0 },
+      { platform: "Dianping", platformZh: "大众点评", status: "draft", reach: 0, signups: 0 },
+    ]
   },
   {
     id: "5", nameZh: "AI科技集市", nameEn: "AI Tech Fair",
@@ -70,7 +102,13 @@ const events: Event[] = [
     status: "planning", expectedGuests: 120, registeredGuests: 30,
     budget: 6000, revenue: 18000,
     descZh: "AI产品展示、互动体验，吸引科技社群到店消费", descEn: "AI demos & interactive experiences to attract tech community",
-    icon: Cpu, resources: ["展示桌 x10", "投影仪", "WiFi增强", "电源接线板 x20"]
+    icon: Cpu, resources: ["展示桌 x10", "投影仪", "WiFi增强", "电源接线板 x20"],
+    promotions: [
+      { platform: "Huodongxing", platformZh: "活动行", status: "draft", reach: 0, signups: 0 },
+      { platform: "Cumen", platformZh: "粗门", status: "not_posted", reach: 0, signups: 0 },
+      { platform: "Douyin", platformZh: "抖音", status: "not_posted", reach: 0, signups: 0 },
+      { platform: "WeChat", platformZh: "微信公众号", status: "published", reach: 4800, signups: 30 },
+    ]
   },
   {
     id: "6", nameZh: "俱乐部周年庆典", nameEn: "Club Anniversary Celebration",
@@ -78,7 +116,14 @@ const events: Event[] = [
     status: "planning", expectedGuests: 150, registeredGuests: 78,
     budget: 15000, revenue: 40000,
     descZh: "现场DJ、特调鸡尾酒、Tapas自助、飞镖表演赛", descEn: "Live DJ, signature cocktails, tapas buffet & darts showmatch",
-    icon: PartyPopper, resources: ["DJ设备", "灯光系统", "鸡尾酒原料", "Tapas食材", "安保 x3"]
+    icon: PartyPopper, resources: ["DJ设备", "灯光系统", "鸡尾酒原料", "Tapas食材", "安保 x3"],
+    promotions: [
+      { platform: "Huodongxing", platformZh: "活动行", status: "published", url: "https://huodongxing.com", reach: 9800, signups: 45 },
+      { platform: "Cumen", platformZh: "粗门", status: "published", url: "https://cumen.fun", reach: 5500, signups: 22 },
+      { platform: "Douyin", platformZh: "抖音", status: "published", reach: 22000, signups: 11 },
+      { platform: "WeChat", platformZh: "微信公众号", status: "published", reach: 8900, signups: 0 },
+      { platform: "Dianping", platformZh: "大众点评", status: "draft", reach: 0, signups: 0 },
+    ]
   },
 ];
 
@@ -403,6 +448,19 @@ const EventsTab = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Promotion Channels */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Megaphone className="w-3 h-3" />{isZh ? "推广渠道" : "Promotion"}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {event.promotions.map((p, i) => (
+                      <Badge key={i} variant={p.status === "published" ? "default" : p.status === "draft" ? "outline" : "secondary"} className="text-[10px] gap-1">
+                        {isZh ? p.platformZh : p.platform}
+                        {p.status === "published" && <Check className="w-2.5 h-2.5" />}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           );
@@ -553,6 +611,63 @@ const EventsTab = () => {
                       <Button size="sm" variant="outline" onClick={addResource} className="gap-1 h-8"><Plus className="w-3 h-3" />{isZh ? "添加" : "Add"}</Button>
                     </div>
                   )}
+                </div>
+
+                <Separator />
+
+                {/* Recruitment & Promotion Channels */}
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-3 flex items-center gap-1.5"><Megaphone className="w-4 h-4 text-primary" />{isZh ? "召集推广 · 发布渠道" : "Recruitment & Promotion Channels"}</p>
+                  <div className="space-y-2">
+                    {selectedEvent.promotions.map((promo, idx) => {
+                      const promoStatusConfig = {
+                        published: { labelZh: "已发布", labelEn: "Published", color: "text-green-600 bg-green-50 dark:bg-green-950/30" },
+                        draft: { labelZh: "草稿", labelEn: "Draft", color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30" },
+                        not_posted: { labelZh: "未发布", labelEn: "Not Posted", color: "text-muted-foreground bg-muted" },
+                      };
+                      const ps = promoStatusConfig[promo.status];
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                              <Globe className="w-4 h-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{isZh ? promo.platformZh : promo.platform}</p>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ps.color}`}>{isZh ? ps.labelZh : ps.labelEn}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {promo.status === "published" && (
+                              <div className="text-right text-xs">
+                                <p className="text-muted-foreground">{isZh ? "曝光" : "Reach"}: <span className="font-medium text-foreground">{(promo.reach || 0).toLocaleString()}</span></p>
+                                <p className="text-muted-foreground">{isZh ? "报名" : "Signups"}: <span className="font-medium text-foreground">{promo.signups || 0}</span></p>
+                              </div>
+                            )}
+                            {promo.status === "published" && promo.url && (
+                              <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => window.open(promo.url, "_blank")}>
+                                <ExternalLink className="w-3 h-3" />{isZh ? "查看" : "View"}
+                              </Button>
+                            )}
+                            {promo.status === "draft" && (
+                              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
+                                <Send className="w-3 h-3" />{isZh ? "发布" : "Publish"}
+                              </Button>
+                            )}
+                            {promo.status === "not_posted" && (
+                              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
+                                <Plus className="w-3 h-3" />{isZh ? "创建广告" : "Create Ad"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" variant="outline" className="gap-1 text-xs"><Plus className="w-3 h-3" />{isZh ? "添加推广渠道" : "Add Channel"}</Button>
+                    <Button size="sm" variant="default" className="gap-1 text-xs"><Send className="w-3 h-3" />{isZh ? "一键全渠道发布" : "Publish to All"}</Button>
+                  </div>
                 </div>
               </>
             );
