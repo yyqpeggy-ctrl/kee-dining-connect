@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -85,7 +86,8 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [wechatInput, setWechatInput] = useState(mockWechatMessages);
   const [aiParsing, setAiParsing] = useState(false);
-  const [parsedResults, setParsedResults] = useState<Partial<Participant>[]>([]);
+  const [parsedResults, setParsedResults] = useState<any[]>([]);
+  const [parseSummary, setParseSummary] = useState<any>(null);
   const [manualForm, setManualForm] = useState({ name: "", phone: "", wechat: "", email: "", ticketType: "standard" });
   const [notifyDialog, setNotifyDialog] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState("");
@@ -151,33 +153,51 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
     miniprogram: { zh: "小程序", en: "Mini Program", icon: Smartphone },
   };
 
-  // AI Parse WeChat messages
+  // AI Parse WeChat messages via real AI model
   const handleAiParse = async () => {
+    if (!wechatInput.trim()) return;
     setAiParsing(true);
-    // Simulate AI parsing delay
-    await new Promise(r => setTimeout(r, 1500));
-    const mockParsed: Partial<Participant>[] = [
-      { name: "张伟", phone: "13812345678", source: "wechat_group", sourceDetail: "飞镖爱好者群", isDuplicate: true },
-      { name: "李娜", phone: "13987654321", source: "wechat_group", sourceDetail: "飞镖爱好者群" },
-      { name: "Emily", phone: "15898765432", source: "wechat_group", sourceDetail: "飞镖爱好者群" },
-      { name: "王芳", phone: "15012340001", wechat: "wangfang_sh", source: "wechat_group", sourceDetail: "飞镖爱好者群" },
-      { name: "赵磊", phone: "13511112222", source: "wechat_group", sourceDetail: "飞镖爱好者群" },
-      { name: "周明", phone: "18900005555", wechat: "zm2026", source: "wechat_group", sourceDetail: "飞镖爱好者群", isNewCustomer: true },
-    ];
-    setParsedResults(mockParsed);
-    setAiParsing(false);
-    toast({ title: isZh ? "AI解析完成" : "AI Parsing Complete", description: isZh ? `识别出 ${mockParsed.length} 位报名者，其中 ${mockParsed.filter(p => p.isDuplicate).length} 条重复` : `Found ${mockParsed.length} signups, ${mockParsed.filter(p => p.isDuplicate).length} duplicates` });
+    setParsedResults([]);
+    setParseSummary(null);
+    try {
+      const existingPhones = participants.map(p => p.phone);
+      const { data, error } = await supabase.functions.invoke("parse-wechat-signups", {
+        body: { chatText: wechatInput, existingPhones },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: isZh ? "解析失败" : "Parse Failed", description: data.error, variant: "destructive" });
+        return;
+      }
+      if (data?.participants) {
+        setParsedResults(data.participants);
+        setParseSummary(data.summary);
+        const dups = data.participants.filter((p: any) => p.isDuplicate).length;
+        toast({
+          title: isZh ? "AI解析完成" : "AI Parsing Complete",
+          description: isZh
+            ? `识别出 ${data.participants.length} 条记录（${data.summary?.signupCount || 0} 报名，${data.summary?.inquiryCount || 0} 咨询，${dups} 重复）`
+            : `Found ${data.participants.length} records (${data.summary?.signupCount || 0} signups, ${data.summary?.inquiryCount || 0} inquiries, ${dups} duplicates)`,
+        });
+      }
+    } catch (err: any) {
+      console.error("AI parse error:", err);
+      toast({ title: isZh ? "AI解析失败" : "AI Parse Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setAiParsing(false);
+    }
   };
 
   const importParsed = () => {
-    const newOnes = parsedResults.filter(p => !p.isDuplicate);
-    const added = newOnes.map((p, i) => ({
+    const signups = parsedResults.filter((p: any) => p.intent === "signup" && !p.isDuplicate);
+    const added = signups.map((p: any, i: number) => ({
       id: `new_${Date.now()}_${i}`,
       name: p.name || "",
       phone: p.phone || "",
-      wechat: p.wechat,
+      wechat: p.wechat || undefined,
+      email: p.email || undefined,
       source: "wechat_group" as const,
-      sourceDetail: p.sourceDetail,
+      sourceDetail: isZh ? "微信群AI解析" : "WeChat AI Parse",
       tags: p.isNewCustomer ? ["新客户"] : [],
       status: "registered" as const,
       ticketType: "standard" as const,
@@ -187,6 +207,7 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
     }));
     setParticipants(prev => [...prev, ...added]);
     setParsedResults([]);
+    setParseSummary(null);
     toast({ title: isZh ? "导入成功" : "Imported", description: isZh ? `新增 ${added.length} 位参与者` : `Added ${added.length} participants` });
   };
 
@@ -488,25 +509,48 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
                 {parsedResults.length > 0 && (
                   <div className="space-y-2">
                     <Separator />
-                    <p className="text-xs font-medium text-foreground">{isZh ? "解析结果" : "Parsed Results"}：</p>
-                    {parsedResults.map((p, i) => (
-                      <div key={i} className={`flex items-center justify-between p-2 rounded-md border text-xs ${p.isDuplicate ? "border-orange-300 bg-orange-50/30 dark:bg-orange-950/20" : "border-border bg-card"}`}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{p.name}</span>
-                          <span className="text-muted-foreground">{p.phone}</span>
-                          {p.wechat && <span className="text-muted-foreground">wx: {p.wechat}</span>}
-                        </div>
-                        {p.isDuplicate ? (
-                          <Badge variant="outline" className="text-[9px] text-orange-500 border-orange-300">{isZh ? "已存在" : "Exists"}</Badge>
-                        ) : p.isNewCustomer ? (
-                          <Badge variant="secondary" className="text-[9px]">{isZh ? "新客户" : "New"}</Badge>
-                        ) : (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                        )}
+                    {/* AI Summary */}
+                    {parseSummary && (
+                      <div className="flex flex-wrap gap-2 text-[10px]">
+                        <Badge variant="secondary" className="gap-0.5"><UserPlus className="w-2.5 h-2.5" />{isZh ? "报名" : "Signup"}: {parseSummary.signupCount || 0}</Badge>
+                        {(parseSummary.inquiryCount || 0) > 0 && <Badge variant="outline" className="gap-0.5"><Search className="w-2.5 h-2.5" />{isZh ? "咨询" : "Inquiry"}: {parseSummary.inquiryCount}</Badge>}
+                        {(parseSummary.cancelCount || 0) > 0 && <Badge variant="outline" className="gap-0.5 text-red-500"><XCircle className="w-2.5 h-2.5" />{isZh ? "取消" : "Cancel"}: {parseSummary.cancelCount}</Badge>}
+                        {(parseSummary.proxyCount || 0) > 0 && <Badge variant="outline" className="gap-0.5"><Users className="w-2.5 h-2.5" />{isZh ? "代报" : "Proxy"}: {parseSummary.proxyCount}</Badge>}
+                        {(parseSummary.duplicateCount || 0) > 0 && <Badge variant="outline" className="gap-0.5 text-orange-500"><Merge className="w-2.5 h-2.5" />{isZh ? "重复" : "Dup"}: {parseSummary.duplicateCount}</Badge>}
+                        {(parseSummary.newCustomerCount || 0) > 0 && <Badge variant="outline" className="gap-0.5 text-blue-500"><Star className="w-2.5 h-2.5" />{isZh ? "新客" : "New"}: {parseSummary.newCustomerCount}</Badge>}
                       </div>
-                    ))}
-                    <Button size="sm" className="w-full gap-1" onClick={importParsed}>
-                      <UserPlus className="w-3.5 h-3.5" />{isZh ? `导入 ${parsedResults.filter(p => !p.isDuplicate).length} 位新参与者` : `Import ${parsedResults.filter(p => !p.isDuplicate).length} new participants`}
+                    )}
+                    <p className="text-xs font-medium text-foreground">{isZh ? "解析结果" : "Parsed Results"}：</p>
+                    {parsedResults.map((p: any, i: number) => {
+                      const intentConfig: Record<string, { zh: string; en: string; color: string }> = {
+                        signup: { zh: "报名", en: "Signup", color: "text-green-600" },
+                        inquiry: { zh: "咨询", en: "Inquiry", color: "text-blue-500" },
+                        cancel: { zh: "取消", en: "Cancel", color: "text-red-500" },
+                        proxy: { zh: "代报", en: "Proxy", color: "text-purple-500" },
+                      };
+                      const ic = intentConfig[p.intent] || intentConfig.signup;
+                      return (
+                        <div key={i} className={`p-2 rounded-md border text-xs space-y-1 ${p.isDuplicate ? "border-orange-300 bg-orange-50/30 dark:bg-orange-950/20" : "border-border bg-card"}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-foreground">{p.name}</span>
+                              <span className="text-muted-foreground">{p.phone}</span>
+                              {p.wechat && <span className="text-muted-foreground">wx: {p.wechat}</span>}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[9px] font-medium ${ic.color}`}>{isZh ? ic.zh : ic.en}</span>
+                              {p.confidence != null && <span className="text-[9px] text-muted-foreground">{(p.confidence * 100).toFixed(0)}%</span>}
+                              {p.isDuplicate && <Badge variant="outline" className="text-[8px] px-1 h-3.5 text-orange-500 border-orange-300">{isZh ? "已存在" : "Exists"}</Badge>}
+                              {p.isNewCustomer && <Badge variant="secondary" className="text-[8px] px-1 h-3.5">{isZh ? "新客" : "New"}</Badge>}
+                            </div>
+                          </div>
+                          {p.intentDetail && <p className="text-[10px] text-muted-foreground italic">{p.intentDetail}</p>}
+                          {p.originalMessage && <p className="text-[10px] text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5 font-mono">"{p.originalMessage}"</p>}
+                        </div>
+                      );
+                    })}
+                    <Button size="sm" className="w-full gap-1" onClick={importParsed} disabled={parsedResults.filter((p: any) => p.intent === "signup" && !p.isDuplicate).length === 0}>
+                      <UserPlus className="w-3.5 h-3.5" />{isZh ? `导入 ${parsedResults.filter((p: any) => p.intent === "signup" && !p.isDuplicate).length} 位报名者` : `Import ${parsedResults.filter((p: any) => p.intent === "signup" && !p.isDuplicate).length} signups`}
                     </Button>
                   </div>
                 )}
