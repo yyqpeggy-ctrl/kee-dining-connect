@@ -14,6 +14,7 @@ import HR from "./pages/HR";
 import Finance from "./pages/Finance";
 import Legal from "./pages/Legal";
 import Procurement from "./pages/Procurement";
+import Marketing from "./pages/Marketing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/hr" element={<HR />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/legal" element={<Legal />} />
+            <Route path="/marketing" element={<Marketing />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -12,6 +12,7 @@ import {
   Scale,
   ShoppingCart,
   CookingPot,
+  Megaphone,
 } from "lucide-react";
 import StoreSelector from "./StoreSelector";
 import { useStore } from "@/contexts/StoreContext";
@@ -40,6 +41,7 @@ const navSections = [
       { to: "/hr", icon: Users, label: "人事管理" },
       { to: "/finance", icon: DollarSign, label: "财务管理" },
       { to: "/legal", icon: Scale, label: "法务管理" },
+      { to: "/marketing", icon: Megaphone, label: "市场管理" },
     ],
   },
 ];
