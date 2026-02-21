@@ -173,6 +173,104 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_deductions: {
+        Row: {
+          created_at: string
+          deducted_by: string | null
+          id: string
+          inventory_item_id: string | null
+          inventory_item_name: string
+          menu_item_name: string | null
+          order_id: string | null
+          quantity: number
+          reason: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          deducted_by?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          inventory_item_name: string
+          menu_item_name?: string | null
+          order_id?: string | null
+          quantity: number
+          reason?: string
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          deducted_by?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          inventory_item_name?: string
+          menu_item_name?: string | null
+          order_id?: string | null
+          quantity?: number
+          reason?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_deductions_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          category_en: string
+          category_zh: string
+          created_at: string
+          id: string
+          min_stock: number
+          name_en: string
+          name_zh: string
+          pour_cost: number
+          status: string
+          stock: number
+          target_cost: number
+          unit: string
+          updated_at: string
+          usage_7d: number
+        }
+        Insert: {
+          category_en?: string
+          category_zh?: string
+          created_at?: string
+          id?: string
+          min_stock?: number
+          name_en: string
+          name_zh: string
+          pour_cost?: number
+          status?: string
+          stock?: number
+          target_cost?: number
+          unit?: string
+          updated_at?: string
+          usage_7d?: number
+        }
+        Update: {
+          category_en?: string
+          category_zh?: string
+          created_at?: string
+          id?: string
+          min_stock?: number
+          name_en?: string
+          name_zh?: string
+          pour_cost?: number
+          status?: string
+          stock?: number
+          target_cost?: number
+          unit?: string
+          updated_at?: string
+          usage_7d?: number
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           category: string
@@ -253,12 +351,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deduct_inventory_for_menu_item: {
+        Args: {
+          p_menu_item_id: string
+          p_order_id?: string
+          p_quantity?: number
+          p_reason?: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      manual_deduct_inventory: {
+        Args: {
+          p_inventory_item_id: string
+          p_quantity: number
+          p_reason?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
