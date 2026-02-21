@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import EventFunnelAnalytics from "./EventFunnelAnalytics";
+import EventParticipantManager from "./EventParticipantManager";
 
 interface PromotionChannel {
   platform: string;
@@ -569,7 +570,7 @@ const EventsTab = () => {
 
       {/* Event Detail Dialog */}
       <Dialog open={!!selectedEvent} onOpenChange={(open) => { if (!open) { setSelectedEvent(null); setIsEditing(false); } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           {selectedEvent && (() => {
             const sc = statusConfig[selectedEvent.status];
             const IconComp = selectedEvent.icon;
@@ -721,9 +722,10 @@ const EventsTab = () => {
 
                   <Tabs value={promoDetailTab} onValueChange={(v) => setPromoDetailTab(v as any)}>
                     <TabsList className="w-full">
-                      <TabsTrigger value="channels" className="flex-1 gap-1 text-xs"><Globe className="w-3 h-3" />{isZh ? "发布渠道" : "Channels"}</TabsTrigger>
-                      <TabsTrigger value="signups" className="flex-1 gap-1 text-xs"><UserCheck className="w-3 h-3" />{isZh ? "报名数据" : "Signups"} {syncedSignups.length > 0 && <Badge variant="secondary" className="text-[9px] px-1 h-4 ml-1">{syncedSignups.length}</Badge>}</TabsTrigger>
-                      <TabsTrigger value="reviews" className="flex-1 gap-1 text-xs"><MessageSquare className="w-3 h-3" />{isZh ? "评价反馈" : "Reviews"} {syncedReviews.length > 0 && <Badge variant="secondary" className="text-[9px] px-1 h-4 ml-1">{syncedReviews.length}</Badge>}</TabsTrigger>
+                      <TabsTrigger value="channels" className="flex-1 gap-1 text-xs"><Globe className="w-3 h-3" />{isZh ? "渠道" : "Channels"}</TabsTrigger>
+                      <TabsTrigger value="signups" className="flex-1 gap-1 text-xs"><UserCheck className="w-3 h-3" />{isZh ? "报名" : "Signups"} {syncedSignups.length > 0 && <Badge variant="secondary" className="text-[9px] px-1 h-4 ml-1">{syncedSignups.length}</Badge>}</TabsTrigger>
+                      <TabsTrigger value="reviews" className="flex-1 gap-1 text-xs"><MessageSquare className="w-3 h-3" />{isZh ? "评价" : "Reviews"} {syncedReviews.length > 0 && <Badge variant="secondary" className="text-[9px] px-1 h-4 ml-1">{syncedReviews.length}</Badge>}</TabsTrigger>
+                      <TabsTrigger value="participants" className="flex-1 gap-1 text-xs"><Users className="w-3 h-3" />{isZh ? "参与者" : "People"}</TabsTrigger>
                     </TabsList>
 
                     {/* Channels Tab */}
@@ -874,6 +876,16 @@ const EventsTab = () => {
                           ))}
                         </div>
                       )}
+                    </TabsContent>
+
+                    {/* Participants Tab */}
+                    <TabsContent value="participants" className="mt-3">
+                      <EventParticipantManager
+                        eventId={selectedEvent.id}
+                        eventName={selectedEvent.nameZh}
+                        eventNameEn={selectedEvent.nameEn}
+                        expectedGuests={selectedEvent.expectedGuests}
+                      />
                     </TabsContent>
                   </Tabs>
                 </div>
