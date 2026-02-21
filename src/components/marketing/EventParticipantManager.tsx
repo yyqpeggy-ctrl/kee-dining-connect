@@ -309,6 +309,44 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
     }
   };
 
+  // Export participants
+  const handleExport = (format: "csv" | "xlsx") => {
+    const rows = filtered.map(p => ({
+      [isZh ? "姓名" : "Name"]: p.name,
+      [isZh ? "手机" : "Phone"]: p.phone || "",
+      [isZh ? "微信" : "WeChat"]: p.wechat || "",
+      [isZh ? "邮箱" : "Email"]: p.email || "",
+      [isZh ? "来源" : "Source"]: sourceLabels[p.source] ? (isZh ? sourceLabels[p.source].zh : sourceLabels[p.source].en) : p.source,
+      [isZh ? "状态" : "Status"]: statusLabels[p.status] ? (isZh ? statusLabels[p.status].zh : statusLabels[p.status].en) : p.status,
+      [isZh ? "新客户" : "New Customer"]: p.is_new_customer ? (isZh ? "是" : "Yes") : (isZh ? "否" : "No"),
+      [isZh ? "签到时间" : "Check-in Time"]: p.check_in_at ? new Date(p.check_in_at).toLocaleString(isZh ? "zh-CN" : "en-US") : "",
+      [isZh ? "报名时间" : "Registered At"]: p.created_at ? new Date(p.created_at).toLocaleString(isZh ? "zh-CN" : "en-US") : "",
+      [isZh ? "备注" : "Notes"]: p.notes || "",
+    }));
+
+    if (format === "csv") {
+      const csv = Papa.unparse(rows);
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+      downloadBlob(blob, `${eventName}_participants.csv`);
+    } else {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, isZh ? "参与者" : "Participants");
+      XLSX.writeFile(wb, `${eventName}_participants.xlsx`);
+    }
+    toast({ title: isZh ? "导出成功" : "Exported" });
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // AI Parse WeChat messages
   const handleAiParse = async () => {
     if (!wechatInput.trim()) return;
@@ -623,7 +661,10 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
               <Checkbox checked={selectedIds.size === filtered.length && filtered.length > 0} onCheckedChange={selectAll} className="h-3.5 w-3.5" />
               <span>{isZh ? `共 ${filtered.length} 人` : `${filtered.length} participants`}</span>
             </div>
-            <Button size="sm" variant="ghost" className="h-6 gap-1 text-[10px]"><Download className="w-2.5 h-2.5" />{isZh ? "导出" : "Export"}</Button>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="ghost" className="h-6 gap-1 text-[10px]" onClick={() => handleExport("csv")}><Download className="w-2.5 h-2.5" />CSV</Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 text-[10px]" onClick={() => handleExport("xlsx")}><Download className="w-2.5 h-2.5" />Excel</Button>
+            </div>
           </div>
 
           {loading ? (
