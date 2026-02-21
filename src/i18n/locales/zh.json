@@ -70,12 +70,12 @@
     "beverageCostAnalysis": "🍷 饮品成本分析",
     "actualCost": "实际成本",
     "targetCost": "目标成本",
-    "costAlert": "红酒、果汁成本超标，建议调整配方",
+    "costAlert": "鸡尾酒、Sangria成本超标，建议调整配方",
     "categories": {
-      "hotDishes": "热菜",
+      "tapas": "Tapas小吃",
       "drinks": "饮品",
-      "coldDishes": "凉菜",
-      "staples": "主食"
+      "mains": "主菜",
+      "desserts": "甜点"
     }
   },
   "tableMgmt": {
@@ -87,7 +87,7 @@
     "cleaning": "清理中",
     "openTable": "开台",
     "finishCleaning": "完成清理",
-    "reservedGuest": "王先生"
+    "reservedGuest": "Mr. Smith 一行4人"
   },
   "orderMgmt": {
     "title": "订单管理",

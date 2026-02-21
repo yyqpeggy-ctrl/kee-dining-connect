@@ -7,21 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
 
 const journalEntries = [
-  { id: "JE001", date: "2024-02-15", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 28640, descZh: "总店当日营收", descEn: "Main store daily revenue", status: "reviewed" },
-  { id: "JE002", date: "2024-02-15", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 35280, descZh: "国贸分店当日营收", descEn: "Guomao branch daily revenue", status: "reviewed" },
-  { id: "JE003", date: "2024-02-15", type: "expense", accountZh: "原材料采购", accountEn: "Raw Materials", debit: 15800, credit: 0, descZh: "海鲜供应商采购", descEn: "Seafood supplier procurement", status: "reviewed" },
-  { id: "JE004", date: "2024-02-14", type: "expense", accountZh: "应付职工薪酬", accountEn: "Employee Compensation", debit: 183000, credit: 0, descZh: "2月员工工资", descEn: "Feb employee salaries", status: "pending" },
-  { id: "JE005", date: "2024-02-14", type: "expense", accountZh: "管理费用-租金", accountEn: "Admin - Rent", debit: 45000, credit: 0, descZh: "总店2月租金", descEn: "Main store Feb rent", status: "reviewed" },
-  { id: "JE006", date: "2024-02-13", type: "expense", accountZh: "管理费用-水电", accountEn: "Admin - Utilities", debit: 8500, credit: 0, descZh: "各门店水电费", descEn: "All stores utilities", status: "reviewed" },
-  { id: "JE007", date: "2024-02-13", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 42150, descZh: "三里屯分店当日营收", descEn: "Sanlitun branch daily revenue", status: "reviewed" },
+  { id: "JE001", date: "2026-02-15", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 38640, descZh: "旗舰店当日营收", descEn: "Flagship store daily revenue", status: "reviewed" },
+  { id: "JE002", date: "2026-02-15", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 25280, descZh: "法租界店当日营收", descEn: "French Concession daily revenue", status: "reviewed" },
+  { id: "JE003", date: "2026-02-15", type: "expense", accountZh: "原材料采购", accountEn: "Raw Materials", debit: 18500, credit: 0, descZh: "西班牙火腿进口商采购", descEn: "Ibérico ham supplier purchase", status: "reviewed" },
+  { id: "JE004", date: "2026-02-14", type: "expense", accountZh: "应付职工薪酬", accountEn: "Employee Compensation", debit: 183000, credit: 0, descZh: "2月员工工资", descEn: "Feb employee salaries", status: "pending" },
+  { id: "JE005", date: "2026-02-14", type: "expense", accountZh: "管理费用-租金", accountEn: "Admin - Rent", debit: 100000, credit: 0, descZh: "旗舰店2月租金", descEn: "Flagship store Feb rent", status: "reviewed" },
+  { id: "JE006", date: "2026-02-13", type: "expense", accountZh: "管理费用-水电", accountEn: "Admin - Utilities", debit: 12500, credit: 0, descZh: "各门店水电费", descEn: "All stores utilities", status: "reviewed" },
+  { id: "JE007", date: "2026-02-13", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 32150, descZh: "静安店当日营收", descEn: "Jing'an store daily revenue", status: "reviewed" },
 ];
 
 const accountSummary = [
   { nameZh: "库存现金", nameEn: "Cash on Hand", balance: 125000, typeKey: "asset" },
-  { nameZh: "银行存款", nameEn: "Bank Deposits", balance: 2850000, typeKey: "asset" },
+  { nameZh: "银行存款", nameEn: "Bank Deposits", balance: 3850000, typeKey: "asset" },
   { nameZh: "应收账款", nameEn: "Accounts Receivable", balance: 180000, typeKey: "asset" },
-  { nameZh: "原材料", nameEn: "Raw Materials", balance: 320000, typeKey: "asset" },
-  { nameZh: "应付账款", nameEn: "Accounts Payable", balance: 450000, typeKey: "liability" },
+  { nameZh: "原材料", nameEn: "Raw Materials", balance: 420000, typeKey: "asset" },
+  { nameZh: "应付账款", nameEn: "Accounts Payable", balance: 550000, typeKey: "liability" },
   { nameZh: "应付职工薪酬", nameEn: "Employee Compensation Payable", balance: 183000, typeKey: "liability" },
 ];
 
@@ -108,11 +108,11 @@ const AccountingTab = () => {
           <div className="mt-4 pt-4 border-t border-border">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("financeMgmt.totalAssets")}</span>
-              <span className="font-bold text-success">¥3,475,000</span>
+              <span className="font-bold text-success">¥4,575,000</span>
             </div>
             <div className="flex justify-between text-sm mt-2">
               <span className="text-muted-foreground">{t("financeMgmt.totalLiabilities")}</span>
-              <span className="font-bold text-warning">¥633,000</span>
+              <span className="font-bold text-warning">¥733,000</span>
             </div>
           </div>
         </motion.div>

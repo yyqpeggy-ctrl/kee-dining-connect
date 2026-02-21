@@ -11,17 +11,17 @@ export interface Store {
 }
 
 export const stores: Store[] = [
-  { id: "1", name: "总店", address: "朝阳区建国路88号", status: "online" },
-  { id: "2", name: "国贸分店", address: "朝阳区国贸中心B座", status: "online" },
-  { id: "3", name: "三里屯分店", address: "朝阳区三里屯路19号", status: "online" },
-  { id: "4", name: "望京分店", address: "朝阳区望京SOHO", status: "offline" },
+  { id: "1", name: "旗舰店", address: "上海市黄浦区外滩18号", status: "online" },
+  { id: "2", name: "法租界店", address: "上海市徐汇区永康路68号", status: "online" },
+  { id: "3", name: "静安店", address: "上海市静安区巨鹿路158号", status: "online" },
+  { id: "4", name: "新天地店", address: "上海市黄浦区太仓路181弄", status: "offline" },
 ];
 
 const storeNames: Record<string, { zh: string; en: string }> = {
-  "1": { zh: "总店", en: "Main Store" },
-  "2": { zh: "国贸分店", en: "Guomao Branch" },
-  "3": { zh: "三里屯分店", en: "Sanlitun Branch" },
-  "4": { zh: "望京分店", en: "Wangjing Branch" },
+  "1": { zh: "旗舰店", en: "Flagship - The Bund" },
+  "2": { zh: "法租界店", en: "French Concession" },
+  "3": { zh: "静安店", en: "Jing'an" },
+  "4": { zh: "新天地店", en: "Xintiandi" },
 };
 
 interface StoreSelectorProps {

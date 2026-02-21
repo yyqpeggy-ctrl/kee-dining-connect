@@ -19,14 +19,14 @@ interface InventoryItem {
 }
 
 const inventory: InventoryItem[] = [
-  { id: 1, nameZh: "青岛精酿IPA", nameEn: "Qingdao Craft IPA", categoryZh: "啤酒", categoryEn: "Beer", stock: 48, unit: "btl", pourCost: 22, targetCost: 25, usage7d: 86, status: "normal" },
-  { id: 2, nameZh: "茅台飞天53度", nameEn: "Moutai Feitian 53°", categoryZh: "白酒", categoryEn: "Baijiu", stock: 6, unit: "btl", pourCost: 18, targetCost: 20, usage7d: 4, status: "low" },
-  { id: 3, nameZh: "拉菲传奇波尔多", nameEn: "Lafite Légende Bordeaux", categoryZh: "红酒", categoryEn: "Wine", stock: 12, unit: "btl", pourCost: 32, targetCost: 28, usage7d: 8, status: "critical" },
-  { id: 4, nameZh: "鲜榨橙汁", nameEn: "Fresh Orange Juice", categoryZh: "果汁", categoryEn: "Juice", stock: 25, unit: "L", pourCost: 35, targetCost: 30, usage7d: 40, status: "critical" },
-  { id: 5, nameZh: "百利甜酒", nameEn: "Baileys", categoryZh: "利口酒", categoryEn: "Liqueur", stock: 8, unit: "btl", pourCost: 15, targetCost: 18, usage7d: 12, status: "normal" },
-  { id: 6, nameZh: "朝日超爽", nameEn: "Asahi Super Dry", categoryZh: "啤酒", categoryEn: "Beer", stock: 120, unit: "btl", pourCost: 20, targetCost: 25, usage7d: 156, status: "normal" },
-  { id: 7, nameZh: "金酒（Beefeater）", nameEn: "Beefeater Gin", categoryZh: "烈酒", categoryEn: "Spirits", stock: 3, unit: "btl", pourCost: 16, targetCost: 18, usage7d: 5, status: "low" },
-  { id: 8, nameZh: "柠檬水", nameEn: "Lemonade", categoryZh: "软饮", categoryEn: "Soft Drinks", stock: 60, unit: "L", pourCost: 8, targetCost: 10, usage7d: 80, status: "normal" },
+  { id: 1, nameZh: "Hendrick's 金酒", nameEn: "Hendrick's Gin", categoryZh: "烈酒", categoryEn: "Spirits", stock: 8, unit: "btl", pourCost: 18, targetCost: 20, usage7d: 12, status: "normal" },
+  { id: 2, nameZh: "Rioja红酒 Marqués de Riscal", nameEn: "Rioja Marqués de Riscal", categoryZh: "红酒", categoryEn: "Wine", stock: 6, unit: "btl", pourCost: 32, targetCost: 28, usage7d: 8, status: "low" },
+  { id: 3, nameZh: "Estrella Damm啤酒", nameEn: "Estrella Damm Beer", categoryZh: "啤酒", categoryEn: "Beer", stock: 120, unit: "btl", pourCost: 20, targetCost: 25, usage7d: 156, status: "normal" },
+  { id: 4, nameZh: "鲜榨橙汁", nameEn: "Fresh Orange Juice", categoryZh: "果汁", categoryEn: "Juice", stock: 15, unit: "L", pourCost: 35, targetCost: 30, usage7d: 40, status: "critical" },
+  { id: 5, nameZh: "Baileys百利甜", nameEn: "Baileys Irish Cream", categoryZh: "利口酒", categoryEn: "Liqueur", stock: 5, unit: "btl", pourCost: 15, targetCost: 18, usage7d: 8, status: "normal" },
+  { id: 6, nameZh: "Patrón龙舌兰", nameEn: "Patrón Tequila", categoryZh: "烈酒", categoryEn: "Spirits", stock: 3, unit: "btl", pourCost: 22, targetCost: 20, usage7d: 6, status: "low" },
+  { id: 7, nameZh: "Fever-Tree汤力水", nameEn: "Fever-Tree Tonic Water", categoryZh: "软饮", categoryEn: "Mixers", stock: 48, unit: "btl", pourCost: 8, targetCost: 10, usage7d: 60, status: "normal" },
+  { id: 8, nameZh: "Sangria预调酒", nameEn: "Sangria House Blend", categoryZh: "鸡尾酒", categoryEn: "Cocktails", stock: 20, unit: "L", pourCost: 25, targetCost: 22, usage7d: 35, status: "critical" },
 ];
 
 const Inventory = () => {

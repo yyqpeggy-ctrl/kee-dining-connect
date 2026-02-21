@@ -31,19 +31,19 @@ interface Compliance {
 }
 
 const contracts: Contract[] = [
-  { id: "C001", titleZh: "总店租赁合同", titleEn: "Main Store Lease", type: "lease", partyZh: "北京华贸物业", partyEn: "Beijing Huamao Properties", signDate: "2023-01-01", expireDate: "2025-12-31", status: "active", value: "¥50万/年" },
-  { id: "C002", titleZh: "海鲜供应协议", titleEn: "Seafood Supply Agreement", type: "supplier", partyZh: "大连鑫海水产", partyEn: "Dalian Xinhai Seafood", signDate: "2024-01-01", expireDate: "2024-12-31", status: "expiring", value: "¥200万/年" },
-  { id: "C003", titleZh: "厨师长劳动合同", titleEn: "Head Chef Employment Contract", type: "employment", partyZh: "张明", partyEn: "Zhang Ming", signDate: "2022-03-15", expireDate: "2025-03-14", status: "active" },
-  { id: "C004", titleZh: "食品经营许可证", titleEn: "Food Business License", type: "license", partyZh: "市场监督管理局", partyEn: "Market Supervision Bureau", signDate: "2023-06-01", expireDate: "2026-05-31", status: "active" },
-  { id: "C005", titleZh: "望京分店加盟协议", titleEn: "Wangjing Branch Franchise", type: "franchise", partyZh: "北京望京餐饮", partyEn: "Beijing Wangjing F&B", signDate: "2024-06-01", expireDate: "2029-05-31", status: "pending", value: "¥80万" },
+  { id: "C001", titleZh: "外滩旗舰店租赁合同", titleEn: "Bund Flagship Lease", type: "lease", partyZh: "上海外滩物业管理", partyEn: "Shanghai Bund Property Mgmt", signDate: "2024-01-01", expireDate: "2027-12-31", status: "active", value: "¥120万/年" },
+  { id: "C002", titleZh: "西班牙火腿进口协议", titleEn: "Ibérico Ham Import Agreement", type: "supplier", partyZh: "西班牙德赫萨火腿", partyEn: "Dehesa Ibérica Imports", signDate: "2025-01-01", expireDate: "2026-12-31", status: "expiring", value: "¥80万/年" },
+  { id: "C003", titleZh: "主厨劳动合同", titleEn: "Head Chef Employment Contract", type: "employment", partyZh: "Miguel Rodríguez", partyEn: "Miguel Rodríguez", signDate: "2024-03-15", expireDate: "2027-03-14", status: "active" },
+  { id: "C004", titleZh: "食品经营许可证", titleEn: "Food Business License", type: "license", partyZh: "上海市市场监督管理局", partyEn: "Shanghai Market Supervision Bureau", signDate: "2024-06-01", expireDate: "2027-05-31", status: "active" },
+  { id: "C005", titleZh: "新天地店加盟协议", titleEn: "Xintiandi Branch Franchise", type: "franchise", partyZh: "新天地商业管理", partyEn: "Xintiandi Commercial Mgmt", signDate: "2025-06-01", expireDate: "2030-05-31", status: "pending", value: "¥150万" },
 ];
 
 const complianceItems: Compliance[] = [
-  { id: "L001", nameZh: "食品经营许可证年检", nameEn: "Food License Annual Inspection", categoryZh: "食品安全", categoryEn: "Food Safety", dueDate: "2024-06-01", status: "compliant" },
-  { id: "L002", nameZh: "消防安全检查", nameEn: "Fire Safety Inspection", categoryZh: "安全", categoryEn: "Safety", dueDate: "2024-03-15", status: "pending" },
-  { id: "L003", nameZh: "员工健康证更新", nameEn: "Staff Health Certificate Renewal", categoryZh: "人员", categoryEn: "Personnel", dueDate: "2024-02-28", status: "overdue" },
-  { id: "L004", nameZh: "环保排污许可", nameEn: "Environmental Discharge Permit", categoryZh: "环保", categoryEn: "Environment", dueDate: "2024-08-01", status: "compliant" },
-  { id: "L005", nameZh: "税务申报", nameEn: "Tax Filing", categoryZh: "财税", categoryEn: "Finance & Tax", dueDate: "2024-02-15", status: "pending" },
+  { id: "L001", nameZh: "食品经营许可证年检", nameEn: "Food License Annual Inspection", categoryZh: "食品安全", categoryEn: "Food Safety", dueDate: "2026-06-01", status: "compliant" },
+  { id: "L002", nameZh: "消防安全检查", nameEn: "Fire Safety Inspection", categoryZh: "安全", categoryEn: "Safety", dueDate: "2026-03-15", status: "pending" },
+  { id: "L003", nameZh: "员工健康证更新", nameEn: "Staff Health Certificate Renewal", categoryZh: "人员", categoryEn: "Personnel", dueDate: "2026-02-28", status: "overdue" },
+  { id: "L004", nameZh: "酒类经营许可证续期", nameEn: "Liquor License Renewal", categoryZh: "资质", categoryEn: "Licensing", dueDate: "2026-08-01", status: "compliant" },
+  { id: "L005", nameZh: "税务申报", nameEn: "Tax Filing", categoryZh: "财税", categoryEn: "Finance & Tax", dueDate: "2026-02-15", status: "pending" },
 ];
 
 const Legal = () => {

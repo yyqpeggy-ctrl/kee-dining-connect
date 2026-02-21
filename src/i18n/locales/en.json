@@ -70,12 +70,12 @@
     "beverageCostAnalysis": "🍷 Beverage Cost Analysis",
     "actualCost": "Actual Cost",
     "targetCost": "Target Cost",
-    "costAlert": "Wine and juice costs exceed target, consider adjusting recipes",
+    "costAlert": "Cocktails and Sangria costs exceed target, consider adjusting recipes",
     "categories": {
-      "hotDishes": "Hot Dishes",
+      "tapas": "Tapas",
       "drinks": "Drinks",
-      "coldDishes": "Cold Dishes",
-      "staples": "Staples"
+      "mains": "Mains",
+      "desserts": "Desserts"
     }
   },
   "tableMgmt": {
@@ -87,7 +87,7 @@
     "cleaning": "Cleaning",
     "openTable": "Open Table",
     "finishCleaning": "Finish Cleaning",
-    "reservedGuest": "Mr. Wang"
+    "reservedGuest": "Mr. Smith, party of 4"
   },
   "orderMgmt": {
     "title": "Order Management",
