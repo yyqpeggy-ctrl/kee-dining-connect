@@ -1,24 +1,28 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, FunnelChart, Funnel, LabelList } from "recharts";
 import StatCard from "@/components/StatCard";
-import { Eye, MousePointerClick, UserPlus, Repeat, Globe, MapPin } from "lucide-react";
+import { Eye, MousePointerClick, UserPlus, Repeat, Globe, MapPin, MessageCircle, BookOpen, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const trafficSource = [
-  { name: "organicSearch", value: 32 },
-  { name: "socialMediaTraffic", value: 28 },
-  { name: "directVisit", value: 18 },
-  { name: "paidAds", value: 14 },
-  { name: "referralLinks", value: 8 },
+  { name: "organicSearch", value: 22 },
+  { name: "socialMediaTraffic", value: 18 },
+  { name: "wechatTraffic", value: 20 },
+  { name: "xiaohongshuTraffic", value: 15 },
+  { name: "dianpingTraffic", value: 12 },
+  { name: "directVisit", value: 7 },
+  { name: "paidAds", value: 6 },
 ];
 
 const COLORS = [
   "hsl(var(--primary))",
-  "hsl(0, 70%, 55%)",
+  "hsl(330, 70%, 55%)",
+  "hsl(142, 60%, 45%)",
+  "hsl(0, 75%, 60%)",
+  "hsl(30, 90%, 55%)",
   "hsl(var(--accent))",
   "hsl(45, 90%, 50%)",
-  "hsl(var(--secondary))",
 ];
 
 const hourlyTraffic = Array.from({ length: 24 }, (_, i) => ({
@@ -45,9 +49,55 @@ const conversionFunnel = [
   { stage: "funnelRepeat", count: 1120, percent: 7.0 },
 ];
 
+const platformFunnels = [
+  {
+    platformZh: "微信公众号", platformEn: "WeChat",
+    icon: MessageCircle, color: "text-green-500", bgColor: "bg-green-500/10", barColor: "hsl(142, 60%, 45%)",
+    steps: [
+      { nameZh: "推文阅读", nameEn: "Article Read", count: 48000 },
+      { nameZh: "点击链接", nameEn: "Link Click", count: 12600 },
+      { nameZh: "浏览菜单", nameEn: "Browse Menu", count: 6800 },
+      { nameZh: "领取优惠券", nameEn: "Claim Coupon", count: 3200 },
+      { nameZh: "到店消费", nameEn: "In-store Visit", count: 1860 },
+    ]
+  },
+  {
+    platformZh: "小红书", platformEn: "Xiaohongshu",
+    icon: BookOpen, color: "text-red-400", bgColor: "bg-red-400/10", barColor: "hsl(0, 75%, 60%)",
+    steps: [
+      { nameZh: "笔记曝光", nameEn: "Note Impression", count: 526000 },
+      { nameZh: "笔记点击", nameEn: "Note Click", count: 68000 },
+      { nameZh: "收藏/点赞", nameEn: "Save/Like", count: 28000 },
+      { nameZh: "私信咨询", nameEn: "DM Inquiry", count: 4200 },
+      { nameZh: "到店打卡", nameEn: "Check-in", count: 1240 },
+    ]
+  },
+  {
+    platformZh: "大众点评", platformEn: "Dianping",
+    icon: Star, color: "text-orange-500", bgColor: "bg-orange-500/10", barColor: "hsl(30, 90%, 55%)",
+    steps: [
+      { nameZh: "店铺浏览", nameEn: "Store View", count: 86000 },
+      { nameZh: "查看评价", nameEn: "Read Reviews", count: 42000 },
+      { nameZh: "领取团购券", nameEn: "Claim Deal", count: 12800 },
+      { nameZh: "电话/导航", nameEn: "Call/Navigate", count: 6400 },
+      { nameZh: "到店核销", nameEn: "Redeem Visit", count: 3400 },
+    ]
+  },
+];
+
 const TrafficAnalyticsTab = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+
+  const trafficSourceLabels: Record<string, string> = {
+    organicSearch: isZh ? "自然搜索" : "Organic Search",
+    socialMediaTraffic: isZh ? "海外社媒" : "Global Social",
+    wechatTraffic: isZh ? "微信引流" : "WeChat",
+    xiaohongshuTraffic: isZh ? "小红书引流" : "Xiaohongshu",
+    dianpingTraffic: isZh ? "大众点评" : "Dianping",
+    directVisit: isZh ? "直接访问" : "Direct Visit",
+    paidAds: isZh ? "付费广告" : "Paid Ads",
+  };
 
   return (
     <div className="space-y-6">
@@ -88,7 +138,7 @@ const TrafficAnalyticsTab = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
-                <Pie data={trafficSource} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value">
+                <Pie data={trafficSource} cx="50%" cy="50%" innerRadius={40} outerRadius={65} dataKey="value">
                   {trafficSource.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -101,7 +151,7 @@ const TrafficAnalyticsTab = () => {
                 <div key={s.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-                    <span className="text-muted-foreground">{t(`marketingMgmt.${s.name}`)}</span>
+                    <span className="text-muted-foreground">{trafficSourceLabels[s.name] || s.name}</span>
                   </div>
                   <span className="font-medium text-foreground">{s.value}%</span>
                 </div>
@@ -111,7 +161,64 @@ const TrafficAnalyticsTab = () => {
         </Card>
       </div>
 
-      {/* City distribution + Funnel */}
+      {/* Chinese Platform Conversion Funnels */}
+      <div>
+        <h3 className="text-base font-semibold text-foreground mb-4">{isZh ? "中国平台转化漏斗" : "Chinese Platform Conversion Funnels"}</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {platformFunnels.map((pf) => {
+            const Icon = pf.icon;
+            const maxCount = pf.steps[0].count;
+            return (
+              <Card key={pf.platformEn}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg ${pf.bgColor} flex items-center justify-center`}>
+                      <Icon className={`w-4 h-4 ${pf.color}`} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm">{isZh ? pf.platformZh : pf.platformEn}</CardTitle>
+                      <CardDescription className="text-xs">
+                        {isZh ? "转化率" : "Conv. Rate"}: {((pf.steps[pf.steps.length - 1].count / pf.steps[0].count) * 100).toFixed(1)}%
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2.5">
+                  {pf.steps.map((step, i) => {
+                    const pct = (step.count / maxCount) * 100;
+                    const dropoff = i > 0 ? ((1 - step.count / pf.steps[i - 1].count) * 100).toFixed(0) : null;
+                    return (
+                      <div key={step.nameEn}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-foreground">{isZh ? step.nameZh : step.nameEn}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">
+                              {step.count >= 10000 ? `${(step.count / 10000).toFixed(1)}万` : step.count.toLocaleString()}
+                            </span>
+                            {dropoff && (
+                              <span className="text-destructive text-[10px]">-{dropoff}%</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="h-4 bg-muted rounded overflow-hidden">
+                          <div
+                            className="h-full rounded transition-all flex items-center justify-end pr-1.5"
+                            style={{ width: `${Math.max(pct, 5)}%`, backgroundColor: pf.barColor }}
+                          >
+                            {pct > 20 && <span className="text-[9px] text-white font-medium">{pct.toFixed(0)}%</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* City distribution + Overall Funnel */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
