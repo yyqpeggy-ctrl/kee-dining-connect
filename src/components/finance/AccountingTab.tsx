@@ -7,26 +7,27 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
 
 const journalEntries = [
-  { id: "JE001", date: "2024-02-15", type: "收入", account: "主营业务收入", debit: 0, credit: 28640, description: "总店当日营收", status: "已审核" },
-  { id: "JE002", date: "2024-02-15", type: "收入", account: "主营业务收入", debit: 0, credit: 35280, description: "国贸分店当日营收", status: "已审核" },
-  { id: "JE003", date: "2024-02-15", type: "支出", account: "原材料采购", debit: 15800, credit: 0, description: "海鲜供应商采购", status: "已审核" },
-  { id: "JE004", date: "2024-02-14", type: "支出", account: "应付职工薪酬", debit: 183000, credit: 0, description: "2月员工工资", status: "待审核" },
-  { id: "JE005", date: "2024-02-14", type: "支出", account: "管理费用-租金", debit: 45000, credit: 0, description: "总店2月租金", status: "已审核" },
-  { id: "JE006", date: "2024-02-13", type: "支出", account: "管理费用-水电", debit: 8500, credit: 0, description: "各门店水电费", status: "已审核" },
-  { id: "JE007", date: "2024-02-13", type: "收入", account: "主营业务收入", debit: 0, credit: 42150, description: "三里屯分店当日营收", status: "已审核" },
+  { id: "JE001", date: "2024-02-15", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 28640, descZh: "总店当日营收", descEn: "Main store daily revenue", status: "reviewed" },
+  { id: "JE002", date: "2024-02-15", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 35280, descZh: "国贸分店当日营收", descEn: "Guomao branch daily revenue", status: "reviewed" },
+  { id: "JE003", date: "2024-02-15", type: "expense", accountZh: "原材料采购", accountEn: "Raw Materials", debit: 15800, credit: 0, descZh: "海鲜供应商采购", descEn: "Seafood supplier procurement", status: "reviewed" },
+  { id: "JE004", date: "2024-02-14", type: "expense", accountZh: "应付职工薪酬", accountEn: "Employee Compensation", debit: 183000, credit: 0, descZh: "2月员工工资", descEn: "Feb employee salaries", status: "pending" },
+  { id: "JE005", date: "2024-02-14", type: "expense", accountZh: "管理费用-租金", accountEn: "Admin - Rent", debit: 45000, credit: 0, descZh: "总店2月租金", descEn: "Main store Feb rent", status: "reviewed" },
+  { id: "JE006", date: "2024-02-13", type: "expense", accountZh: "管理费用-水电", accountEn: "Admin - Utilities", debit: 8500, credit: 0, descZh: "各门店水电费", descEn: "All stores utilities", status: "reviewed" },
+  { id: "JE007", date: "2024-02-13", type: "income", accountZh: "主营业务收入", accountEn: "Operating Revenue", debit: 0, credit: 42150, descZh: "三里屯分店当日营收", descEn: "Sanlitun branch daily revenue", status: "reviewed" },
 ];
 
 const accountSummary = [
-  { name: "库存现金", balance: 125000, type: "资产" },
-  { name: "银行存款", balance: 2850000, type: "资产" },
-  { name: "应收账款", balance: 180000, type: "资产" },
-  { name: "原材料", balance: 320000, type: "资产" },
-  { name: "应付账款", balance: 450000, type: "负债" },
-  { name: "应付职工薪酬", balance: 183000, type: "负债" },
+  { nameZh: "库存现金", nameEn: "Cash on Hand", balance: 125000, typeKey: "asset" },
+  { nameZh: "银行存款", nameEn: "Bank Deposits", balance: 2850000, typeKey: "asset" },
+  { nameZh: "应收账款", nameEn: "Accounts Receivable", balance: 180000, typeKey: "asset" },
+  { nameZh: "原材料", nameEn: "Raw Materials", balance: 320000, typeKey: "asset" },
+  { nameZh: "应付账款", nameEn: "Accounts Payable", balance: 450000, typeKey: "liability" },
+  { nameZh: "应付职工薪酬", nameEn: "Employee Compensation Payable", balance: 183000, typeKey: "liability" },
 ];
 
 const AccountingTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
 
   return (
     <div className="space-y-6">
@@ -37,20 +38,11 @@ const AccountingTab = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder={t("financeMgmt.searchVoucher")} className="pl-9 w-64 bg-muted/50 border-border/50" />
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="w-4 h-4" />
-            {t("common.filter")}
-          </Button>
+          <Button variant="outline" size="sm" className="gap-2"><Filter className="w-4 h-4" />{t("common.filter")}</Button>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <FileText className="w-4 h-4" />
-            {t("financeMgmt.importVoucher")}
-          </Button>
-          <Button size="sm" className="gap-2">
-            <Plus className="w-4 h-4" />
-            {t("financeMgmt.newVoucher")}
-          </Button>
+          <Button variant="outline" size="sm" className="gap-2"><FileText className="w-4 h-4" />{t("financeMgmt.importVoucher")}</Button>
+          <Button size="sm" className="gap-2"><Plus className="w-4 h-4" />{t("financeMgmt.newVoucher")}</Button>
         </div>
       </div>
 
@@ -76,23 +68,19 @@ const AccountingTab = () => {
                   <TableCell className="text-xs text-muted-foreground">{entry.date}</TableCell>
                   <TableCell>
                     <div>
-                      <p className="text-sm font-medium">{entry.account}</p>
-                      <p className="text-xs text-muted-foreground">{entry.description}</p>
+                      <p className="text-sm font-medium">{isZh ? entry.accountZh : entry.accountEn}</p>
+                      <p className="text-xs text-muted-foreground">{isZh ? entry.descZh : entry.descEn}</p>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    {entry.debit > 0 && (
-                      <span className="text-destructive font-medium">¥{entry.debit.toLocaleString()}</span>
-                    )}
+                    {entry.debit > 0 && (<span className="text-destructive font-medium">¥{entry.debit.toLocaleString()}</span>)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {entry.credit > 0 && (
-                      <span className="text-success font-medium">¥{entry.credit.toLocaleString()}</span>
-                    )}
+                    {entry.credit > 0 && (<span className="text-success font-medium">¥{entry.credit.toLocaleString()}</span>)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={entry.status === "已审核" ? "secondary" : "outline"} className="text-xs">
-                      {entry.status === "已审核" ? t("financeMgmt.reviewed") : t("financeMgmt.pendingReview")}
+                    <Badge variant={entry.status === "reviewed" ? "secondary" : "outline"} className="text-xs">
+                      {entry.status === "reviewed" ? t("financeMgmt.reviewed") : t("financeMgmt.pendingReview")}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -106,12 +94,12 @@ const AccountingTab = () => {
           <h3 className="text-sm font-semibold mb-4">{t("financeMgmt.accountBalance")}</h3>
           <div className="space-y-3">
             {accountSummary.map((account) => (
-              <div key={account.name} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+              <div key={isZh ? account.nameZh : account.nameEn} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${account.type === "资产" ? "bg-success" : "bg-warning"}`} />
-                  <span className="text-sm">{account.name}</span>
+                  <div className={`w-2 h-2 rounded-full ${account.typeKey === "asset" ? "bg-success" : "bg-warning"}`} />
+                  <span className="text-sm">{isZh ? account.nameZh : account.nameEn}</span>
                 </div>
-                <span className={`font-medium ${account.type === "资产" ? "text-success" : "text-warning"}`}>
+                <span className={`font-medium ${account.typeKey === "asset" ? "text-success" : "text-warning"}`}>
                   ¥{account.balance.toLocaleString()}
                 </span>
               </div>

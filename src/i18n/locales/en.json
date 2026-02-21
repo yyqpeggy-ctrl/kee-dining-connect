@@ -86,7 +86,8 @@
     "reserved": "Reserved",
     "cleaning": "Cleaning",
     "openTable": "Open Table",
-    "finishCleaning": "Finish Cleaning"
+    "finishCleaning": "Finish Cleaning",
+    "reservedGuest": "Mr. Wang"
   },
   "orderMgmt": {
     "title": "Order Management",

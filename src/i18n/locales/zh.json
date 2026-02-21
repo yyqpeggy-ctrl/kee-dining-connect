@@ -86,7 +86,8 @@
     "reserved": "已预订",
     "cleaning": "清理中",
     "openTable": "开台",
-    "finishCleaning": "完成清理"
+    "finishCleaning": "完成清理",
+    "reservedGuest": "王先生"
   },
   "orderMgmt": {
     "title": "订单管理",

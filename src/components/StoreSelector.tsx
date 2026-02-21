@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronDown, MapPin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export interface Store {
   id: string;
@@ -16,6 +17,13 @@ export const stores: Store[] = [
   { id: "4", name: "望京分店", address: "朝阳区望京SOHO", status: "offline" },
 ];
 
+const storeNames: Record<string, { zh: string; en: string }> = {
+  "1": { zh: "总店", en: "Main Store" },
+  "2": { zh: "国贸分店", en: "Guomao Branch" },
+  "3": { zh: "三里屯分店", en: "Sanlitun Branch" },
+  "4": { zh: "望京分店", en: "Wangjing Branch" },
+};
+
 interface StoreSelectorProps {
   currentStore: Store;
   onStoreChange: (store: Store) => void;
@@ -23,6 +31,13 @@ interface StoreSelectorProps {
 
 const StoreSelector = ({ currentStore, onStoreChange }: StoreSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
+
+  const getStoreName = (store: Store) => {
+    const names = storeNames[store.id];
+    return names ? (isZh ? names.zh : names.en) : store.name;
+  };
 
   return (
     <div className="relative">
@@ -34,7 +49,7 @@ const StoreSelector = ({ currentStore, onStoreChange }: StoreSelectorProps) => {
           <MapPin className="w-3.5 h-3.5 text-primary" />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-xs font-medium text-foreground">{currentStore.name}</p>
+          <p className="text-xs font-medium text-foreground">{getStoreName(currentStore)}</p>
           <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{currentStore.address}</p>
         </div>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -62,7 +77,7 @@ const StoreSelector = ({ currentStore, onStoreChange }: StoreSelectorProps) => {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium">{store.name}</span>
+                      <span className="text-xs font-medium">{getStoreName(store)}</span>
                       <span className={`w-1.5 h-1.5 rounded-full ${store.status === "online" ? "bg-success" : "bg-muted-foreground"}`} />
                     </div>
                     <p className="text-[10px] text-muted-foreground">{store.address}</p>

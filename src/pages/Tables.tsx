@@ -88,7 +88,7 @@ const Tables = () => {
                 <button className="mt-3 w-full text-xs py-1.5 rounded-md bg-success/15 text-success font-medium hover:bg-success/25 transition-colors">{t("tableMgmt.openTable")}</button>
               )}
               {table.status === "reserved" && (
-                <div className="mt-3 flex items-center gap-1 text-xs text-warning"><Clock className="w-3 h-3" /><span>18:30 · Mr. Wang</span></div>
+                <div className="mt-3 flex items-center gap-1 text-xs text-warning"><Clock className="w-3 h-3" /><span>18:30 · {t("tableMgmt.reservedGuest")}</span></div>
               )}
               {table.status === "cleaning" && (
                 <button className="mt-3 w-full text-xs py-1.5 rounded-md bg-muted text-muted-foreground font-medium flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" />{t("tableMgmt.finishCleaning")}</button>
