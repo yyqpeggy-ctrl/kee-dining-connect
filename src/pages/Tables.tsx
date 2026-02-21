@@ -16,18 +16,22 @@ interface TableItem {
 }
 
 const tables: TableItem[] = [
-  { id: 1, name: "A1", seats: 4, status: "occupied", guests: 3, duration: "45min", amount: "¥268" },
+  { id: 1, name: "A1", seats: 4, status: "occupied", guests: 3, duration: "45min", amount: "¥468" },
   { id: 2, name: "A2", seats: 4, status: "available" },
   { id: 3, name: "A3", seats: 2, status: "occupied", guests: 2, duration: "1h20min", amount: "¥186" },
   { id: 4, name: "A4", seats: 6, status: "reserved" },
   { id: 5, name: "B1", seats: 8, status: "occupied", guests: 7, duration: "30min", amount: "¥520" },
   { id: 6, name: "B2", seats: 4, status: "available" },
   { id: 7, name: "B3", seats: 2, status: "cleaning" },
-  { id: 8, name: "B4", seats: 4, status: "occupied", guests: 4, duration: "55min", amount: "¥340" },
-  { id: 9, name: "C1", seats: 10, status: "reserved" },
-  { id: 10, name: "C2", seats: 6, status: "available" },
-  { id: 11, name: "C3", seats: 4, status: "occupied", guests: 2, duration: "20min", amount: "¥98" },
-  { id: 12, name: "C4", seats: 2, status: "available" },
+  { id: 8, name: "B4", seats: 6, status: "occupied", guests: 5, duration: "55min", amount: "¥448" },
+  { id: 9, name: "KTV-1", seats: 10, status: "occupied", guests: 8, duration: "1h30min", amount: "¥588" },
+  { id: 10, name: "KTV-2", seats: 8, status: "occupied", guests: 6, duration: "40min", amount: "¥288" },
+  { id: 11, name: "KTV-3", seats: 12, status: "reserved" },
+  { id: 12, name: "🎯 Darts", seats: 6, status: "occupied", guests: 4, duration: "1h", amount: "¥320" },
+  { id: 13, name: "C1", seats: 10, status: "occupied", guests: 6, duration: "20min", amount: "¥520" },
+  { id: 14, name: "C2", seats: 6, status: "available" },
+  { id: 15, name: "C3", seats: 4, status: "occupied", guests: 2, duration: "25min", amount: "¥178" },
+  { id: 16, name: "C4", seats: 2, status: "available" },
 ];
 
 const Tables = () => {

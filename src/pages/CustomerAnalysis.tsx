@@ -36,20 +36,20 @@ const CustomerAnalysis = () => {
   ];
 
   const timePreference = [
-    { time: isZh ? "午餐" : "Lunch", foreign: 15, chinese: 25 },
-    { time: isZh ? "下午茶" : "Afternoon", foreign: 20, chinese: 10 },
-    { time: "Happy Hour", foreign: 35, chinese: 18 },
-    { time: isZh ? "晚餐" : "Dinner", foreign: 55, chinese: 42 },
-    { time: isZh ? "深夜" : "Late Night", foreign: 30, chinese: 12 },
+    { time: isZh ? "午餐" : "Lunch", foreign: 12, chinese: 20 },
+    { time: isZh ? "下午茶" : "Afternoon", foreign: 15, chinese: 8 },
+    { time: "Happy Hour", foreign: 40, chinese: 22 },
+    { time: isZh ? "晚餐" : "Dinner", foreign: 50, chinese: 42 },
+    { time: isZh ? "深夜(KTV/飞镖)" : "Late Night (KTV/Darts)", foreign: 45, chinese: 35 },
   ];
 
   const categoryPreference = [
-    { category: "Tapas", foreign: 85, chinese: 72 },
+    { category: "Tapas", foreign: 75, chinese: 72 },
     { category: isZh ? "鸡尾酒" : "Cocktails", foreign: 78, chinese: 55 },
-    { category: isZh ? "红酒" : "Wine", foreign: 70, chinese: 48 },
-    { category: isZh ? "主菜" : "Mains", foreign: 60, chinese: 80 },
-    { category: isZh ? "甜点" : "Desserts", foreign: 45, chinese: 65 },
-    { category: isZh ? "啤酒" : "Beer", foreign: 65, chinese: 58 },
+    { category: "KTV", foreign: 60, chinese: 85 },
+    { category: isZh ? "飞镖" : "Darts", foreign: 88, chinese: 45 },
+    { category: isZh ? "啤酒" : "Beer", foreign: 82, chinese: 68 },
+    { category: isZh ? "主菜" : "Mains", foreign: 55, chinese: 75 },
   ];
 
   const channelData = [

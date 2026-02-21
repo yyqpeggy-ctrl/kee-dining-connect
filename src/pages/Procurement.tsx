@@ -38,16 +38,17 @@ const suppliers: Supplier[] = [
   { id: "S001", nameZh: "西班牙德赫萨火腿", nameEn: "Dehesa Ibérica Imports", categoryZh: "火腿/腌肉", categoryEn: "Charcuterie", contactZh: "Carlos经理", contactEn: "Manager Carlos", phone: "139****8888", rating: 4.9, totalOrders: 86, lastOrder: "2026-02-08", status: "active" },
   { id: "S002", nameZh: "上海崇明有机农场", nameEn: "Chongming Organic Farm", categoryZh: "蔬菜/沙拉", categoryEn: "Vegetables/Salad", contactZh: "李总", contactEn: "Director Li", phone: "138****6666", rating: 4.5, totalOrders: 189, lastOrder: "2026-02-09", status: "active" },
   { id: "S003", nameZh: "Barcelona精酿贸易", nameEn: "Barcelona Craft Trading", categoryZh: "酒水", categoryEn: "Beverages", contactZh: "张经理", contactEn: "Manager Zhang", phone: "137****5555", rating: 4.8, totalOrders: 78, lastOrder: "2026-02-05", status: "active" },
-  { id: "S004", nameZh: "法国奶酪之家", nameEn: "La Maison du Fromage", categoryZh: "奶酪/乳品", categoryEn: "Cheese/Dairy", contactZh: "Sophie", contactEn: "Sophie", phone: "136****4444", rating: 4.6, totalOrders: 52, lastOrder: "2026-01-20", status: "active" },
+  { id: "S004", nameZh: "KTV设备供应商", nameEn: "KTV Equipment Co.", categoryZh: "KTV设备/耗材", categoryEn: "KTV Equipment", contactZh: "王经理", contactEn: "Manager Wang", phone: "136****4444", rating: 4.6, totalOrders: 35, lastOrder: "2026-01-20", status: "active" },
   { id: "S005", nameZh: "澳洲牛肉直供", nameEn: "Aussie Beef Direct", categoryZh: "肉类", categoryEn: "Meat", contactZh: "Mark刘", contactEn: "Manager Mark", phone: "135****3333", rating: 4.7, totalOrders: 92, lastOrder: "2026-02-07", status: "active" },
+  { id: "S006", nameZh: "飞镖&桌游批发", nameEn: "Darts & Games Wholesale", categoryZh: "游戏设备", categoryEn: "Game Equipment", contactZh: "David", contactEn: "David", phone: "134****2222", rating: 4.4, totalOrders: 18, lastOrder: "2026-01-15", status: "active" },
 ];
 
 const purchaseOrders: PurchaseOrder[] = [
   { id: "PO-2026-001", supplierZh: "西班牙德赫萨火腿", supplierEn: "Dehesa Ibérica Imports", itemsZh: "伊比利亚火腿 5kg, 西班牙辣肠 3kg", itemsEn: "Jamón Ibérico 5kg, Chorizo 3kg", total: "¥18,500", orderDate: "2026-02-08", deliveryDate: "2026-02-12", status: "shipping" },
   { id: "PO-2026-002", supplierZh: "上海崇明有机农场", supplierEn: "Chongming Organic Farm", itemsZh: "芝麻菜 20kg, 番茄 30kg, 辣椒 10kg", itemsEn: "Arugula 20kg, Tomato 30kg, Peppers 10kg", total: "¥2,800", orderDate: "2026-02-09", deliveryDate: "2026-02-09", status: "delivered" },
-  { id: "PO-2026-003", supplierZh: "Barcelona精酿贸易", supplierEn: "Barcelona Craft Trading", itemsZh: "Estrella Damm 10箱, Sangria原料 5箱", itemsEn: "Estrella Damm 10 cases, Sangria mix 5 cases", total: "¥6,800", orderDate: "2026-02-07", deliveryDate: "2026-02-10", status: "confirmed" },
-  { id: "PO-2026-004", supplierZh: "澳洲牛肉直供", supplierEn: "Aussie Beef Direct", itemsZh: "Tomahawk牛排 30kg, 羊排 15kg", itemsEn: "Tomahawk Steak 30kg, Lamb Rack 15kg", total: "¥22,600", orderDate: "2026-02-06", deliveryDate: "2026-02-08", status: "delivered" },
-  { id: "PO-2026-005", supplierZh: "法国奶酪之家", supplierEn: "La Maison du Fromage", itemsZh: "Manchego奶酪 5kg, 蓝纹奶酪 3kg, 布里奶酪 3kg", itemsEn: "Manchego 5kg, Blue Cheese 3kg, Brie 3kg", total: "¥8,200", orderDate: "2026-02-09", deliveryDate: "2026-02-11", status: "pending" },
+  { id: "PO-2026-003", supplierZh: "Barcelona精酿贸易", supplierEn: "Barcelona Craft Trading", itemsZh: "Estrella Damm 10箱, Sangria原料 5箱, 精酿IPA 8箱", itemsEn: "Estrella Damm 10 cases, Sangria mix 5 cases, Craft IPA 8 cases", total: "¥9,200", orderDate: "2026-02-07", deliveryDate: "2026-02-10", status: "confirmed" },
+  { id: "PO-2026-004", supplierZh: "KTV设备供应商", supplierEn: "KTV Equipment Co.", itemsZh: "话筒套500个, 音响配件, 灯光效果器", itemsEn: "Mic covers 500pcs, Speaker parts, Light effects unit", total: "¥4,500", orderDate: "2026-02-06", deliveryDate: "2026-02-08", status: "delivered" },
+  { id: "PO-2026-005", supplierZh: "飞镖&桌游批发", supplierEn: "Darts & Games Wholesale", itemsZh: "飞镖针10套, 飞镖靶面2个, 桌游补充包", itemsEn: "Dart tips 10 sets, Dartboards 2pcs, Board game expansions", total: "¥3,200", orderDate: "2026-02-09", deliveryDate: "2026-02-11", status: "pending" },
 ];
 
 const Procurement = () => {

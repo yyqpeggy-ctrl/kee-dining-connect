@@ -27,6 +27,9 @@ const inventory: InventoryItem[] = [
   { id: 6, nameZh: "Patrón龙舌兰", nameEn: "Patrón Tequila", categoryZh: "烈酒", categoryEn: "Spirits", stock: 3, unit: "btl", pourCost: 22, targetCost: 20, usage7d: 6, status: "low" },
   { id: 7, nameZh: "Fever-Tree汤力水", nameEn: "Fever-Tree Tonic Water", categoryZh: "软饮", categoryEn: "Mixers", stock: 48, unit: "btl", pourCost: 8, targetCost: 10, usage7d: 60, status: "normal" },
   { id: 8, nameZh: "Sangria预调酒", nameEn: "Sangria House Blend", categoryZh: "鸡尾酒", categoryEn: "Cocktails", stock: 20, unit: "L", pourCost: 25, targetCost: 22, usage7d: 35, status: "critical" },
+  { id: 9, nameZh: "KTV话筒套", nameEn: "Microphone Covers", categoryZh: "耗材", categoryEn: "Supplies", stock: 200, unit: "pcs", pourCost: 0, targetCost: 0, usage7d: 120, status: "normal" },
+  { id: 10, nameZh: "飞镖针（钢尖）", nameEn: "Steel Tip Darts", categoryZh: "游戏耗材", categoryEn: "Game Supplies", stock: 24, unit: "set", pourCost: 0, targetCost: 0, usage7d: 6, status: "normal" },
+  { id: 11, nameZh: "爆米花原料", nameEn: "Popcorn Kernels", categoryZh: "小食原料", categoryEn: "Snack Ingredients", stock: 8, unit: "kg", pourCost: 12, targetCost: 15, usage7d: 15, status: "low" },
 ];
 
 const Inventory = () => {

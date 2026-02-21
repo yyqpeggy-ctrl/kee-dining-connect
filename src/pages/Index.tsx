@@ -33,11 +33,11 @@ const revenueData = [
 const COLORS = ["hsl(36, 90%, 55%)", "hsl(24, 85%, 50%)", "hsl(152, 60%, 45%)", "hsl(210, 70%, 55%)"];
 
 const topItems = [
-  { nameZh: "西班牙火腿拼盘", nameEn: "Jamón Ibérico Platter", orders: 68, revenue: "¥8,160" },
+  { nameZh: "KTV包厢套餐", nameEn: "Karaoke Room Package", orders: 42, revenue: "¥24,360" },
+  { nameZh: "精酿啤酒桶5L", nameEn: "Craft Beer Tower 5L", orders: 86, revenue: "¥12,040" },
+  { nameZh: "飞镖区+酒水套餐", nameEn: "Darts Zone + Drinks", orders: 56, revenue: "¥8,960" },
   { nameZh: "Gin & Tonic", nameEn: "Gin & Tonic", orders: 124, revenue: "¥7,440" },
-  { nameZh: "蒜香虾 Gambas", nameEn: "Gambas al Ajillo", orders: 86, revenue: "¥6,020" },
-  { nameZh: "Sangria红酒", nameEn: "Sangria", orders: 95, revenue: "¥5,700" },
-  { nameZh: "Tomahawk战斧牛排", nameEn: "Tomahawk Steak", orders: 32, revenue: "¥9,600" },
+  { nameZh: "炸鸡翅拼盘", nameEn: "Chicken Wings Platter", orders: 98, revenue: "¥6,860" },
 ];
 
 const pourCostData = [
@@ -45,7 +45,7 @@ const pourCostData = [
   { nameZh: "金酒/龙舌兰", nameEn: "Gin/Tequila", cost: 18, target: 20 },
   { nameZh: "红酒", nameEn: "Wine", cost: 30, target: 28 },
   { nameZh: "鸡尾酒", nameEn: "Cocktails", cost: 24, target: 22 },
-  { nameZh: "软饮/果汁", nameEn: "Soft Drinks", cost: 12, target: 15 },
+  { nameZh: "KTV酒水套餐", nameEn: "KTV Packages", cost: 15, target: 18 },
 ];
 
 const Dashboard = () => {
@@ -53,10 +53,10 @@ const Dashboard = () => {
   const isZh = i18n.language === 'zh';
 
   const categoryData = [
-    { name: t("dashboard.categories.tapas"), value: 38 },
+    { name: t("dashboard.categories.tapas"), value: 25 },
     { name: t("dashboard.categories.drinks"), value: 35 },
-    { name: t("dashboard.categories.mains"), value: 18 },
-    { name: t("dashboard.categories.desserts"), value: 9 },
+    { name: t("dashboard.categories.entertainment"), value: 28 },
+    { name: t("dashboard.categories.mains"), value: 12 },
   ];
 
   return (

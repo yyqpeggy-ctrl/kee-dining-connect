@@ -21,14 +21,14 @@ interface Order {
 }
 
 const orders: Order[] = [
-  { id: "ORD-001", table: "A1", items: [{ nameZh: "西班牙火腿拼盘", nameEn: "Jamón Ibérico Platter" }, { nameZh: "Sangria 红酒 x2", nameEn: "Sangria x2" }], total: "¥368", time: "19:32", status: "preparing" },
-  { id: "ORD-002", table: "B1", items: [{ nameZh: "蒜香虾 Gambas al Ajillo", nameEn: "Gambas al Ajillo" }, { nameZh: "烤章鱼 Pulpo", nameEn: "Grilled Octopus Pulpo" }, { nameZh: "面包篮 x2", nameEn: "Bread Basket x2" }], total: "¥520", time: "19:15", status: "served" },
-  { id: "ORD-003", table: "A3", items: [{ nameZh: "Gin Tonic x2", nameEn: "Gin & Tonic x2" }, { nameZh: "帕德龙辣椒 Padrón", nameEn: "Padrón Peppers" }], total: "¥186", time: "19:45", status: "pending" },
-  { id: "ORD-004", table: "C3", items: [{ nameZh: "精酿IPA x3", nameEn: "Craft IPA x3" }], total: "¥138", time: "20:01", status: "preparing" },
-  { id: "ORD-005", table: "B4", items: [{ nameZh: "西班牙蛋饼 Tortilla", nameEn: "Spanish Tortilla" }, { nameZh: "炸丸子 Croquetas", nameEn: "Croquetas" }, { nameZh: "红酒 x2", nameEn: "House Red x2" }], total: "¥288", time: "18:50", status: "completed" },
+  { id: "ORD-001", table: "A1", items: [{ nameZh: "西班牙火腿拼盘", nameEn: "Jamón Ibérico Platter" }, { nameZh: "Sangria 红酒 x2", nameEn: "Sangria x2" }, { nameZh: "飞镖区1小时", nameEn: "Darts Zone 1hr" }], total: "¥468", time: "19:32", status: "preparing" },
+  { id: "ORD-002", table: "B1", items: [{ nameZh: "蒜香虾 Gambas", nameEn: "Gambas al Ajillo" }, { nameZh: "精酿啤酒桶 5L", nameEn: "Craft Beer Tower 5L" }, { nameZh: "炸鸡翅拼盘", nameEn: "Chicken Wings Platter" }], total: "¥520", time: "19:15", status: "served" },
+  { id: "ORD-003", table: "KTV-1", items: [{ nameZh: "KTV包厢2小时", nameEn: "Karaoke Room 2hrs" }, { nameZh: "酒水套餐A（6瓶啤酒+小食）", nameEn: "Drink Package A (6 beers + snacks)" }], total: "¥588", time: "19:45", status: "pending" },
+  { id: "ORD-004", table: "C3", items: [{ nameZh: "精酿IPA x3", nameEn: "Craft IPA x3" }, { nameZh: "薯条拼盘", nameEn: "Loaded Fries" }], total: "¥178", time: "20:01", status: "preparing" },
+  { id: "ORD-005", table: "B4", items: [{ nameZh: "Nachos芝士玉米片", nameEn: "Loaded Nachos" }, { nameZh: "Mojito x4", nameEn: "Mojito x4" }, { nameZh: "飞镖比赛报名x4", nameEn: "Darts Tournament Entry x4" }], total: "¥448", time: "18:50", status: "completed" },
   { id: "ORD-006", table: "A2", items: [{ nameZh: "Tomahawk战斧牛排", nameEn: "Tomahawk Steak" }, { nameZh: "Rioja红酒整瓶", nameEn: "Rioja Wine (Bottle)" }], total: "¥880", time: "18:30", status: "completed" },
-  { id: "ORD-007", table: "B3", items: [{ nameZh: "柠檬水 x2", nameEn: "Sparkling Lemonade x2" }], total: "¥48", time: "20:10", status: "cancelled" },
-  { id: "ORD-008", table: "C1", items: [{ nameZh: "芝士拼盘", nameEn: "Cheese Board" }, { nameZh: "精酿啤酒 x4", nameEn: "Craft Beer x4" }, { nameZh: "橄榄盘", nameEn: "Marinated Olives" }], total: "¥420", time: "17:55", status: "completed" },
+  { id: "ORD-007", table: "KTV-2", items: [{ nameZh: "KTV包厢1小时", nameEn: "Karaoke Room 1hr" }, { nameZh: "果盘+软饮", nameEn: "Fruit Platter + Soft Drinks" }], total: "¥288", time: "20:10", status: "preparing" },
+  { id: "ORD-008", table: "C1", items: [{ nameZh: "芝士拼盘", nameEn: "Cheese Board" }, { nameZh: "精酿啤酒 x6", nameEn: "Craft Beer x6" }, { nameZh: "飞镖区2小时", nameEn: "Darts Zone 2hrs" }], total: "¥520", time: "17:55", status: "completed" },
 ];
 
 const Orders = () => {
