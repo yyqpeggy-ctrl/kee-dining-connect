@@ -14,6 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
+      event_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          delivery_stats: Json | null
+          error_message: string | null
+          event_id: string
+          event_name: string
+          id: string
+          message_content: string | null
+          message_template: string
+          recipient_count: number
+          rule_name: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          target_type: string
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          delivery_stats?: Json | null
+          error_message?: string | null
+          event_id: string
+          event_name: string
+          id?: string
+          message_content?: string | null
+          message_template: string
+          recipient_count?: number
+          rule_name?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          target_type: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          delivery_stats?: Json | null
+          error_message?: string | null
+          event_id?: string
+          event_name?: string
+          id?: string
+          message_content?: string | null
+          message_template?: string
+          recipient_count?: number
+          rule_name?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          target_type?: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_reminder_rules: {
+        Row: {
+          channel: string
+          created_at: string
+          description: string | null
+          description_zh: string | null
+          id: string
+          is_active: boolean
+          message_template: string
+          message_template_zh: string
+          rule_name: string
+          rule_name_zh: string
+          target_type: string
+          trigger_offset_minutes: number
+          trigger_relative_to: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          description?: string | null
+          description_zh?: string | null
+          id?: string
+          is_active?: boolean
+          message_template: string
+          message_template_zh: string
+          rule_name: string
+          rule_name_zh: string
+          target_type?: string
+          trigger_offset_minutes: number
+          trigger_relative_to?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          description?: string | null
+          description_zh?: string | null
+          id?: string
+          is_active?: boolean
+          message_template?: string
+          message_template_zh?: string
+          rule_name?: string
+          rule_name_zh?: string
+          target_type?: string
+          trigger_offset_minutes?: number
+          trigger_relative_to?: string
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           category: string
