@@ -283,6 +283,7 @@ export type Database = {
           ingredients: Json | null
           is_available: boolean
           is_featured: boolean
+          max_participants: number | null
           name_en: string
           name_zh: string
           price: number
@@ -302,6 +303,7 @@ export type Database = {
           ingredients?: Json | null
           is_available?: boolean
           is_featured?: boolean
+          max_participants?: number | null
           name_en: string
           name_zh: string
           price?: number
@@ -321,6 +323,7 @@ export type Database = {
           ingredients?: Json | null
           is_available?: boolean
           is_featured?: boolean
+          max_participants?: number | null
           name_en?: string
           name_zh?: string
           price?: number
