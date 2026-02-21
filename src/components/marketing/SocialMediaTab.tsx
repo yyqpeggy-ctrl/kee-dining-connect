@@ -100,6 +100,7 @@ const SocialMediaTab = () => {
                 <Tooltip formatter={(v: number) => isZh ? `${(v / 10000).toFixed(1)}万` : `${(v / 1000).toFixed(1)}k`} />
                 <Bar dataKey="youtube" name="YouTube" fill="hsl(0, 70%, 55%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="tiktok" name="TikTok" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="instagram" name="Instagram" fill="hsl(330, 70%, 55%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -119,6 +120,7 @@ const SocialMediaTab = () => {
                 <Tooltip formatter={(v: number) => isZh ? `${(v / 10000).toFixed(1)}万` : `${(v / 1000).toFixed(1)}k`} />
                 <Line type="monotone" dataKey="youtube" name="YouTube" stroke="hsl(0, 70%, 55%)" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="tiktok" name="TikTok" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="instagram" name="Instagram" stroke="hsl(330, 70%, 55%)" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
