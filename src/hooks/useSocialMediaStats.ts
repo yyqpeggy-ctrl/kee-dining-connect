@@ -11,6 +11,8 @@ export interface PlatformData {
   posts: number;
   engagement: string;
   connected: boolean;
+  rating?: number;
+  reviews?: number;
 }
 
 export interface PostData {
@@ -36,6 +38,8 @@ export interface WeeklyViewData {
   youtube: number;
   tiktok: number;
   instagram: number;
+  wechat: number;
+  xiaohongshu: number;
 }
 
 export interface FollowerTrendData {
@@ -45,6 +49,8 @@ export interface FollowerTrendData {
   youtube: number;
   tiktok: number;
   instagram: number;
+  wechat: number;
+  xiaohongshu: number;
 }
 
 export interface SocialMediaStats {
