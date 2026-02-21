@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake } from "lucide-react";
+import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Event {
   id: string;
@@ -91,6 +92,8 @@ const EventsTab = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
   const [filter, setFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"cards" | "calendar">("cards");
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 1, 1)); // Feb 2026
 
   const filtered = filter === "all" ? events : events.filter(e => e.status === filter);
 
@@ -98,6 +101,35 @@ const EventsTab = () => {
   const totalRevenue = events.reduce((s, e) => s + e.revenue, 0);
   const totalGuests = events.reduce((s, e) => s + e.registeredGuests, 0);
   const upcomingCount = events.filter(e => e.status === "upcoming" || e.status === "planning").length;
+
+  // Calendar helpers
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) days.push(null);
+    for (let d = 1; d <= daysInMonth; d++) days.push(d);
+    return days;
+  }, [calendarMonth]);
+
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, Event[]> = {};
+    events.forEach(e => {
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(e);
+    });
+    return map;
+  }, []);
+
+  const monthLabel = calendarMonth.toLocaleDateString(isZh ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
+  const weekdays = isZh ? ["日", "一", "二", "三", "四", "五", "六"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const prevMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+  const nextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
 
   return (
     <div className="space-y-6">
@@ -154,12 +186,20 @@ const EventsTab = () => {
 
       {/* Filter & Actions */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           {["all", "planning", "upcoming", "ongoing", "completed"].map(s => (
             <Button key={s} variant={filter === s ? "default" : "outline"} size="sm" onClick={() => setFilter(s)}>
               {s === "all" ? (isZh ? "全部" : "All") : isZh ? statusConfig[s as keyof typeof statusConfig].labelZh : statusConfig[s as keyof typeof statusConfig].labelEn}
             </Button>
           ))}
+          <div className="ml-2 border-l border-border pl-2 flex gap-1">
+            <Button variant={viewMode === "cards" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setViewMode("cards")}>
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button variant={viewMode === "calendar" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setViewMode("calendar")}>
+              <CalendarDays className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         <Dialog>
           <DialogTrigger asChild>
@@ -199,7 +239,71 @@ const EventsTab = () => {
         </Dialog>
       </div>
 
+      {/* Calendar View */}
+      {viewMode === "calendar" && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevMonth}><ChevronLeft className="w-4 h-4" /></Button>
+              <CardTitle className="text-base">{monthLabel}</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={nextMonth}><ChevronRight className="w-4 h-4" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-7 gap-px">
+              {weekdays.map(d => (
+                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+              ))}
+              {calendarDays.map((day, idx) => {
+                const key = day ? `${calendarMonth.getFullYear()}-${calendarMonth.getMonth()}-${day}` : null;
+                const dayEvents = key ? eventsByDate[key] || [] : [];
+                const isToday = day && calendarMonth.getFullYear() === 2026 && calendarMonth.getMonth() === 1 && day === 21;
+                return (
+                  <div
+                    key={idx}
+                    className={`min-h-[80px] border border-border/50 rounded-sm p-1 ${
+                      day ? "bg-card" : "bg-muted/30"
+                    } ${isToday ? "ring-1 ring-primary" : ""}`}
+                  >
+                    {day && (
+                      <>
+                        <span className={`text-xs ${isToday ? "font-bold text-primary" : "text-muted-foreground"}`}>{day}</span>
+                        <div className="mt-0.5 space-y-0.5">
+                          <TooltipProvider>
+                            {dayEvents.map(ev => {
+                              const sc = statusConfig[ev.status];
+                              const IconComp = ev.icon;
+                              return (
+                                <Tooltip key={ev.id}>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1 rounded px-1 py-0.5 bg-primary/10 cursor-pointer hover:bg-primary/20 transition-colors">
+                                      <IconComp className="w-3 h-3 text-primary shrink-0" />
+                                      <span className="text-[10px] font-medium text-foreground truncate">{isZh ? ev.nameZh : ev.nameEn}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="max-w-[200px]">
+                                    <p className="font-medium text-sm">{isZh ? ev.nameZh : ev.nameEn}</p>
+                                    <p className="text-xs text-muted-foreground">{ev.time}</p>
+                                    <p className="text-xs">{isZh ? ev.descZh : ev.descEn}</p>
+                                    <Badge variant={sc.variant} className="mt-1 text-[10px]">{isZh ? sc.labelZh : sc.labelEn}</Badge>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                          </TooltipProvider>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Event Cards */}
+      {viewMode === "cards" && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map(event => {
           const sc = statusConfig[event.status];
@@ -258,6 +362,7 @@ const EventsTab = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };
