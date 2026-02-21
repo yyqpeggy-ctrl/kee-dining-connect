@@ -15,7 +15,9 @@ export interface PlatformData {
 
 export interface PostData {
   id: string;
-  title: string;
+  title?: string;
+  titleZh?: string;
+  titleEn?: string;
   platform: string;
   views: number;
   viewsFormatted: string;
@@ -28,13 +30,17 @@ export interface PostData {
 }
 
 export interface WeeklyViewData {
-  day: string;
+  day?: string;
+  dayZh?: string;
+  dayEn?: string;
   youtube: number;
   tiktok: number;
 }
 
 export interface FollowerTrendData {
-  month: string;
+  month?: string;
+  monthZh?: string;
+  monthEn?: string;
   youtube: number;
   tiktok: number;
 }

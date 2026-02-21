@@ -16,7 +16,8 @@ const platformIcons: Record<string, { icon: any; color: string; bgColor: string 
 
 const SocialMediaTab = () => {
   const { data, isLoading, error } = useSocialMediaStats();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === "zh";
 
   if (isLoading) {
     return (
@@ -92,11 +93,11 @@ const SocialMediaTab = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={data.weeklyViews}>
+              <BarChart data={data.weeklyViews.map(d => ({ ...d, day: isZh ? d.dayZh : d.dayEn }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="day" fontSize={12} stroke="hsl(var(--muted-foreground))" />
-                <YAxis fontSize={12} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `${(v / 10000).toFixed(0)}万`} />
-                <Tooltip formatter={(v: number) => `${(v / 10000).toFixed(1)}万`} />
+                <YAxis fontSize={12} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => isZh ? `${(v / 10000).toFixed(0)}万` : `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number) => isZh ? `${(v / 10000).toFixed(1)}万` : `${(v / 1000).toFixed(1)}k`} />
                 <Bar dataKey="youtube" name="YouTube" fill="hsl(0, 70%, 55%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="tiktok" name="TikTok" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -111,11 +112,11 @@ const SocialMediaTab = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={data.followerTrend}>
+              <LineChart data={data.followerTrend.map(d => ({ ...d, month: isZh ? d.monthZh : d.monthEn }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" fontSize={12} stroke="hsl(var(--muted-foreground))" />
-                <YAxis fontSize={12} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `${(v / 10000).toFixed(0)}万`} />
-                <Tooltip formatter={(v: number) => `${(v / 10000).toFixed(1)}万`} />
+                <YAxis fontSize={12} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => isZh ? `${(v / 10000).toFixed(0)}万` : `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number) => isZh ? `${(v / 10000).toFixed(1)}万` : `${(v / 1000).toFixed(1)}k`} />
                 <Line type="monotone" dataKey="youtube" name="YouTube" stroke="hsl(0, 70%, 55%)" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="tiktok" name="TikTok" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
@@ -150,7 +151,7 @@ const SocialMediaTab = () => {
             <TableBody>
               {data.recentPosts.map((post) => (
                 <TableRow key={post.id}>
-                  <TableCell className="font-medium">{post.title}</TableCell>
+                  <TableCell className="font-medium">{isZh ? (post.titleZh || post.title) : (post.titleEn || post.title)}</TableCell>
                   <TableCell><Badge variant="outline">{post.platform}</Badge></TableCell>
                   <TableCell className="text-right">{post.viewsFormatted}</TableCell>
                   <TableCell className="text-right">{post.likesFormatted}</TableCell>
