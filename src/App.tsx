@@ -15,6 +15,8 @@ import Finance from "./pages/Finance";
 import Legal from "./pages/Legal";
 import Procurement from "./pages/Procurement";
 import Marketing from "./pages/Marketing";
+import CustomerAnalysis from "./pages/CustomerAnalysis";
+import Menu from "./pages/Menu";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,8 @@ const App = () => (
             <Route path="/finance" element={<Finance />} />
             <Route path="/legal" element={<Legal />} />
             <Route path="/marketing" element={<Marketing />} />
+            <Route path="/customers" element={<CustomerAnalysis />} />
+            <Route path="/menu" element={<Menu />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
