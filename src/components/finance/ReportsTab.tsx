@@ -3,6 +3,7 @@ import { Download, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPie, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "react-i18next";
 
 const monthlyData = [
   { month: "1月", revenue: 580000, expense: 420000, profit: 160000 },
@@ -23,24 +24,22 @@ const expenseBreakdown = [
 
 const COLORS = ["hsl(36, 90%, 55%)", "hsl(24, 85%, 50%)", "hsl(152, 60%, 45%)", "hsl(210, 70%, 55%)", "hsl(220, 14%, 40%)"];
 
-// Income Statement Data
 const incomeStatement = [
-  { category: "营业收入", items: [
+  { category: "operatingRevenue", items: [
     { name: "主营业务收入", amount: 4340000 },
     { name: "其他业务收入", amount: 85000 },
   ]},
-  { category: "营业成本", items: [
+  { category: "operatingCost", items: [
     { name: "主营业务成本", amount: 1956300 },
     { name: "税金及附加", amount: 43400 },
   ]},
-  { category: "期间费用", items: [
+  { category: "periodExpenses", items: [
     { name: "销售费用", amount: 217000 },
     { name: "管理费用", amount: 434000 },
     { name: "财务费用", amount: 21700 },
   ]},
 ];
 
-// Balance Sheet Data
 const balanceSheet = {
   assets: [
     { name: "货币资金", amount: 2975000 },
@@ -63,7 +62,6 @@ const balanceSheet = {
   ],
 };
 
-// Cash Flow Data
 const cashFlowData = [
   { month: "1月", operating: 180000, investing: -50000, financing: -20000 },
   { month: "2月", operating: 195000, investing: -30000, financing: -20000 },
@@ -74,43 +72,45 @@ const cashFlowData = [
 ];
 
 const ReportsTab = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6">
       {/* Report Actions */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">财务报表</h3>
+        <h3 className="text-lg font-semibold">{t("financeMgmt.financialReports")}</h3>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="gap-2">
             <Download className="w-4 h-4" />
-            导出Excel
+            {t("financeMgmt.exportExcel")}
           </Button>
           <Button variant="outline" size="sm" className="gap-2">
             <Download className="w-4 h-4" />
-            导出PDF
+            {t("financeMgmt.exportPDF")}
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="income" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="income">利润表</TabsTrigger>
-          <TabsTrigger value="balance">资产负债表</TabsTrigger>
-          <TabsTrigger value="cashflow">现金流量表</TabsTrigger>
-          <TabsTrigger value="analysis">经营分析</TabsTrigger>
+          <TabsTrigger value="income">{t("financeMgmt.incomeStatement")}</TabsTrigger>
+          <TabsTrigger value="balance">{t("financeMgmt.balanceSheet")}</TabsTrigger>
+          <TabsTrigger value="cashflow">{t("financeMgmt.cashFlowStatement")}</TabsTrigger>
+          <TabsTrigger value="analysis">{t("financeMgmt.businessAnalysis")}</TabsTrigger>
         </TabsList>
 
         {/* Income Statement */}
         <TabsContent value="income">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold">利润表 (2024年1-6月)</h4>
-              <span className="text-xs text-muted-foreground">单位：人民币元</span>
+              <h4 className="font-semibold">{t("financeMgmt.incomeStatement")} (2024年1-6月)</h4>
+              <span className="text-xs text-muted-foreground">{t("financeMgmt.unitCNY")}</span>
             </div>
             <div className="space-y-4">
               {incomeStatement.map((section) => (
                 <div key={section.category}>
                   <div className="flex justify-between py-2 bg-muted/30 px-3 rounded-lg mb-2">
-                    <span className="font-medium">{section.category}</span>
+                    <span className="font-medium">{t(`financeMgmt.${section.category}`)}</span>
                     <span className="font-bold">
                       ¥{section.items.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
                     </span>
@@ -125,15 +125,15 @@ const ReportsTab = () => {
               ))}
               <div className="border-t border-border pt-4 mt-4">
                 <div className="flex justify-between py-2 bg-primary/10 px-3 rounded-lg">
-                  <span className="font-bold">营业利润</span>
+                  <span className="font-bold">{t("financeMgmt.operatingProfit")}</span>
                   <span className="font-bold text-primary">¥1,752,600</span>
                 </div>
                 <div className="flex justify-between py-2 px-3 text-sm">
-                  <span className="text-muted-foreground">减：所得税费用</span>
+                  <span className="text-muted-foreground">{t("financeMgmt.incomeTax")}</span>
                   <span>¥438,150</span>
                 </div>
                 <div className="flex justify-between py-3 bg-success/10 px-3 rounded-lg mt-2">
-                  <span className="font-bold">净利润</span>
+                  <span className="font-bold">{t("financeMgmt.netProfitLabel")}</span>
                   <span className="font-bold text-success">¥1,314,450</span>
                 </div>
               </div>
@@ -144,9 +144,8 @@ const ReportsTab = () => {
         {/* Balance Sheet */}
         <TabsContent value="balance">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Assets */}
             <div className="glass-card rounded-xl p-5">
-              <h4 className="font-semibold mb-4 text-success">资产</h4>
+              <h4 className="font-semibold mb-4 text-success">{t("financeMgmt.assets")}</h4>
               <div className="space-y-2">
                 {balanceSheet.assets.map((item) => (
                   <div key={item.name} className="flex justify-between py-2 border-b border-border/50">
@@ -155,7 +154,7 @@ const ReportsTab = () => {
                   </div>
                 ))}
                 <div className="flex justify-between py-3 bg-success/10 px-3 rounded-lg mt-2">
-                  <span className="font-bold">资产总计</span>
+                  <span className="font-bold">{t("financeMgmt.totalAssetsLabel")}</span>
                   <span className="font-bold text-success">
                     ¥{balanceSheet.assets.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
                   </span>
@@ -163,10 +162,9 @@ const ReportsTab = () => {
               </div>
             </div>
 
-            {/* Liabilities & Equity */}
             <div className="space-y-4">
               <div className="glass-card rounded-xl p-5">
-                <h4 className="font-semibold mb-4 text-warning">负债</h4>
+                <h4 className="font-semibold mb-4 text-warning">{t("financeMgmt.liabilities")}</h4>
                 <div className="space-y-2">
                   {balanceSheet.liabilities.map((item) => (
                     <div key={item.name} className="flex justify-between py-2 border-b border-border/50">
@@ -175,7 +173,7 @@ const ReportsTab = () => {
                     </div>
                   ))}
                   <div className="flex justify-between py-2 bg-warning/10 px-3 rounded-lg mt-2">
-                    <span className="font-semibold">负债合计</span>
+                    <span className="font-semibold">{t("financeMgmt.totalLiabilitiesLabel")}</span>
                     <span className="font-semibold text-warning">
                       ¥{balanceSheet.liabilities.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
                     </span>
@@ -184,7 +182,7 @@ const ReportsTab = () => {
               </div>
 
               <div className="glass-card rounded-xl p-5">
-                <h4 className="font-semibold mb-4 text-info">所有者权益</h4>
+                <h4 className="font-semibold mb-4 text-info">{t("financeMgmt.equity")}</h4>
                 <div className="space-y-2">
                   {balanceSheet.equity.map((item) => (
                     <div key={item.name} className="flex justify-between py-2 border-b border-border/50">
@@ -193,7 +191,7 @@ const ReportsTab = () => {
                     </div>
                   ))}
                   <div className="flex justify-between py-2 bg-info/10 px-3 rounded-lg mt-2">
-                    <span className="font-semibold">权益合计</span>
+                    <span className="font-semibold">{t("financeMgmt.totalEquityLabel")}</span>
                     <span className="font-semibold text-info">
                       ¥{balanceSheet.equity.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
                     </span>
@@ -208,7 +206,7 @@ const ReportsTab = () => {
         <TabsContent value="cashflow">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <div className="glass-card rounded-xl p-5">
-              <h4 className="font-semibold mb-4">现金流量趋势</h4>
+              <h4 className="font-semibold mb-4">{t("financeMgmt.cashFlowTrend")}</h4>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={cashFlowData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 18%)" />
@@ -223,9 +221,9 @@ const ReportsTab = () => {
                     }}
                     formatter={(value: number) => `¥${value.toLocaleString()}`}
                   />
-                  <Bar dataKey="operating" name="经营活动" fill="hsl(152, 60%, 45%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="investing" name="投资活动" fill="hsl(36, 90%, 55%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="financing" name="筹资活动" fill="hsl(210, 70%, 55%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="operating" name={t("financeMgmt.operatingCashFlow")} fill="hsl(152, 60%, 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="investing" name={t("financeMgmt.investingCashFlow")} fill="hsl(36, 90%, 55%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="financing" name={t("financeMgmt.financingCashFlow")} fill="hsl(210, 70%, 55%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -234,15 +232,15 @@ const ReportsTab = () => {
               <div className="glass-card rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-3 h-3 rounded-full bg-success" />
-                  <span className="text-sm font-medium">经营活动现金流</span>
+                  <span className="text-sm font-medium">{t("financeMgmt.operatingCashFlow")}</span>
                 </div>
                 <p className="text-2xl font-bold text-success">+¥1,455,000</p>
-                <p className="text-xs text-muted-foreground mt-1">同比增长 15.8%</p>
+                <p className="text-xs text-muted-foreground mt-1">+15.8% YoY</p>
               </div>
               <div className="glass-card rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-3 h-3 rounded-full bg-primary" />
-                  <span className="text-sm font-medium">投资活动现金流</span>
+                  <span className="text-sm font-medium">{t("financeMgmt.investingCashFlow")}</span>
                 </div>
                 <p className="text-2xl font-bold text-primary">-¥305,000</p>
                 <p className="text-xs text-muted-foreground mt-1">设备采购及装修</p>
@@ -250,7 +248,7 @@ const ReportsTab = () => {
               <div className="glass-card rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-3 h-3 rounded-full bg-info" />
-                  <span className="text-sm font-medium">筹资活动现金流</span>
+                  <span className="text-sm font-medium">{t("financeMgmt.financingCashFlow")}</span>
                 </div>
                 <p className="text-2xl font-bold text-info">-¥150,000</p>
                 <p className="text-xs text-muted-foreground mt-1">偿还贷款本息</p>
@@ -262,9 +260,8 @@ const ReportsTab = () => {
         {/* Business Analysis */}
         <TabsContent value="analysis">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Revenue vs Expense */}
             <div className="glass-card rounded-xl p-5">
-              <h4 className="font-semibold mb-4">营收与支出趋势</h4>
+              <h4 className="font-semibold mb-4">{t("financeMgmt.revenueExpenseTrend")}</h4>
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={monthlyData}>
                   <defs>
@@ -289,15 +286,14 @@ const ReportsTab = () => {
                     }}
                     formatter={(value: number) => `¥${(value / 10000).toFixed(1)}万`}
                   />
-                  <Area type="monotone" dataKey="revenue" stroke="hsl(152, 60%, 45%)" strokeWidth={2} fill="url(#revenueGradient)" name="营收" />
-                  <Area type="monotone" dataKey="expense" stroke="hsl(0, 72%, 55%)" strokeWidth={2} fill="url(#expenseGradient)" name="支出" />
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(152, 60%, 45%)" strokeWidth={2} fill="url(#revenueGradient)" name={t("financeMgmt.revenue")} />
+                  <Area type="monotone" dataKey="expense" stroke="hsl(0, 72%, 55%)" strokeWidth={2} fill="url(#expenseGradient)" name={t("financeMgmt.expense")} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Expense Breakdown */}
             <div className="glass-card rounded-xl p-5">
-              <h4 className="font-semibold mb-4">成本构成分析</h4>
+              <h4 className="font-semibold mb-4">{t("financeMgmt.costBreakdown")}</h4>
               <ResponsiveContainer width="100%" height={160}>
                 <RechartsPie>
                   <Pie data={expenseBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
@@ -323,31 +319,31 @@ const ReportsTab = () => {
 
             {/* Key Ratios */}
             <div className="lg:col-span-2 glass-card rounded-xl p-5">
-              <h4 className="font-semibold mb-4">关键财务指标</h4>
+              <h4 className="font-semibold mb-4">{t("financeMgmt.keyMetrics")}</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">毛利率</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.grossMargin")}</p>
                   <p className="text-xl font-bold text-success">54.9%</p>
                   <p className="text-xs text-success flex items-center gap-1 mt-1">
                     <ArrowUpRight className="w-3 h-3" />+2.3%
                   </p>
                 </div>
                 <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">净利率</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.netMargin")}</p>
                   <p className="text-xl font-bold text-primary">30.3%</p>
                   <p className="text-xs text-success flex items-center gap-1 mt-1">
                     <ArrowUpRight className="w-3 h-3" />+1.8%
                   </p>
                 </div>
                 <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">资产负债率</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.debtRatio")}</p>
                   <p className="text-xl font-bold text-warning">30.1%</p>
                   <p className="text-xs text-success flex items-center gap-1 mt-1">
                     <ArrowDownRight className="w-3 h-3" />-1.2%
                   </p>
                 </div>
                 <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">流动比率</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.currentRatio")}</p>
                   <p className="text-xl font-bold text-info">4.58</p>
                   <p className="text-xs text-success flex items-center gap-1 mt-1">
                     <ArrowUpRight className="w-3 h-3" />+0.3

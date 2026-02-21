@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Supplier {
   id: string;
@@ -44,32 +45,33 @@ const purchaseOrders: PurchaseOrder[] = [
   { id: "PO-2024-005", supplier: "大连鑫海水产", items: "大闸蟹 200只", total: "¥18,000", orderDate: "2024-02-09", deliveryDate: "2024-02-11", status: "pending" },
 ];
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: "待确认", color: "bg-warning/10 text-warning", icon: Clock },
-  confirmed: { label: "已确认", color: "bg-info/10 text-info", icon: CheckCircle },
-  shipping: { label: "运输中", color: "bg-primary/10 text-primary", icon: Truck },
-  delivered: { label: "已送达", color: "bg-success/10 text-success", icon: Package },
-  cancelled: { label: "已取消", color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-};
-
 const Procurement = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"orders" | "suppliers">("orders");
   const [search, setSearch] = useState("");
 
+  const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
+    pending: { label: t("procurementMgmt.pending"), color: "bg-warning/10 text-warning", icon: Clock },
+    confirmed: { label: t("procurementMgmt.confirmed"), color: "bg-info/10 text-info", icon: CheckCircle },
+    shipping: { label: t("procurementMgmt.shipping"), color: "bg-primary/10 text-primary", icon: Truck },
+    delivered: { label: t("procurementMgmt.delivered"), color: "bg-success/10 text-success", icon: Package },
+    cancelled: { label: t("procurementMgmt.cancelled"), color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
+  };
+
   const pendingCount = purchaseOrders.filter((o) => o.status === "pending").length;
   const shippingCount = purchaseOrders.filter((o) => o.status === "shipping").length;
-  const monthlyTotal = 67100; // Sum of orders
+  const monthlyTotal = 67100;
 
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-display">采购管理</h1>
-          <p className="text-sm text-muted-foreground mt-1">供应商与采购订单管理</p>
+          <h1 className="text-2xl font-bold font-display">{t("procurementMgmt.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("procurementMgmt.subtitle")}</p>
         </div>
         <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
           <Plus className="w-4 h-4" />
-          新建采购单
+          {t("procurementMgmt.newPO")}
         </button>
       </div>
 
@@ -82,7 +84,7 @@ const Procurement = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">{purchaseOrders.length}</p>
-              <p className="text-xs text-muted-foreground">本月采购单</p>
+              <p className="text-xs text-muted-foreground">{t("procurementMgmt.monthlyPOs")}</p>
             </div>
           </div>
         </motion.div>
@@ -93,7 +95,7 @@ const Procurement = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">{pendingCount + shippingCount}</p>
-              <p className="text-xs text-muted-foreground">待收货</p>
+              <p className="text-xs text-muted-foreground">{t("procurementMgmt.pendingDelivery")}</p>
             </div>
           </div>
         </motion.div>
@@ -104,7 +106,7 @@ const Procurement = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">{suppliers.filter(s => s.status === "active").length}</p>
-              <p className="text-xs text-muted-foreground">活跃供应商</p>
+              <p className="text-xs text-muted-foreground">{t("procurementMgmt.activeSuppliers")}</p>
             </div>
           </div>
         </motion.div>
@@ -115,7 +117,7 @@ const Procurement = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">¥{(monthlyTotal / 10000).toFixed(1)}万</p>
-              <p className="text-xs text-muted-foreground">本月采购额</p>
+              <p className="text-xs text-muted-foreground">{t("procurementMgmt.monthlySpend")}</p>
             </div>
           </div>
         </motion.div>
@@ -125,17 +127,17 @@ const Procurement = () => {
       <div className="flex items-center justify-between mb-5">
         <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
           <button onClick={() => setActiveTab("orders")} className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === "orders" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            采购订单
+            {t("procurementMgmt.purchaseOrders")}
           </button>
           <button onClick={() => setActiveTab("suppliers")} className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === "suppliers" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            供应商管理
+            {t("procurementMgmt.supplierMgmt")}
           </button>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="搜索..."
+            placeholder={t("common.search") + "..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary/50"
@@ -176,8 +178,8 @@ const Procurement = () => {
                 </div>
                 <p className="text-sm text-secondary-foreground mb-3 bg-muted/30 rounded-lg p-2">{order.items}</p>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>下单日期: {order.orderDate}</span>
-                  <span>预计送达: {order.deliveryDate}</span>
+                  <span>{t("procurementMgmt.orderDate")}: {order.orderDate}</span>
+                  <span>{t("procurementMgmt.deliveryDate")}: {order.deliveryDate}</span>
                 </div>
               </motion.div>
             );
@@ -189,12 +191,12 @@ const Procurement = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">供应商</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">品类</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">联系人</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">评分</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">订单数</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">状态</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("procurementMgmt.supplier")}</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.type")}</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("procurementMgmt.contact")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("procurementMgmt.rating")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("procurementMgmt.orderCount")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -223,7 +225,7 @@ const Procurement = () => {
                       <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                         supplier.status === "active" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
                       }`}>
-                        {supplier.status === "active" ? "合作中" : "暂停"}
+                        {supplier.status === "active" ? t("procurementMgmt.active") : t("procurementMgmt.inactive")}
                       </span>
                     </td>
                   </motion.tr>

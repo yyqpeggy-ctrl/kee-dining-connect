@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface FinanceKPICardsProps {
   totalRevenue: number;
@@ -8,6 +9,8 @@ interface FinanceKPICardsProps {
 }
 
 const FinanceKPICards = ({ totalRevenue, totalExpense, totalProfit }: FinanceKPICardsProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
@@ -20,7 +23,7 @@ const FinanceKPICards = ({ totalRevenue, totalExpense, totalProfit }: FinanceKPI
           </span>
         </div>
         <p className="text-2xl font-bold font-display">¥{(totalRevenue / 10000).toFixed(1)}万</p>
-        <p className="text-xs text-muted-foreground">累计营收</p>
+        <p className="text-xs text-muted-foreground">{t("financeMgmt.cumulativeRevenue")}</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-5">
@@ -33,7 +36,7 @@ const FinanceKPICards = ({ totalRevenue, totalExpense, totalProfit }: FinanceKPI
           </span>
         </div>
         <p className="text-2xl font-bold font-display">¥{(totalExpense / 10000).toFixed(1)}万</p>
-        <p className="text-xs text-muted-foreground">累计支出</p>
+        <p className="text-xs text-muted-foreground">{t("financeMgmt.cumulativeExpense")}</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
@@ -46,7 +49,7 @@ const FinanceKPICards = ({ totalRevenue, totalExpense, totalProfit }: FinanceKPI
           </span>
         </div>
         <p className="text-2xl font-bold font-display text-primary">¥{(totalProfit / 10000).toFixed(1)}万</p>
-        <p className="text-xs text-muted-foreground">净利润</p>
+        <p className="text-xs text-muted-foreground">{t("financeMgmt.netProfit")}</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-xl p-5">
@@ -56,7 +59,7 @@ const FinanceKPICards = ({ totalRevenue, totalExpense, totalProfit }: FinanceKPI
           </div>
         </div>
         <p className="text-2xl font-bold font-display">{((totalProfit / totalRevenue) * 100).toFixed(1)}%</p>
-        <p className="text-xs text-muted-foreground">利润率</p>
+        <p className="text-xs text-muted-foreground">{t("financeMgmt.profitMargin")}</p>
       </motion.div>
     </div>
   );
