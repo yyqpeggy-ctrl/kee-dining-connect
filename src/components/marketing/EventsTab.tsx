@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays } from "lucide-react";
+import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 
 interface Event {
   id: string;
@@ -93,7 +94,12 @@ const EventsTab = () => {
   const isZh = i18n.language === 'zh';
   const [filter, setFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"cards" | "calendar">("cards");
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 1, 1)); // Feb 2026
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 1, 1));
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Event>>({});
+  const [newResource, setNewResource] = useState("");
+  const [editResources, setEditResources] = useState<string[]>([]);
 
   const filtered = filter === "all" ? events : events.filter(e => e.status === filter);
 
@@ -130,6 +136,46 @@ const EventsTab = () => {
 
   const prevMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
   const nextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+
+  const openDetail = (event: Event) => {
+    setSelectedEvent(event);
+    setIsEditing(false);
+    setEditForm({});
+    setEditResources([...event.resources]);
+    setNewResource("");
+  };
+
+  const startEditing = () => {
+    if (!selectedEvent) return;
+    setIsEditing(true);
+    setEditForm({
+      nameZh: selectedEvent.nameZh,
+      nameEn: selectedEvent.nameEn,
+      date: selectedEvent.date,
+      time: selectedEvent.time,
+      budget: selectedEvent.budget,
+      expectedGuests: selectedEvent.expectedGuests,
+      descZh: selectedEvent.descZh,
+      descEn: selectedEvent.descEn,
+    });
+    setEditResources([...selectedEvent.resources]);
+  };
+
+  const saveEditing = () => {
+    // In a real app this would persist. For now just close edit mode.
+    setIsEditing(false);
+  };
+
+  const addResource = () => {
+    if (newResource.trim()) {
+      setEditResources(prev => [...prev, newResource.trim()]);
+      setNewResource("");
+    }
+  };
+
+  const removeResource = (idx: number) => {
+    setEditResources(prev => prev.filter((_, i) => i !== idx));
+  };
 
   return (
     <div className="space-y-6">
@@ -310,7 +356,7 @@ const EventsTab = () => {
           const regPercent = event.expectedGuests > 0 ? (event.registeredGuests / event.expectedGuests) * 100 : 0;
           const IconComp = event.icon;
           return (
-            <Card key={event.id} className="hover:shadow-md transition-shadow">
+            <Card key={event.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openDetail(event)}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -363,6 +409,156 @@ const EventsTab = () => {
         })}
       </div>
       )}
+
+      {/* Event Detail Dialog */}
+      <Dialog open={!!selectedEvent} onOpenChange={(open) => { if (!open) { setSelectedEvent(null); setIsEditing(false); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedEvent && (() => {
+            const sc = statusConfig[selectedEvent.status];
+            const IconComp = selectedEvent.icon;
+            const regPercent = selectedEvent.expectedGuests > 0 ? (selectedEvent.registeredGuests / selectedEvent.expectedGuests) * 100 : 0;
+            const displayResources = isEditing ? editResources : selectedEvent.resources;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <IconComp className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        {isEditing ? (
+                          <div className="space-y-1">
+                            <Input value={editForm.nameZh || ""} onChange={e => setEditForm(f => ({ ...f, nameZh: e.target.value }))} className="h-7 text-sm" placeholder="中文名称" />
+                            <Input value={editForm.nameEn || ""} onChange={e => setEditForm(f => ({ ...f, nameEn: e.target.value }))} className="h-7 text-sm" placeholder="English name" />
+                          </div>
+                        ) : (
+                          <>
+                            <DialogTitle className="text-lg">{isZh ? selectedEvent.nameZh : selectedEvent.nameEn}</DialogTitle>
+                            <p className="text-sm text-muted-foreground">{isZh ? selectedEvent.nameEn : selectedEvent.nameZh}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={sc.variant}>{isZh ? sc.labelZh : sc.labelEn}</Badge>
+                      {isEditing ? (
+                        <Button size="sm" variant="default" className="gap-1" onClick={saveEditing}><Check className="w-3.5 h-3.5" />{isZh ? "保存" : "Save"}</Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={startEditing}><Pencil className="w-3.5 h-3.5" />{isZh ? "编辑" : "Edit"}</Button>
+                      )}
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <Separator />
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{isZh ? "日期" : "Date"}</p>
+                      {isEditing ? (
+                        <Input type="date" value={editForm.date || ""} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className="h-8 text-sm" />
+                      ) : (
+                        <p className="text-sm text-foreground flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-muted-foreground" />{selectedEvent.date}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{isZh ? "时间" : "Time"}</p>
+                      {isEditing ? (
+                        <Input value={editForm.time || ""} onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))} className="h-8 text-sm" placeholder="19:00-23:00" />
+                      ) : (
+                        <p className="text-sm text-foreground flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-muted-foreground" />{selectedEvent.time}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{isZh ? "地点" : "Location"}</p>
+                      <p className="text-sm text-foreground flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-muted-foreground" />{isZh ? "餐厅主场地" : "Main Venue"}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{isZh ? "预算" : "Budget"}</p>
+                      {isEditing ? (
+                        <Input type="number" value={editForm.budget || 0} onChange={e => setEditForm(f => ({ ...f, budget: Number(e.target.value) }))} className="h-8 text-sm" />
+                      ) : (
+                        <p className="text-sm text-foreground flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-muted-foreground" />¥{selectedEvent.budget.toLocaleString()}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{isZh ? "预计人数" : "Expected Guests"}</p>
+                      {isEditing ? (
+                        <Input type="number" value={editForm.expectedGuests || 0} onChange={e => setEditForm(f => ({ ...f, expectedGuests: Number(e.target.value) }))} className="h-8 text-sm" />
+                      ) : (
+                        <p className="text-sm text-foreground flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-muted-foreground" />{selectedEvent.expectedGuests}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{isZh ? "预计营收" : "Est. Revenue"}</p>
+                      <p className="text-sm text-foreground flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-muted-foreground" />¥{selectedEvent.revenue.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Registration */}
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">{isZh ? "报名进度" : "Registration Progress"}</p>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-muted-foreground">{isZh ? "已报名" : "Registered"}</span>
+                    <span className="font-medium text-foreground">{selectedEvent.registeredGuests} / {selectedEvent.expectedGuests}</span>
+                  </div>
+                  <Progress value={regPercent} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">{regPercent.toFixed(0)}% {isZh ? "已满" : "filled"}</p>
+                </div>
+
+                <Separator />
+
+                {/* Description */}
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">{isZh ? "活动描述" : "Event Description"}</p>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Textarea value={editForm.descZh || ""} onChange={e => setEditForm(f => ({ ...f, descZh: e.target.value }))} placeholder="中文描述" rows={2} />
+                      <Textarea value={editForm.descEn || ""} onChange={e => setEditForm(f => ({ ...f, descEn: e.target.value }))} placeholder="English description" rows={2} />
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">{selectedEvent.descZh}</p>
+                      <p className="text-sm text-muted-foreground italic">{selectedEvent.descEn}</p>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Resources Management */}
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">{isZh ? "资源清单" : "Resource List"}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {displayResources.map((r, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1">
+                        {r}
+                        {isEditing && (
+                          <button onClick={() => removeResource(i)} className="ml-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                  {isEditing && (
+                    <div className="flex gap-2">
+                      <Input value={newResource} onChange={e => setNewResource(e.target.value)} placeholder={isZh ? "添加资源..." : "Add resource..."} className="h-8 text-sm" onKeyDown={e => e.key === "Enter" && addResource()} />
+                      <Button size="sm" variant="outline" onClick={addResource} className="gap-1 h-8"><Plus className="w-3 h-3" />{isZh ? "添加" : "Add"}</Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
