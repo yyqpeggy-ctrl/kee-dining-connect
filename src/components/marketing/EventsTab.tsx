@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2, Megaphone, Send, ExternalLink, Globe, RefreshCw, Star, MessageSquare, UserCheck, Loader2 } from "lucide-react";
+import { Calendar, Plus, Users, MapPin, Clock, DollarSign, Target, PartyPopper, Trophy, ShoppingBag, Dumbbell, Cpu, Cake, ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Pencil, X, Check, Trash2, Megaphone, Send, ExternalLink, Globe, RefreshCw, Star, MessageSquare, UserCheck, Loader2, TrendingUp } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import EventFunnelAnalytics from "./EventFunnelAnalytics";
 
 interface PromotionChannel {
   platform: string;
@@ -142,7 +143,7 @@ const EventsTab = () => {
   const isZh = i18n.language === 'zh';
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"cards" | "calendar">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "calendar" | "funnel">("cards");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 1, 1));
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -380,6 +381,9 @@ const EventsTab = () => {
             <Button variant={viewMode === "calendar" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setViewMode("calendar")}>
               <CalendarDays className="w-4 h-4" />
             </Button>
+            <Button variant={viewMode === "funnel" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setViewMode("funnel")}>
+              <TrendingUp className="w-4 h-4" />
+            </Button>
           </div>
         </div>
         <Dialog>
@@ -481,6 +485,11 @@ const EventsTab = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Funnel Analytics View */}
+      {viewMode === "funnel" && (
+        <EventFunnelAnalytics events={events.map(e => ({ id: e.id, nameZh: e.nameZh, nameEn: e.nameEn }))} />
       )}
 
       {/* Event Cards */}
