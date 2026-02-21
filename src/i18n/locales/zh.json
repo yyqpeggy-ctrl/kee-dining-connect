@@ -461,6 +461,16 @@
     "cat_cocktails": "鸡尾酒",
     "cat_drinks": "酒水饮品",
     "cat_desserts": "甜点",
-    "cat_entertainment": "娱乐活动"
+    "cat_entertainment": "娱乐活动",
+    "costPrice": "成本价",
+    "ingredients": "成分/配料",
+    "addIngredient": "添加成分",
+    "ingredientName": "成分名称",
+    "quantity": "用量",
+    "unit": "单位",
+    "unitCost": "单价(¥)",
+    "totalCost": "总成本",
+    "profitMargin": "利润率",
+    "removeIngredient": "删除"
   }
 }

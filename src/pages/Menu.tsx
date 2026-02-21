@@ -15,7 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X } from "lucide-react";
+
+type Ingredient = {
+  name: string;
+  quantity: number;
+  unit: string;
+  unit_cost: number;
+};
 
 type MenuItem = {
   id: string;
@@ -29,6 +36,8 @@ type MenuItem = {
   is_available: boolean;
   is_featured: boolean;
   sort_order: number;
+  ingredients: Ingredient[];
+  cost_price: number;
 };
 
 const CATEGORIES = ["tapas", "mains", "cocktails", "drinks", "desserts", "entertainment"];
@@ -45,6 +54,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
 const emptyItem: Omit<MenuItem, "id"> = {
   name_zh: "", name_en: "", description_zh: "", description_en: "",
   category: "tapas", price: 0, image_url: "", is_available: true, is_featured: false, sort_order: 0,
+  ingredients: [], cost_price: 0,
 };
 
 const Menu = () => {
@@ -62,7 +72,7 @@ const Menu = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("menu_items").select("*").order("sort_order");
       if (error) throw error;
-      return data as MenuItem[];
+      return (data ?? []).map((d: any) => ({ ...d, ingredients: (d.ingredients ?? []) as Ingredient[] })) as MenuItem[];
     },
   });
 
@@ -183,6 +193,8 @@ const Menu = () => {
                 <TableHead>{t("menuMgmt.itemName")}</TableHead>
                 <TableHead>{t("menuMgmt.category")}</TableHead>
                 <TableHead className="text-right">{t("menuMgmt.price")}</TableHead>
+                <TableHead className="text-right">{t("menuMgmt.costPrice")}</TableHead>
+                <TableHead className="text-right">{t("menuMgmt.profitMargin")}</TableHead>
                 <TableHead className="text-center">{t("menuMgmt.featured")}</TableHead>
                 <TableHead className="text-center">{t("menuMgmt.available")}</TableHead>
                 <TableHead className="text-right">{t("common.actions")}</TableHead>
@@ -190,9 +202,9 @@ const Menu = () => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{isZh ? "暂无菜品" : "No items found"}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "暂无菜品" : "No items found"}</TableCell></TableRow>
               ) : filtered.map((item, i) => (
                 <TableRow key={item.id}>
                   <TableCell className="text-muted-foreground">{i + 1}</TableCell>
@@ -206,10 +218,16 @@ const Menu = () => {
                     <Badge variant="secondary" className="gap-1">{categoryIcons[item.category]} {categoryLabel(item.category)}</Badge>
                   </TableCell>
                   <TableCell className="text-right font-semibold text-foreground">¥{Number(item.price).toFixed(0)}</TableCell>
-                  <TableCell className="text-center">
-                    {item.is_featured && <Star className="w-4 h-4 text-yellow-500 mx-auto fill-yellow-500" />}
+                  <TableCell className="text-right text-muted-foreground">¥{Number(item.cost_price || 0).toFixed(1)}</TableCell>
+                  <TableCell className="text-right">
+                    {item.price > 0 ? (
+                      <Badge variant={((item.price - (item.cost_price || 0)) / item.price * 100) > 60 ? "default" : "secondary"}>
+                        {((item.price - (item.cost_price || 0)) / item.price * 100).toFixed(0)}%
+                      </Badge>
+                    ) : "-"}
                   </TableCell>
                   <TableCell className="text-center">
+                    {item.is_featured && <Star className="w-4 h-4 text-yellow-500 mx-auto fill-yellow-500" />}
                     <Switch checked={item.is_available} onCheckedChange={(v) => toggleAvailability.mutate({ id: item.id, is_available: v })} />
                   </TableCell>
                   <TableCell className="text-right">
@@ -231,7 +249,7 @@ const Menu = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? t("menuMgmt.editItem") : t("menuMgmt.addItem")}</DialogTitle>
           </DialogHeader>
@@ -270,6 +288,64 @@ const Menu = () => {
                 <Label>{t("menuMgmt.descEn")}</Label>
                 <Textarea value={form.description_en} onChange={(e) => setForm({ ...form, description_en: e.target.value })} rows={2} />
               </div>
+            </div>
+            {/* Ingredients */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold">{t("menuMgmt.ingredients")}</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  const newIngredients = [...form.ingredients, { name: "", quantity: 0, unit: "ml", unit_cost: 0 }];
+                  const cost = newIngredients.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
+                  setForm({ ...form, ingredients: newIngredients, cost_price: cost });
+                }}>
+                  <Plus className="w-3 h-3 mr-1" /> {t("menuMgmt.addIngredient")}
+                </Button>
+              </div>
+              {form.ingredients.length > 0 && (
+                <div className="space-y-2 border rounded-md p-3 bg-muted/30">
+                  <div className="grid grid-cols-[1fr_60px_60px_80px_32px] gap-2 text-xs text-muted-foreground font-medium">
+                    <span>{t("menuMgmt.ingredientName")}</span>
+                    <span>{t("menuMgmt.quantity")}</span>
+                    <span>{t("menuMgmt.unit")}</span>
+                    <span>{t("menuMgmt.unitCost")}</span>
+                    <span></span>
+                  </div>
+                  {form.ingredients.map((ing, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_60px_60px_80px_32px] gap-2 items-center">
+                      <Input value={ing.name} placeholder={isZh ? "如：伏特加" : "e.g. Vodka"} onChange={(e) => {
+                        const arr = [...form.ingredients]; arr[idx] = { ...arr[idx], name: e.target.value }; setForm({ ...form, ingredients: arr });
+                      }} className="h-8 text-sm" />
+                      <Input type="number" value={ing.quantity} onChange={(e) => {
+                        const arr = [...form.ingredients]; arr[idx] = { ...arr[idx], quantity: Number(e.target.value) };
+                        setForm({ ...form, ingredients: arr, cost_price: arr.reduce((s, i) => s + i.quantity * i.unit_cost, 0) });
+                      }} className="h-8 text-sm" />
+                      <Input value={ing.unit} onChange={(e) => {
+                        const arr = [...form.ingredients]; arr[idx] = { ...arr[idx], unit: e.target.value }; setForm({ ...form, ingredients: arr });
+                      }} className="h-8 text-sm" />
+                      <Input type="number" value={ing.unit_cost} onChange={(e) => {
+                        const arr = [...form.ingredients]; arr[idx] = { ...arr[idx], unit_cost: Number(e.target.value) };
+                        setForm({ ...form, ingredients: arr, cost_price: arr.reduce((s, i) => s + i.quantity * i.unit_cost, 0) });
+                      }} className="h-8 text-sm" />
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
+                        const arr = form.ingredients.filter((_, i) => i !== idx);
+                        setForm({ ...form, ingredients: arr, cost_price: arr.reduce((s, i) => s + i.quantity * i.unit_cost, 0) });
+                      }}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex justify-between pt-2 border-t text-sm">
+                    <span className="text-muted-foreground">{t("menuMgmt.totalCost")}</span>
+                    <span className="font-semibold text-foreground">¥{form.cost_price.toFixed(2)}</span>
+                  </div>
+                  {form.price > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{t("menuMgmt.profitMargin")}</span>
+                      <span className="font-semibold text-foreground">{((form.price - form.cost_price) / form.price * 100).toFixed(1)}%</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">

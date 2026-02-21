@@ -176,11 +176,13 @@ export type Database = {
       menu_items: {
         Row: {
           category: string
+          cost_price: number | null
           created_at: string
           description_en: string | null
           description_zh: string | null
           id: string
           image_url: string | null
+          ingredients: Json | null
           is_available: boolean
           is_featured: boolean
           name_en: string
@@ -191,11 +193,13 @@ export type Database = {
         }
         Insert: {
           category?: string
+          cost_price?: number | null
           created_at?: string
           description_en?: string | null
           description_zh?: string | null
           id?: string
           image_url?: string | null
+          ingredients?: Json | null
           is_available?: boolean
           is_featured?: boolean
           name_en: string
@@ -206,11 +210,13 @@ export type Database = {
         }
         Update: {
           category?: string
+          cost_price?: number | null
           created_at?: string
           description_en?: string | null
           description_zh?: string | null
           id?: string
           image_url?: string | null
+          ingredients?: Json | null
           is_available?: boolean
           is_featured?: boolean
           name_en?: string
