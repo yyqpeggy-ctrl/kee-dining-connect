@@ -74,6 +74,57 @@ export type Database = {
         }
         Relationships: []
       }
+      event_participants: {
+        Row: {
+          check_in_at: string | null
+          created_at: string
+          email: string | null
+          event_id: string
+          event_name: string
+          id: string
+          is_new_customer: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string
+          status: string
+          updated_at: string
+          wechat: string | null
+        }
+        Insert: {
+          check_in_at?: string | null
+          created_at?: string
+          email?: string | null
+          event_id: string
+          event_name: string
+          id?: string
+          is_new_customer?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          wechat?: string | null
+        }
+        Update: {
+          check_in_at?: string | null
+          created_at?: string
+          email?: string | null
+          event_id?: string
+          event_name?: string
+          id?: string
+          is_new_customer?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          wechat?: string | null
+        }
+        Relationships: []
+      }
       event_reminder_rules: {
         Row: {
           channel: string
