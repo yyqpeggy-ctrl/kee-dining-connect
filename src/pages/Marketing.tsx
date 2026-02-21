@@ -1,12 +1,13 @@
 import AppLayout from "@/components/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Youtube, ShoppingBag, Megaphone, BarChart3, Star } from "lucide-react";
+import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import SocialMediaTab from "@/components/marketing/SocialMediaTab";
 import EcommerceTab from "@/components/marketing/EcommerceTab";
 import CampaignsTab from "@/components/marketing/CampaignsTab";
 import TrafficAnalyticsTab from "@/components/marketing/TrafficAnalyticsTab";
 import DianpingReviewsTab from "@/components/marketing/DianpingReviewsTab";
+import EventsTab from "@/components/marketing/EventsTab";
 
 const Marketing = () => {
   const { t, i18n } = useTranslation();
@@ -26,6 +27,7 @@ const Marketing = () => {
             <TabsTrigger value="ecommerce" className="gap-1.5"><ShoppingBag className="w-3.5 h-3.5" />{t("marketingMgmt.ecommerce")}</TabsTrigger>
             <TabsTrigger value="campaigns" className="gap-1.5"><Megaphone className="w-3.5 h-3.5" />{t("marketingMgmt.campaigns")}</TabsTrigger>
             <TabsTrigger value="reviews" className="gap-1.5"><Star className="w-3.5 h-3.5" />{isZh ? "大众点评" : "Reviews"}</TabsTrigger>
+            <TabsTrigger value="events" className="gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{isZh ? "活动策划" : "Events"}</TabsTrigger>
             <TabsTrigger value="analytics" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" />{t("marketingMgmt.trafficAnalytics")}</TabsTrigger>
           </TabsList>
 
@@ -33,6 +35,7 @@ const Marketing = () => {
           <TabsContent value="ecommerce"><EcommerceTab /></TabsContent>
           <TabsContent value="campaigns"><CampaignsTab /></TabsContent>
           <TabsContent value="reviews"><DianpingReviewsTab /></TabsContent>
+          <TabsContent value="events"><EventsTab /></TabsContent>
           <TabsContent value="analytics"><TrafficAnalyticsTab /></TabsContent>
         </Tabs>
       </div>
