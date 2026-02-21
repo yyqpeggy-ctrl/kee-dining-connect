@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical, AlertTriangle, TrendingUp, PieChart as PieChartIcon, Clock, CalendarDays } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical, AlertTriangle, TrendingUp, PieChart as PieChartIcon, Clock, CalendarDays, Users } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
@@ -42,6 +42,7 @@ type MenuItem = {
   cost_price: number;
   schedule_days: string[];
   schedule_time: string;
+  max_participants: number;
 };
 
 const CATEGORIES = ["tapas", "mains", "cocktails", "drinks", "desserts", "entertainment"];
@@ -60,7 +61,7 @@ const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const emptyItem: Omit<MenuItem, "id"> = {
   name_zh: "", name_en: "", description_zh: "", description_en: "",
   category: "tapas", price: 0, image_url: "", is_available: true, is_featured: false, sort_order: 0,
-  ingredients: [], cost_price: 0, schedule_days: [], schedule_time: "",
+  ingredients: [], cost_price: 0, schedule_days: [], schedule_time: "", max_participants: 0,
 };
 
 const Menu = () => {
@@ -79,8 +80,28 @@ const Menu = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("menu_items").select("*").order("sort_order");
       if (error) throw error;
-      return (data ?? []).map((d: any) => ({ ...d, ingredients: (d.ingredients ?? []) as Ingredient[], schedule_days: d.schedule_days ?? [], schedule_time: d.schedule_time ?? "" })) as MenuItem[];
+      return (data ?? []).map((d: any) => ({ ...d, ingredients: (d.ingredients ?? []) as Ingredient[], schedule_days: d.schedule_days ?? [], schedule_time: d.schedule_time ?? "", max_participants: d.max_participants ?? 0 })) as MenuItem[];
     },
+  });
+
+  // Fetch participant counts for entertainment items
+  const entertainmentIds = items.filter(i => i.category === "entertainment").map(i => i.id);
+  const { data: participantCounts = {} } = useQuery({
+    queryKey: ["entertainment-participant-counts", entertainmentIds],
+    queryFn: async () => {
+      if (entertainmentIds.length === 0) return {};
+      const { data, error } = await supabase
+        .from("event_participants")
+        .select("event_id")
+        .in("event_id", entertainmentIds);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data ?? []).forEach((p: any) => {
+        counts[p.event_id] = (counts[p.event_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: entertainmentIds.length > 0,
   });
 
   const upsertMutation = useMutation({
@@ -348,6 +369,18 @@ const Menu = () => {
                               )}
                             </div>
                           )}
+                          {item.category === "entertainment" && (
+                            <div className="flex items-center gap-1 mt-1 text-[11px]">
+                              <Users className="w-3 h-3 text-muted-foreground" />
+                              <span className={`${item.max_participants > 0 && (participantCounts[item.id] || 0) >= item.max_participants ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                                {participantCounts[item.id] || 0}
+                                {item.max_participants > 0 ? `/${item.max_participants}` : ""}
+                              </span>
+                              {item.max_participants > 0 && (participantCounts[item.id] || 0) >= item.max_participants && (
+                                <Badge variant="destructive" className="text-[9px] px-1 py-0 h-3.5">{isZh ? "已满" : "Full"}</Badge>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -522,6 +555,20 @@ const Menu = () => {
                       onChange={(e) => setForm({ ...form, schedule_time: e.target.value })}
                       className="max-w-xs"
                     />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">{isZh ? "参与人数上限" : "Max Participants"}</Label>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      value={form.max_participants}
+                      placeholder={isZh ? "0 = 不限" : "0 = unlimited"}
+                      onChange={(e) => setForm({ ...form, max_participants: Number(e.target.value) })}
+                      className="max-w-xs"
+                    />
+                    <span className="text-xs text-muted-foreground">{isZh ? "（0为不限制）" : "(0 = no limit)"}</span>
                   </div>
                 </div>
               </div>
