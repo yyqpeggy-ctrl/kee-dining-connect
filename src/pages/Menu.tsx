@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical, AlertTriangle, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 type Ingredient = {
   name: string;
@@ -175,6 +176,108 @@ const Menu = () => {
           );
         })}
       </div>
+
+      {/* Cost Analysis Dashboard */}
+      {items.length > 0 && (() => {
+        const CHART_COLORS = ["hsl(36, 90%, 55%)", "hsl(24, 85%, 50%)", "hsl(152, 60%, 45%)", "hsl(210, 70%, 55%)", "hsl(280, 60%, 55%)", "hsl(340, 70%, 55%)"];
+
+        // Category stats
+        const categoryStats = CATEGORIES.map((cat, idx) => {
+          const catItems = items.filter(i => i.category === cat && i.price > 0 && i.cost_price > 0);
+          const totalRevenue = catItems.reduce((s, i) => s + i.price, 0);
+          const totalCost = catItems.reduce((s, i) => s + (i.cost_price || 0), 0);
+          const avgMargin = catItems.length > 0 ? catItems.reduce((s, i) => s + ((i.price - (i.cost_price || 0)) / i.price * 100), 0) / catItems.length : 0;
+          return { cat, label: categoryLabel(cat), count: catItems.length, totalCost, totalRevenue, avgMargin, color: CHART_COLORS[idx] };
+        }).filter(s => s.count > 0);
+
+        const costPieData = categoryStats.map(s => ({ name: s.label, value: Math.round(s.totalCost) }));
+
+        // High cost alert: items with margin < 50%
+        const highCostItems = items
+          .filter(i => i.price > 0 && i.cost_price > 0 && ((i.price - i.cost_price) / i.price * 100) < 50)
+          .sort((a, b) => ((a.price - (a.cost_price || 0)) / a.price) - ((b.price - (b.cost_price || 0)) / b.price))
+          .slice(0, 8);
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {/* Avg Margin by Category */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">{isZh ? "品类平均利润率" : "Avg Margin by Category"}</h3>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={categoryStats.map(s => ({ name: s.label, margin: Math.round(s.avgMargin) }))} layout="vertical" margin={{ left: 10, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 18%)" horizontal={false} />
+                  <XAxis type="number" unit="%" stroke="hsl(220, 10%, 55%)" fontSize={11} domain={[0, 100]} />
+                  <YAxis type="category" dataKey="name" stroke="hsl(220, 10%, 55%)" fontSize={11} width={70} />
+                  <Tooltip contentStyle={{ background: "hsl(220, 18%, 12%)", border: "1px solid hsl(220, 14%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(40, 20%, 92%)" }} formatter={(v: number) => [`${v}%`, isZh ? "利润率" : "Margin"]} />
+                  <Bar dataKey="margin" radius={[0, 4, 4, 0]}>
+                    {categoryStats.map((s, i) => (
+                      <Cell key={i} fill={s.avgMargin >= 60 ? "hsl(152, 60%, 45%)" : s.avgMargin >= 45 ? "hsl(36, 90%, 55%)" : "hsl(0, 70%, 55%)"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </motion.div>
+
+            {/* Cost Breakdown Pie */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <PieChartIcon className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">{isZh ? "成本占比分布" : "Cost Distribution"}</h3>
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie data={costPieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
+                    {costPieData.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i]} />))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(220, 18%, 12%)", border: "1px solid hsl(220, 14%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(40, 20%, 92%)" }} formatter={(v: number) => [`¥${v}`, isZh ? "成本" : "Cost"]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                {categoryStats.map((s, i) => (
+                  <div key={s.cat} className="flex items-center gap-1 text-[11px]">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
+                    <span className="text-muted-foreground">{s.label}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* High Cost Alert List */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <h3 className="text-sm font-semibold">{isZh ? "高成本预警" : "High Cost Alert"}</h3>
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-auto">{highCostItems.length}</Badge>
+              </div>
+              {highCostItems.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">{isZh ? "所有菜品利润率均在50%以上" : "All items have margins above 50%"}</p>
+              ) : (
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto">
+                  {highCostItems.map((item) => {
+                    const m = ((item.price - (item.cost_price || 0)) / item.price * 100);
+                    return (
+                      <div key={item.id} className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2 border border-border/50">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Badge variant={m < 30 ? "destructive" : "secondary"} className="text-[10px] px-1.5 py-0 shrink-0">
+                            {m.toFixed(0)}%
+                          </Badge>
+                          <span className="text-sm truncate">{isZh ? item.name_zh : item.name_en}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                          ¥{Number(item.cost_price || 0).toFixed(0)}/¥{Number(item.price).toFixed(0)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {/* Filters */}
       <div className="flex gap-3 mb-4">
