@@ -461,6 +461,16 @@
     "cat_cocktails": "Cocktails",
     "cat_drinks": "Drinks",
     "cat_desserts": "Desserts",
-    "cat_entertainment": "Entertainment"
+    "cat_entertainment": "Entertainment",
+    "costPrice": "Cost Price",
+    "ingredients": "Ingredients",
+    "addIngredient": "Add Ingredient",
+    "ingredientName": "Ingredient",
+    "quantity": "Qty",
+    "unit": "Unit",
+    "unitCost": "Unit Cost(¥)",
+    "totalCost": "Total Cost",
+    "profitMargin": "Margin",
+    "removeIngredient": "Remove"
   }
 }
