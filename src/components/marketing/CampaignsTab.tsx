@@ -6,11 +6,11 @@ import { Plus, Target, Users, Megaphone, CalendarDays, TrendingUp, Zap } from "l
 import { useTranslation } from "react-i18next";
 
 const campaigns = [
-  { id: 1, nameZh: "元宵节满减活动", nameEn: "Lantern Festival Discount", type: "promotion", channelZh: "全渠道", channelEn: "All Channels", startDate: "2026-02-20", endDate: "2026-02-26", budget: 15000, spent: 8200, reach: "12.3万", conversions: 892, conversionRate: "7.2%", status: "inProgress" },
-  { id: 2, nameZh: "新品试吃推广", nameEn: "New Dish Tasting Promo", type: "advertising", channelZh: "TikTok + YouTube", channelEn: "TikTok + YouTube", startDate: "2026-02-15", endDate: "2026-02-28", budget: 25000, spent: 18600, reach: "45.8万", conversions: 2340, conversionRate: "5.1%", status: "inProgress" },
-  { id: 3, nameZh: "会员日双倍积分", nameEn: "Member Day Double Points", type: "membership", channelZh: "小程序", channelEn: "Mini App", startDate: "2026-02-18", endDate: "2026-02-18", budget: 5000, spent: 5000, reach: "3.2万", conversions: 1560, conversionRate: "12.8%", status: "ended" },
-  { id: 4, nameZh: "春季新菜单发布", nameEn: "Spring Menu Launch", type: "brand", channelZh: "全渠道", channelEn: "All Channels", startDate: "2026-03-01", endDate: "2026-03-15", budget: 35000, spent: 0, reach: "—", conversions: 0, conversionRate: "—", status: "notStarted" },
-  { id: 5, nameZh: "KOL探店合作", nameEn: "KOL Restaurant Review", type: "collaboration", channelZh: "TikTok", channelEn: "TikTok", startDate: "2026-02-10", endDate: "2026-02-20", budget: 20000, spent: 20000, reach: "68.5万", conversions: 3120, conversionRate: "4.6%", status: "ended" },
+  { id: 1, nameZh: "Happy Hour 欢乐时光特惠", nameEn: "Happy Hour Special", type: "promotion", channelZh: "全渠道", channelEn: "All Channels", startDate: "2026-02-20", endDate: "2026-02-26", budget: 15000, spent: 8200, reach: "12.3万", conversions: 892, conversionRate: "7.2%", status: "inProgress" },
+  { id: 2, nameZh: "新Tapas菜单推广", nameEn: "New Tapas Menu Launch", type: "advertising", channelZh: "TikTok + YouTube", channelEn: "TikTok + YouTube", startDate: "2026-02-15", endDate: "2026-02-28", budget: 25000, spent: 18600, reach: "45.8万", conversions: 2340, conversionRate: "5.1%", status: "inProgress" },
+  { id: 3, nameZh: "Wine Wednesday 会员葡萄酒之夜", nameEn: "Wine Wednesday Members Night", type: "membership", channelZh: "小程序", channelEn: "Mini App", startDate: "2026-02-18", endDate: "2026-02-18", budget: 5000, spent: 5000, reach: "3.2万", conversions: 1560, conversionRate: "12.8%", status: "ended" },
+  { id: 4, nameZh: "春季Brunch限定菜单", nameEn: "Spring Brunch Menu Launch", type: "brand", channelZh: "全渠道", channelEn: "All Channels", startDate: "2026-03-01", endDate: "2026-03-15", budget: 35000, spent: 0, reach: "—", conversions: 0, conversionRate: "—", status: "notStarted" },
+  { id: 5, nameZh: "美食博主探店合作", nameEn: "Food Blogger Collab", type: "collaboration", channelZh: "TikTok + Instagram", channelEn: "TikTok + Instagram", startDate: "2026-02-10", endDate: "2026-02-20", budget: 20000, spent: 20000, reach: "68.5万", conversions: 3120, conversionRate: "4.6%", status: "ended" },
 ];
 
 const statusColor = (s: string) => {

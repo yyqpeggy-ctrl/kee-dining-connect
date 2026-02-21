@@ -21,14 +21,14 @@ interface Order {
 }
 
 const orders: Order[] = [
-  { id: "ORD-001", table: "A1", items: [{ nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish" }, { nameZh: "精酿IPA x2", nameEn: "Craft IPA x2" }], total: "¥268", time: "19:32", status: "preparing" },
-  { id: "ORD-002", table: "B1", items: [{ nameZh: "麻辣小龙虾", nameEn: "Spicy Crayfish" }, { nameZh: "水煮牛肉", nameEn: "Boiled Beef" }, { nameZh: "米饭 x4", nameEn: "Rice x4" }], total: "¥520", time: "19:15", status: "served" },
-  { id: "ORD-003", table: "A3", items: [{ nameZh: "鲜榨橙汁 x2", nameEn: "Fresh OJ x2" }, { nameZh: "凉拌黄瓜", nameEn: "Cucumber Salad" }], total: "¥86", time: "19:45", status: "pending" },
-  { id: "ORD-004", table: "C3", items: [{ nameZh: "精酿啤酒 x3", nameEn: "Craft Beer x3" }], total: "¥98", time: "20:01", status: "preparing" },
-  { id: "ORD-005", table: "B4", items: [{ nameZh: "水煮牛肉", nameEn: "Boiled Beef" }, { nameZh: "麻婆豆腐", nameEn: "Mapo Tofu" }, { nameZh: "白饭 x2", nameEn: "Rice x2" }], total: "¥188", time: "18:50", status: "completed" },
-  { id: "ORD-006", table: "A2", items: [{ nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish" }, { nameZh: "拉菲红酒", nameEn: "Lafite Wine" }], total: "¥680", time: "18:30", status: "completed" },
-  { id: "ORD-007", table: "B3", items: [{ nameZh: "柠檬水 x2", nameEn: "Lemonade x2" }], total: "¥24", time: "20:10", status: "cancelled" },
-  { id: "ORD-008", table: "C1", items: [{ nameZh: "麻辣小龙虾 x2", nameEn: "Spicy Crayfish x2" }, { nameZh: "啤酒 x6", nameEn: "Beer x6" }, { nameZh: "毛豆", nameEn: "Edamame" }], total: "¥420", time: "17:55", status: "completed" },
+  { id: "ORD-001", table: "A1", items: [{ nameZh: "西班牙火腿拼盘", nameEn: "Jamón Ibérico Platter" }, { nameZh: "Sangria 红酒 x2", nameEn: "Sangria x2" }], total: "¥368", time: "19:32", status: "preparing" },
+  { id: "ORD-002", table: "B1", items: [{ nameZh: "蒜香虾 Gambas al Ajillo", nameEn: "Gambas al Ajillo" }, { nameZh: "烤章鱼 Pulpo", nameEn: "Grilled Octopus Pulpo" }, { nameZh: "面包篮 x2", nameEn: "Bread Basket x2" }], total: "¥520", time: "19:15", status: "served" },
+  { id: "ORD-003", table: "A3", items: [{ nameZh: "Gin Tonic x2", nameEn: "Gin & Tonic x2" }, { nameZh: "帕德龙辣椒 Padrón", nameEn: "Padrón Peppers" }], total: "¥186", time: "19:45", status: "pending" },
+  { id: "ORD-004", table: "C3", items: [{ nameZh: "精酿IPA x3", nameEn: "Craft IPA x3" }], total: "¥138", time: "20:01", status: "preparing" },
+  { id: "ORD-005", table: "B4", items: [{ nameZh: "西班牙蛋饼 Tortilla", nameEn: "Spanish Tortilla" }, { nameZh: "炸丸子 Croquetas", nameEn: "Croquetas" }, { nameZh: "红酒 x2", nameEn: "House Red x2" }], total: "¥288", time: "18:50", status: "completed" },
+  { id: "ORD-006", table: "A2", items: [{ nameZh: "Tomahawk战斧牛排", nameEn: "Tomahawk Steak" }, { nameZh: "Rioja红酒整瓶", nameEn: "Rioja Wine (Bottle)" }], total: "¥880", time: "18:30", status: "completed" },
+  { id: "ORD-007", table: "B3", items: [{ nameZh: "柠檬水 x2", nameEn: "Sparkling Lemonade x2" }], total: "¥48", time: "20:10", status: "cancelled" },
+  { id: "ORD-008", table: "C1", items: [{ nameZh: "芝士拼盘", nameEn: "Cheese Board" }, { nameZh: "精酿啤酒 x4", nameEn: "Craft Beer x4" }, { nameZh: "橄榄盘", nameEn: "Marinated Olives" }], total: "¥420", time: "17:55", status: "completed" },
 ];
 
 const Orders = () => {

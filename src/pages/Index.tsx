@@ -16,36 +16,36 @@ import AppLayout from "@/components/AppLayout";
 import StatCard from "@/components/StatCard";
 
 const revenueData = [
-  { time: "10:00", revenue: 2400 },
-  { time: "11:00", revenue: 4200 },
-  { time: "12:00", revenue: 8800 },
-  { time: "13:00", revenue: 7200 },
-  { time: "14:00", revenue: 3600 },
-  { time: "15:00", revenue: 2800 },
-  { time: "16:00", revenue: 3200 },
-  { time: "17:00", revenue: 5800 },
-  { time: "18:00", revenue: 9200 },
-  { time: "19:00", revenue: 12400 },
-  { time: "20:00", revenue: 11800 },
-  { time: "21:00", revenue: 8600 },
+  { time: "10:00", revenue: 800 },
+  { time: "11:00", revenue: 1800 },
+  { time: "12:00", revenue: 5200 },
+  { time: "13:00", revenue: 4800 },
+  { time: "14:00", revenue: 2200 },
+  { time: "15:00", revenue: 1600 },
+  { time: "16:00", revenue: 2400 },
+  { time: "17:00", revenue: 5600 },
+  { time: "18:00", revenue: 9800 },
+  { time: "19:00", revenue: 14200 },
+  { time: "20:00", revenue: 16800 },
+  { time: "21:00", revenue: 13600 },
 ];
 
 const COLORS = ["hsl(36, 90%, 55%)", "hsl(24, 85%, 50%)", "hsl(152, 60%, 45%)", "hsl(210, 70%, 55%)"];
 
 const topItems = [
-  { nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish", orders: 86, revenue: "¥4,300" },
-  { nameZh: "精酿啤酒", nameEn: "Craft Beer", orders: 124, revenue: "¥3,720" },
-  { nameZh: "麻辣小龙虾", nameEn: "Spicy Crayfish", orders: 68, revenue: "¥5,440" },
-  { nameZh: "鲜榨果汁", nameEn: "Fresh Juice", orders: 95, revenue: "¥1,900" },
-  { nameZh: "水煮牛肉", nameEn: "Boiled Beef", orders: 52, revenue: "¥3,640" },
+  { nameZh: "西班牙火腿拼盘", nameEn: "Jamón Ibérico Platter", orders: 68, revenue: "¥8,160" },
+  { nameZh: "Gin & Tonic", nameEn: "Gin & Tonic", orders: 124, revenue: "¥7,440" },
+  { nameZh: "蒜香虾 Gambas", nameEn: "Gambas al Ajillo", orders: 86, revenue: "¥6,020" },
+  { nameZh: "Sangria红酒", nameEn: "Sangria", orders: 95, revenue: "¥5,700" },
+  { nameZh: "Tomahawk战斧牛排", nameEn: "Tomahawk Steak", orders: 32, revenue: "¥9,600" },
 ];
 
 const pourCostData = [
-  { nameZh: "啤酒", nameEn: "Beer", cost: 22, target: 25 },
-  { nameZh: "白酒", nameEn: "Baijiu", cost: 18, target: 20 },
+  { nameZh: "精酿啤酒", nameEn: "Craft Beer", cost: 22, target: 25 },
+  { nameZh: "金酒/龙舌兰", nameEn: "Gin/Tequila", cost: 18, target: 20 },
   { nameZh: "红酒", nameEn: "Wine", cost: 30, target: 28 },
-  { nameZh: "鸡尾酒", nameEn: "Cocktail", cost: 15, target: 18 },
-  { nameZh: "果汁", nameEn: "Juice", cost: 35, target: 30 },
+  { nameZh: "鸡尾酒", nameEn: "Cocktails", cost: 24, target: 22 },
+  { nameZh: "软饮/果汁", nameEn: "Soft Drinks", cost: 12, target: 15 },
 ];
 
 const Dashboard = () => {
@@ -53,10 +53,10 @@ const Dashboard = () => {
   const isZh = i18n.language === 'zh';
 
   const categoryData = [
-    { name: t("dashboard.categories.hotDishes"), value: 42 },
-    { name: t("dashboard.categories.drinks"), value: 28 },
-    { name: t("dashboard.categories.coldDishes"), value: 15 },
-    { name: t("dashboard.categories.staples"), value: 15 },
+    { name: t("dashboard.categories.tapas"), value: 38 },
+    { name: t("dashboard.categories.drinks"), value: 35 },
+    { name: t("dashboard.categories.mains"), value: 18 },
+    { name: t("dashboard.categories.desserts"), value: 9 },
   ];
 
   return (
@@ -67,7 +67,7 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard title={t("dashboard.todayRevenue")} value="¥28,640" change="+12.5%" changeType="up" icon={DollarSign} index={0} />
+        <StatCard title={t("dashboard.todayRevenue")} value="¥38,640" change="+12.5%" changeType="up" icon={DollarSign} index={0} />
         <StatCard title={t("dashboard.orderCount")} value="186" change="+8.3%" changeType="up" icon={ShoppingCart} index={1} />
         <StatCard title={t("dashboard.footTraffic")} value="312" change="+5.2%" changeType="up" icon={Users} index={2} />
         <StatCard title={t("dashboard.pourCostRate")} value="3.2%" change="-0.5%" changeType="down" icon={Wine} index={3} />

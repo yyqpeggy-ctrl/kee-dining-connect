@@ -42,11 +42,11 @@ function getMockData() {
       },
     ],
     recentPosts: [
-      { id: "1", titleZh: "招牌菜制作过程揭秘", titleEn: "Behind the Scenes: Signature Dish", platform: "TikTok", views: 523000, viewsFormatted: "52.3万", likes: 32000, likesFormatted: "3.2万", comments: 1842, shares: 892, date: "2026-02-20", status: "published" },
-      { id: "2", titleZh: "厨师长教你做年夜饭", titleEn: "Head Chef's New Year Dinner Tutorial", platform: "YouTube", views: 187000, viewsFormatted: "18.7万", likes: 11000, likesFormatted: "1.1万", comments: 634, shares: 421, date: "2026-02-19", status: "published" },
-      { id: "3", titleZh: "新春限定套餐预告", titleEn: "Spring Festival Special Menu Preview", platform: "TikTok", views: 312000, viewsFormatted: "31.2万", likes: 24000, likesFormatted: "2.4万", comments: 1203, shares: 756, date: "2026-02-18", status: "published" },
-      { id: "4", titleZh: "后厨一日Vlog", titleEn: "A Day in the Kitchen Vlog", platform: "YouTube", views: 89000, viewsFormatted: "8.9万", likes: 5600, likesFormatted: "5600", comments: 287, shares: 198, date: "2026-02-17", status: "published" },
-      { id: "5", titleZh: "元宵节特别活动预热", titleEn: "Lantern Festival Event Teaser", platform: "TikTok", views: 0, viewsFormatted: "—", likes: 0, likesFormatted: "—", comments: 0, shares: 0, date: "2026-02-22", status: "scheduled" },
+      { id: "1", titleZh: "Tapas制作幕后揭秘", titleEn: "Behind the Scenes: Making Tapas", platform: "TikTok", views: 523000, viewsFormatted: "52.3万", likes: 32000, likesFormatted: "3.2万", comments: 1842, shares: 892, date: "2026-02-20", status: "published" },
+      { id: "2", titleZh: "主厨教你调制完美Sangria", titleEn: "Head Chef's Perfect Sangria Tutorial", platform: "YouTube", views: 187000, viewsFormatted: "18.7万", likes: 11000, likesFormatted: "1.1万", comments: 634, shares: 421, date: "2026-02-19", status: "published" },
+      { id: "3", titleZh: "上海外滩最佳Tapas酒吧", titleEn: "Best Tapas Bar on Shanghai's Bund", platform: "TikTok", views: 312000, viewsFormatted: "31.2万", likes: 24000, likesFormatted: "2.4万", comments: 1203, shares: 756, date: "2026-02-18", status: "published" },
+      { id: "4", titleZh: "西班牙火腿切片ASMR", titleEn: "Jamón Ibérico Slicing ASMR", platform: "YouTube", views: 89000, viewsFormatted: "8.9万", likes: 5600, likesFormatted: "5600", comments: 287, shares: 198, date: "2026-02-17", status: "published" },
+      { id: "5", titleZh: "Happy Hour鸡尾酒之夜预告", titleEn: "Happy Hour Cocktail Night Teaser", platform: "Instagram", views: 0, viewsFormatted: "—", likes: 0, likesFormatted: "—", comments: 0, shares: 0, date: "2026-02-22", status: "scheduled" },
     ],
     weeklyViews: [
       { dayZh: "周一", dayEn: "Mon", youtube: 12400, tiktok: 34200, instagram: 8100 },

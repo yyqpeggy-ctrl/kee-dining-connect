@@ -35,19 +35,19 @@ interface PurchaseOrder {
 }
 
 const suppliers: Supplier[] = [
-  { id: "S001", nameZh: "大连鑫海水产", nameEn: "Dalian Xinhai Seafood", categoryZh: "海鲜", categoryEn: "Seafood", contactZh: "王经理", contactEn: "Manager Wang", phone: "139****8888", rating: 4.8, totalOrders: 156, lastOrder: "2024-02-08", status: "active" },
-  { id: "S002", nameZh: "北京蔬菜批发中心", nameEn: "Beijing Vegetable Wholesale", categoryZh: "蔬菜", categoryEn: "Vegetables", contactZh: "李总", contactEn: "Director Li", phone: "138****6666", rating: 4.5, totalOrders: 289, lastOrder: "2024-02-09", status: "active" },
-  { id: "S003", nameZh: "青岛精酿啤酒厂", nameEn: "Qingdao Craft Brewery", categoryZh: "酒水", categoryEn: "Beverages", contactZh: "张经理", contactEn: "Manager Zhang", phone: "137****5555", rating: 4.9, totalOrders: 78, lastOrder: "2024-02-05", status: "active" },
-  { id: "S004", nameZh: "河南面粉集团", nameEn: "Henan Flour Group", categoryZh: "粮油", categoryEn: "Grain & Oil", contactZh: "赵总", contactEn: "Director Zhao", phone: "136****4444", rating: 4.2, totalOrders: 45, lastOrder: "2024-01-20", status: "inactive" },
-  { id: "S005", nameZh: "内蒙古牛羊肉直供", nameEn: "Inner Mongolia Meat Supply", categoryZh: "肉类", categoryEn: "Meat", contactZh: "刘经理", contactEn: "Manager Liu", phone: "135****3333", rating: 4.7, totalOrders: 92, lastOrder: "2024-02-07", status: "active" },
+  { id: "S001", nameZh: "西班牙德赫萨火腿", nameEn: "Dehesa Ibérica Imports", categoryZh: "火腿/腌肉", categoryEn: "Charcuterie", contactZh: "Carlos经理", contactEn: "Manager Carlos", phone: "139****8888", rating: 4.9, totalOrders: 86, lastOrder: "2026-02-08", status: "active" },
+  { id: "S002", nameZh: "上海崇明有机农场", nameEn: "Chongming Organic Farm", categoryZh: "蔬菜/沙拉", categoryEn: "Vegetables/Salad", contactZh: "李总", contactEn: "Director Li", phone: "138****6666", rating: 4.5, totalOrders: 189, lastOrder: "2026-02-09", status: "active" },
+  { id: "S003", nameZh: "Barcelona精酿贸易", nameEn: "Barcelona Craft Trading", categoryZh: "酒水", categoryEn: "Beverages", contactZh: "张经理", contactEn: "Manager Zhang", phone: "137****5555", rating: 4.8, totalOrders: 78, lastOrder: "2026-02-05", status: "active" },
+  { id: "S004", nameZh: "法国奶酪之家", nameEn: "La Maison du Fromage", categoryZh: "奶酪/乳品", categoryEn: "Cheese/Dairy", contactZh: "Sophie", contactEn: "Sophie", phone: "136****4444", rating: 4.6, totalOrders: 52, lastOrder: "2026-01-20", status: "active" },
+  { id: "S005", nameZh: "澳洲牛肉直供", nameEn: "Aussie Beef Direct", categoryZh: "肉类", categoryEn: "Meat", contactZh: "Mark刘", contactEn: "Manager Mark", phone: "135****3333", rating: 4.7, totalOrders: 92, lastOrder: "2026-02-07", status: "active" },
 ];
 
 const purchaseOrders: PurchaseOrder[] = [
-  { id: "PO-2024-001", supplierZh: "大连鑫海水产", supplierEn: "Dalian Xinhai Seafood", itemsZh: "龙虾 50斤, 鲍鱼 30只, 海参 20斤", itemsEn: "Lobster 25kg, Abalone x30, Sea Cucumber 10kg", total: "¥28,500", orderDate: "2024-02-08", deliveryDate: "2024-02-09", status: "shipping" },
-  { id: "PO-2024-002", supplierZh: "北京蔬菜批发中心", supplierEn: "Beijing Vegetable Wholesale", itemsZh: "西兰花 100斤, 土豆 200斤, 青椒 80斤", itemsEn: "Broccoli 50kg, Potato 100kg, Bell Pepper 40kg", total: "¥3,200", orderDate: "2024-02-09", deliveryDate: "2024-02-09", status: "delivered" },
-  { id: "PO-2024-003", supplierZh: "青岛精酿啤酒厂", supplierEn: "Qingdao Craft Brewery", itemsZh: "精酿IPA 10箱, 小麦啤酒 5箱", itemsEn: "Craft IPA 10 cases, Wheat Beer 5 cases", total: "¥4,800", orderDate: "2024-02-07", deliveryDate: "2024-02-10", status: "confirmed" },
-  { id: "PO-2024-004", supplierZh: "内蒙古牛羊肉直供", supplierEn: "Inner Mongolia Meat Supply", itemsZh: "牛腩 100斤, 羊排 50斤", itemsEn: "Beef Brisket 50kg, Lamb Ribs 25kg", total: "¥12,600", orderDate: "2024-02-06", deliveryDate: "2024-02-08", status: "delivered" },
-  { id: "PO-2024-005", supplierZh: "大连鑫海水产", supplierEn: "Dalian Xinhai Seafood", itemsZh: "大闸蟹 200只", itemsEn: "Hairy Crab x200", total: "¥18,000", orderDate: "2024-02-09", deliveryDate: "2024-02-11", status: "pending" },
+  { id: "PO-2026-001", supplierZh: "西班牙德赫萨火腿", supplierEn: "Dehesa Ibérica Imports", itemsZh: "伊比利亚火腿 5kg, 西班牙辣肠 3kg", itemsEn: "Jamón Ibérico 5kg, Chorizo 3kg", total: "¥18,500", orderDate: "2026-02-08", deliveryDate: "2026-02-12", status: "shipping" },
+  { id: "PO-2026-002", supplierZh: "上海崇明有机农场", supplierEn: "Chongming Organic Farm", itemsZh: "芝麻菜 20kg, 番茄 30kg, 辣椒 10kg", itemsEn: "Arugula 20kg, Tomato 30kg, Peppers 10kg", total: "¥2,800", orderDate: "2026-02-09", deliveryDate: "2026-02-09", status: "delivered" },
+  { id: "PO-2026-003", supplierZh: "Barcelona精酿贸易", supplierEn: "Barcelona Craft Trading", itemsZh: "Estrella Damm 10箱, Sangria原料 5箱", itemsEn: "Estrella Damm 10 cases, Sangria mix 5 cases", total: "¥6,800", orderDate: "2026-02-07", deliveryDate: "2026-02-10", status: "confirmed" },
+  { id: "PO-2026-004", supplierZh: "澳洲牛肉直供", supplierEn: "Aussie Beef Direct", itemsZh: "Tomahawk牛排 30kg, 羊排 15kg", itemsEn: "Tomahawk Steak 30kg, Lamb Rack 15kg", total: "¥22,600", orderDate: "2026-02-06", deliveryDate: "2026-02-08", status: "delivered" },
+  { id: "PO-2026-005", supplierZh: "法国奶酪之家", supplierEn: "La Maison du Fromage", itemsZh: "Manchego奶酪 5kg, 蓝纹奶酪 3kg, 布里奶酪 3kg", itemsEn: "Manchego 5kg, Blue Cheese 3kg, Brie 3kg", total: "¥8,200", orderDate: "2026-02-09", deliveryDate: "2026-02-11", status: "pending" },
 ];
 
 const Procurement = () => {
@@ -66,7 +66,7 @@ const Procurement = () => {
 
   const pendingCount = purchaseOrders.filter((o) => o.status === "pending").length;
   const shippingCount = purchaseOrders.filter((o) => o.status === "shipping").length;
-  const monthlyTotal = 67100;
+  const monthlyTotal = 58900;
 
   return (
     <AppLayout>

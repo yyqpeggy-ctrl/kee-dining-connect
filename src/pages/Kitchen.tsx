@@ -15,11 +15,11 @@ interface KitchenOrder {
 }
 
 const kitchenOrders: KitchenOrder[] = [
-  { id: "K-001", table: "A1", items: [{ nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish", quantity: 1, notesZh: "微辣", notesEn: "Mild spicy" }, { nameZh: "蒜蓉西兰花", nameEn: "Garlic Broccoli", quantity: 1 }], orderTime: "19:32", waitTime: 12, status: "preparing", priority: "normal" },
-  { id: "K-002", table: "B1", items: [{ nameZh: "麻辣小龙虾", nameEn: "Spicy Crayfish", quantity: 2 }, { nameZh: "水煮牛肉", nameEn: "Boiled Beef", quantity: 1, notesZh: "不要香菜", notesEn: "No cilantro" }, { nameZh: "酸辣土豆丝", nameEn: "Hot & Sour Potato", quantity: 1 }], orderTime: "19:28", waitTime: 16, status: "preparing", priority: "rush" },
-  { id: "K-003", table: "C3", items: [{ nameZh: "糖醋里脊", nameEn: "Sweet & Sour Pork", quantity: 1 }, { nameZh: "米饭", nameEn: "Rice", quantity: 2 }], orderTime: "19:45", waitTime: 3, status: "pending", priority: "normal" },
-  { id: "K-004", table: "A3", items: [{ nameZh: "凉拌黄瓜", nameEn: "Cucumber Salad", quantity: 1 }], orderTime: "19:40", waitTime: 8, status: "ready", priority: "normal" },
-  { id: "K-005", table: "B4", items: [{ nameZh: "宫保鸡丁", nameEn: "Kung Pao Chicken", quantity: 1 }, { nameZh: "麻婆豆腐", nameEn: "Mapo Tofu", quantity: 1, notesZh: "多花椒", notesEn: "Extra peppercorn" }], orderTime: "19:35", waitTime: 13, status: "preparing", priority: "normal" },
+  { id: "K-001", table: "A1", items: [{ nameZh: "西班牙火腿拼盘", nameEn: "Jamón Ibérico Platter", quantity: 1 }, { nameZh: "蒜香虾", nameEn: "Gambas al Ajillo", quantity: 1, notesZh: "不要辣椒", notesEn: "No chili" }], orderTime: "19:32", waitTime: 12, status: "preparing", priority: "normal" },
+  { id: "K-002", table: "B1", items: [{ nameZh: "烤章鱼 Pulpo", nameEn: "Grilled Octopus Pulpo", quantity: 1, notesZh: "多烤一点", notesEn: "Extra charred" }, { nameZh: "西班牙蛋饼 Tortilla", nameEn: "Spanish Tortilla", quantity: 1 }, { nameZh: "炸丸子 Croquetas", nameEn: "Croquetas", quantity: 2 }], orderTime: "19:28", waitTime: 16, status: "preparing", priority: "rush" },
+  { id: "K-003", table: "C3", items: [{ nameZh: "Tomahawk战斧牛排", nameEn: "Tomahawk Steak", quantity: 1, notesZh: "五分熟", notesEn: "Medium" }, { nameZh: "薯条 Patatas Bravas", nameEn: "Patatas Bravas", quantity: 1 }], orderTime: "19:45", waitTime: 3, status: "pending", priority: "normal" },
+  { id: "K-004", table: "A3", items: [{ nameZh: "帕德龙辣椒 Padrón", nameEn: "Padrón Peppers", quantity: 1 }], orderTime: "19:40", waitTime: 8, status: "ready", priority: "normal" },
+  { id: "K-005", table: "B4", items: [{ nameZh: "芝士拼盘", nameEn: "Cheese Board", quantity: 1 }, { nameZh: "烤羊排", nameEn: "Grilled Lamb Chops", quantity: 1, notesZh: "配薄荷酱", notesEn: "With mint sauce" }], orderTime: "19:35", waitTime: 13, status: "preparing", priority: "normal" },
 ];
 
 const Kitchen = () => {

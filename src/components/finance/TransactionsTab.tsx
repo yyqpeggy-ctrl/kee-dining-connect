@@ -23,16 +23,16 @@ interface Transaction {
 }
 
 const transactions: Transaction[] = [
-  { id: "T001", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 总店", descEn: "Store Revenue - Main", amount: 28640, timeZh: "今天 21:00", timeEn: "Today 21:00", methodZh: "微信支付", methodEn: "WeChat Pay", storeZh: "总店", storeEn: "Main", icon: "wallet" },
-  { id: "T002", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 国贸分店", descEn: "Store Revenue - Guomao", amount: 35280, timeZh: "今天 21:00", timeEn: "Today 21:00", methodZh: "支付宝", methodEn: "Alipay", storeZh: "国贸分店", storeEn: "Guomao", icon: "wallet" },
-  { id: "T003", type: "expense", categoryKey: "rawMaterials", descZh: "海鲜供应商采购", descEn: "Seafood Supplier Purchase", amount: 15800, timeZh: "今天 14:30", timeEn: "Today 14:30", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "cart" },
+  { id: "T001", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 旗舰店", descEn: "Store Revenue - Flagship", amount: 38640, timeZh: "今天 21:00", timeEn: "Today 21:00", methodZh: "微信支付", methodEn: "WeChat Pay", storeZh: "旗舰店", storeEn: "Flagship", icon: "wallet" },
+  { id: "T002", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 法租界店", descEn: "Store Revenue - French Concession", amount: 25280, timeZh: "今天 21:00", timeEn: "Today 21:00", methodZh: "支付宝", methodEn: "Alipay", storeZh: "法租界店", storeEn: "French Concession", icon: "wallet" },
+  { id: "T003", type: "expense", categoryKey: "rawMaterials", descZh: "火腿/腌肉供应商采购", descEn: "Charcuterie Supplier Purchase", amount: 18500, timeZh: "今天 14:30", timeEn: "Today 14:30", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "cart" },
   { id: "T004", type: "expense", categoryKey: "laborCost", descZh: "员工工资 - 2月", descEn: "Employee Salary - Feb", amount: 183000, timeZh: "今天 10:00", timeEn: "Today 10:00", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "building" },
-  { id: "T005", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 三里屯分店", descEn: "Store Revenue - Sanlitun", amount: 42150, timeZh: "昨天 22:00", timeEn: "Yesterday 22:00", methodZh: "混合支付", methodEn: "Mixed Payment", storeZh: "三里屯分店", storeEn: "Sanlitun", icon: "wallet" },
-  { id: "T006", type: "expense", categoryKey: "rentUtilities", descZh: "总店2月租金", descEn: "Main Store Feb Rent", amount: 45000, timeZh: "昨天 10:00", timeEn: "Yesterday 10:00", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总店", storeEn: "Main", icon: "building" },
-  { id: "T007", type: "expense", categoryKey: "rentUtilities", descZh: "各门店水电费", descEn: "All Stores Utilities", amount: 8500, timeZh: "2天前", timeEn: "2 days ago", methodZh: "银行扣款", methodEn: "Bank Debit", storeZh: "总部", storeEn: "HQ", icon: "building" },
+  { id: "T005", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 静安店", descEn: "Store Revenue - Jing'an", amount: 32150, timeZh: "昨天 22:00", timeEn: "Yesterday 22:00", methodZh: "混合支付", methodEn: "Mixed Payment", storeZh: "静安店", storeEn: "Jing'an", icon: "wallet" },
+  { id: "T006", type: "expense", categoryKey: "rentUtilities", descZh: "旗舰店2月租金", descEn: "Flagship Store Feb Rent", amount: 100000, timeZh: "昨天 10:00", timeEn: "Yesterday 10:00", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "旗舰店", storeEn: "Flagship", icon: "building" },
+  { id: "T007", type: "expense", categoryKey: "rentUtilities", descZh: "各门店水电费", descEn: "All Stores Utilities", amount: 12500, timeZh: "2天前", timeEn: "2 days ago", methodZh: "银行扣款", methodEn: "Bank Debit", storeZh: "总部", storeEn: "HQ", icon: "building" },
   { id: "T008", type: "income", categoryKey: "otherIncome", descZh: "外卖平台结算", descEn: "Delivery Platform Settlement", amount: 18600, timeZh: "2天前", timeEn: "2 days ago", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "card" },
   { id: "T009", type: "expense", categoryKey: "marketingExp", descZh: "大众点评推广", descEn: "Dianping Promotion", amount: 5000, timeZh: "3天前", timeEn: "3 days ago", methodZh: "在线支付", methodEn: "Online Payment", storeZh: "总部", storeEn: "HQ", icon: "receipt" },
-  { id: "T010", type: "expense", categoryKey: "maintenance", descZh: "厨房设备维修", descEn: "Kitchen Equipment Repair", amount: 2800, timeZh: "3天前", timeEn: "3 days ago", methodZh: "现金", methodEn: "Cash", storeZh: "国贸分店", storeEn: "Guomao", icon: "receipt" },
+  { id: "T010", type: "expense", categoryKey: "maintenance", descZh: "酒吧设备维修", descEn: "Bar Equipment Repair", amount: 3800, timeZh: "3天前", timeEn: "3 days ago", methodZh: "现金", methodEn: "Cash", storeZh: "法租界店", storeEn: "French Concession", icon: "receipt" },
 ];
 
 const categoryLabels: Record<string, { zh: string; en: string }> = {
@@ -96,9 +96,9 @@ const TransactionsTab = () => {
           <SelectContent>
             <SelectItem value="all">{t("financeMgmt.allStores")}</SelectItem>
             <SelectItem value="hq">{t("financeMgmt.headquarters")}</SelectItem>
-            <SelectItem value="main">{isZh ? "总店" : "Main Store"}</SelectItem>
-            <SelectItem value="guomao">{isZh ? "国贸分店" : "Guomao Branch"}</SelectItem>
-            <SelectItem value="sanlitun">{isZh ? "三里屯分店" : "Sanlitun Branch"}</SelectItem>
+            <SelectItem value="flagship">{isZh ? "旗舰店" : "Flagship"}</SelectItem>
+            <SelectItem value="fc">{isZh ? "法租界店" : "French Concession"}</SelectItem>
+            <SelectItem value="jingan">{isZh ? "静安店" : "Jing'an"}</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" className="gap-2"><Filter className="w-4 h-4" />{t("financeMgmt.moreFilters")}</Button>
