@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   DollarSign,
   TrendingUp,
@@ -7,6 +9,8 @@ import {
   Users,
   Wine,
   AlertTriangle,
+  PackageOpen,
+  ArrowRight,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,6 +18,9 @@ import {
 } from "recharts";
 import AppLayout from "@/components/AppLayout";
 import StatCard from "@/components/StatCard";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const revenueData = [
   { time: "10:00", revenue: 800 },
@@ -51,6 +58,21 @@ const pourCostData = [
 const Dashboard = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+  const navigate = useNavigate();
+
+  const { data: lowStockItems = [] } = useQuery({
+    queryKey: ['low-stock-items'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('id, name_zh, name_en, stock, min_stock, unit, status')
+        .or('status.eq.low,status.eq.critical')
+        .order('stock', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
 
   const categoryData = [
     { name: t("dashboard.categories.tapas"), value: 25 },
@@ -113,6 +135,50 @@ const Dashboard = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Low Stock Alert */}
+      {lowStockItems.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-destructive/15 flex items-center justify-center">
+                <PackageOpen className="w-4 h-4 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">{t("dashboard.lowStockAlert")}</h3>
+                <p className="text-[11px] text-muted-foreground">{t("dashboard.lowStockDesc")}</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => navigate('/inventory')}>
+              {t("dashboard.goToInventory")} <ArrowRight className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {lowStockItems.map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <Badge variant={item.status === 'critical' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                    {item.status === 'critical' ? t("dashboard.critical") : t("dashboard.low")}
+                  </Badge>
+                  <span className="text-sm truncate max-w-[120px]">{isZh ? item.name_zh : item.name_en}</span>
+                </div>
+                <div className="text-xs text-muted-foreground whitespace-nowrap">
+                  <span className={item.status === 'critical' ? 'text-destructive font-semibold' : 'text-warning font-medium'}>
+                    {item.stock}
+                  </span>
+                  <span className="mx-1">/</span>
+                  <span>{item.min_stock} {item.unit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-card rounded-xl p-5">
