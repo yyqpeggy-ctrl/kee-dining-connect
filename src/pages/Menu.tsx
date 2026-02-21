@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical, AlertTriangle, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical, AlertTriangle, TrendingUp, PieChart as PieChartIcon, Clock, CalendarDays } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 type Ingredient = {
@@ -39,6 +40,8 @@ type MenuItem = {
   sort_order: number;
   ingredients: Ingredient[];
   cost_price: number;
+  schedule_days: string[];
+  schedule_time: string;
 };
 
 const CATEGORIES = ["tapas", "mains", "cocktails", "drinks", "desserts", "entertainment"];
@@ -52,10 +55,12 @@ const categoryIcons: Record<string, React.ReactNode> = {
   entertainment: <Gamepad2 className="w-4 h-4" />,
 };
 
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
 const emptyItem: Omit<MenuItem, "id"> = {
   name_zh: "", name_en: "", description_zh: "", description_en: "",
   category: "tapas", price: 0, image_url: "", is_available: true, is_featured: false, sort_order: 0,
-  ingredients: [], cost_price: 0,
+  ingredients: [], cost_price: 0, schedule_days: [], schedule_time: "",
 };
 
 const Menu = () => {
@@ -74,7 +79,7 @@ const Menu = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("menu_items").select("*").order("sort_order");
       if (error) throw error;
-      return (data ?? []).map((d: any) => ({ ...d, ingredients: (d.ingredients ?? []) as Ingredient[] })) as MenuItem[];
+      return (data ?? []).map((d: any) => ({ ...d, ingredients: (d.ingredients ?? []) as Ingredient[], schedule_days: d.schedule_days ?? [], schedule_time: d.schedule_time ?? "" })) as MenuItem[];
     },
   });
 
@@ -322,6 +327,27 @@ const Menu = () => {
                         <div>
                           <p className="font-medium text-foreground">{isZh ? item.name_zh : item.name_en}</p>
                           <p className="text-xs text-muted-foreground">{isZh ? item.name_en : item.name_zh}</p>
+                          {item.category === "entertainment" && (item.schedule_days.length > 0 || item.schedule_time) && (
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                              {item.schedule_days.length > 0 && (
+                                <span className="flex items-center gap-0.5">
+                                  <CalendarDays className="w-3 h-3" />
+                                  {item.schedule_days.map(d => {
+                                    const labels: Record<string, string> = isZh
+                                      ? { mon: "一", tue: "二", wed: "三", thu: "四", fri: "五", sat: "六", sun: "日" }
+                                      : { mon: "Mo", tue: "Tu", wed: "We", thu: "Th", fri: "Fr", sat: "Sa", sun: "Su" };
+                                    return labels[d] || d;
+                                  }).join("/")}
+                                </span>
+                              )}
+                              {item.schedule_time && (
+                                <span className="flex items-center gap-0.5">
+                                  <Clock className="w-3 h-3" />
+                                  {item.schedule_time}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -459,6 +485,47 @@ const Menu = () => {
                 </div>
               )}
             </div>
+            {/* Entertainment Schedule Fields */}
+            {form.category === "entertainment" && (
+              <div className="space-y-3 rounded-lg border border-border p-4 bg-muted/30">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <CalendarDays className="w-4 h-4 text-primary" />
+                  {isZh ? "活动时间安排" : "Activity Schedule"}
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">{isZh ? "举办日期（每周）" : "Days of Week"}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAYS.map((day) => {
+                      const dayLabels: Record<string, string> = isZh
+                        ? { mon: "周一", tue: "周二", wed: "周三", thu: "周四", fri: "周五", sat: "周六", sun: "周日" }
+                        : { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+                      const checked = form.schedule_days.includes(day);
+                      return (
+                        <label key={day} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer text-sm transition-colors ${checked ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => {
+                            const days = v ? [...form.schedule_days, day] : form.schedule_days.filter(d => d !== day);
+                            setForm({ ...form, schedule_days: days });
+                          }} className="h-3.5 w-3.5" />
+                          {dayLabels[day]}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">{isZh ? "活动时间" : "Time"}</Label>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <Input
+                      value={form.schedule_time}
+                      placeholder={isZh ? "如：20:00-22:00" : "e.g. 8:00 PM - 10:00 PM"}
+                      onChange={(e) => setForm({ ...form, schedule_time: e.target.value })}
+                      className="max-w-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t("menuMgmt.descZh")}</Label>
