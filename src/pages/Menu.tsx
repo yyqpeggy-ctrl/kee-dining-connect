@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2, X, ChevronDown, ChevronUp, FlaskConical } from "lucide-react";
 
 type Ingredient = {
   name: string;
@@ -66,6 +66,7 @@ const Menu = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [form, setForm] = useState(emptyItem);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["menu-items"],
@@ -205,43 +206,105 @@ const Menu = () => {
                 <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "暂无菜品" : "No items found"}</TableCell></TableRow>
-              ) : filtered.map((item, i) => (
-                <TableRow key={item.id}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-foreground">{isZh ? item.name_zh : item.name_en}</p>
-                      <p className="text-xs text-muted-foreground">{isZh ? item.name_en : item.name_zh}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="gap-1">{categoryIcons[item.category]} {categoryLabel(item.category)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-foreground">¥{Number(item.price).toFixed(0)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">¥{Number(item.cost_price || 0).toFixed(1)}</TableCell>
-                  <TableCell className="text-right">
-                    {item.price > 0 ? (
-                      <Badge variant={((item.price - (item.cost_price || 0)) / item.price * 100) > 60 ? "default" : "secondary"}>
-                        {((item.price - (item.cost_price || 0)) / item.price * 100).toFixed(0)}%
-                      </Badge>
-                    ) : "-"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {item.is_featured && <Star className="w-4 h-4 text-yellow-500 mx-auto fill-yellow-500" />}
-                    <Switch checked={item.is_available} onCheckedChange={(v) => toggleAvailability.mutate({ id: item.id, is_available: v })} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(item.id)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              ) : filtered.map((item, i) => {
+                const margin = item.price > 0 ? ((item.price - (item.cost_price || 0)) / item.price * 100) : 0;
+                const isExpanded = expandedRow === item.id;
+                const hasIngredients = item.ingredients && item.ingredients.length > 0;
+                return (
+                  <React.Fragment key={item.id}>
+                    <TableRow className="group">
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-foreground">{isZh ? item.name_zh : item.name_en}</p>
+                          <p className="text-xs text-muted-foreground">{isZh ? item.name_en : item.name_zh}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="gap-1">{categoryIcons[item.category]} {categoryLabel(item.category)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-foreground">¥{Number(item.price).toFixed(0)}</TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          onClick={() => hasIngredients && setExpandedRow(isExpanded ? null : item.id)}
+                          className={`inline-flex items-center gap-1 text-sm ${hasIngredients ? "cursor-pointer hover:text-primary transition-colors" : ""}`}
+                          disabled={!hasIngredients}
+                        >
+                          <span className="text-muted-foreground">¥{Number(item.cost_price || 0).toFixed(1)}</span>
+                          {hasIngredients && (
+                            <>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 ml-1">
+                                <FlaskConical className="w-2.5 h-2.5 mr-0.5" />{item.ingredients.length}
+                              </Badge>
+                              {isExpanded ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+                            </>
+                          )}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.price > 0 ? (
+                          <Badge variant={margin > 60 ? "default" : "secondary"}>
+                            {margin.toFixed(0)}%
+                          </Badge>
+                        ) : "-"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {item.is_featured && <Star className="w-4 h-4 text-yellow-500 mx-auto fill-yellow-500" />}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch checked={item.is_available} onCheckedChange={(v) => toggleAvailability.mutate({ id: item.id, is_available: v })} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMutation.mutate(item.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && hasIngredients && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="bg-muted/30 p-0">
+                          <div className="px-6 py-3">
+                            <p className="text-xs font-semibold text-muted-foreground mb-2">{t("menuMgmt.ingredients")} — {isZh ? "成本明细" : "Cost Breakdown"}</p>
+                            <div className="grid grid-cols-[1fr_80px_60px_80px_90px] gap-x-4 text-xs text-muted-foreground font-medium mb-1 border-b border-border/50 pb-1">
+                              <span>{t("menuMgmt.ingredientName")}</span>
+                              <span className="text-right">{t("menuMgmt.quantity")}</span>
+                              <span>{t("menuMgmt.unit")}</span>
+                              <span className="text-right">{t("menuMgmt.unitCost")}</span>
+                              <span className="text-right">{isZh ? "小计" : "Subtotal"}</span>
+                            </div>
+                            {item.ingredients.map((ing, idx) => (
+                              <div key={idx} className="grid grid-cols-[1fr_80px_60px_80px_90px] gap-x-4 text-sm py-1 border-b border-border/20 last:border-0">
+                                <span className="text-foreground">{ing.name}</span>
+                                <span className="text-right text-muted-foreground">{ing.quantity}</span>
+                                <span className="text-muted-foreground">{ing.unit}</span>
+                                <span className="text-right text-muted-foreground">¥{ing.unit_cost}</span>
+                                <span className="text-right font-medium text-foreground">¥{(ing.quantity * ing.unit_cost).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="grid grid-cols-[1fr_80px_60px_80px_90px] gap-x-4 text-sm pt-2 mt-1 border-t border-border font-semibold">
+                              <span className="text-foreground">{isZh ? "合计成本" : "Total Cost"}</span>
+                              <span></span><span></span><span></span>
+                              <span className="text-right text-primary">¥{item.ingredients.reduce((s, i) => s + i.quantity * i.unit_cost, 0).toFixed(2)}</span>
+                            </div>
+                            {item.price > 0 && (
+                              <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                                <span>{isZh ? "售价" : "Price"}: ¥{Number(item.price).toFixed(0)}</span>
+                                <span>{isZh ? "毛利" : "Gross Profit"}: ¥{(item.price - (item.cost_price || 0)).toFixed(1)}</span>
+                                <span>{isZh ? "毛利率" : "Margin"}: {margin.toFixed(1)}%</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
