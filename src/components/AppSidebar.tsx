@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -17,38 +18,39 @@ import {
 import StoreSelector from "./StoreSelector";
 import { useStore } from "@/contexts/StoreContext";
 
-const navSections = [
-  {
-    title: "运营中心",
-    items: [
-      { to: "/", icon: LayoutDashboard, label: "仪表盘" },
-      { to: "/tables", icon: UtensilsCrossed, label: "桌台管理" },
-      { to: "/orders", icon: ClipboardList, label: "订单管理" },
-      { to: "/kitchen", icon: CookingPot, label: "厨房管理" },
-    ],
-  },
-  {
-    title: "供应链",
-    items: [
-      { to: "/inventory", icon: Wine, label: "库存管理" },
-      { to: "/procurement", icon: ShoppingCart, label: "采购管理" },
-    ],
-  },
-  {
-    title: "企业管理",
-    items: [
-      { to: "/stores", icon: Store, label: "门店管理" },
-      { to: "/hr", icon: Users, label: "人事管理" },
-      { to: "/finance", icon: DollarSign, label: "财务管理" },
-      { to: "/legal", icon: Scale, label: "法务管理" },
-      { to: "/marketing", icon: Megaphone, label: "市场管理" },
-    ],
-  },
-];
-
 const AppSidebar = () => {
   const location = useLocation();
   const { currentStore, setCurrentStore } = useStore();
+  const { t } = useTranslation();
+
+  const navSections = [
+    {
+      title: t("nav.operations"),
+      items: [
+        { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
+        { to: "/tables", icon: UtensilsCrossed, label: t("nav.tables") },
+        { to: "/orders", icon: ClipboardList, label: t("nav.orders") },
+        { to: "/kitchen", icon: CookingPot, label: t("nav.kitchen") },
+      ],
+    },
+    {
+      title: t("nav.supplyChain"),
+      items: [
+        { to: "/inventory", icon: Wine, label: t("nav.inventory") },
+        { to: "/procurement", icon: ShoppingCart, label: t("nav.procurement") },
+      ],
+    },
+    {
+      title: t("nav.enterprise"),
+      items: [
+        { to: "/stores", icon: Store, label: t("nav.stores") },
+        { to: "/hr", icon: Users, label: t("nav.hr") },
+        { to: "/finance", icon: DollarSign, label: t("nav.finance") },
+        { to: "/legal", icon: Scale, label: t("nav.legal") },
+        { to: "/marketing", icon: Megaphone, label: t("nav.marketing") },
+      ],
+    },
+  ];
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-[220px] bg-sidebar border-r border-sidebar-border flex flex-col">
@@ -58,8 +60,8 @@ const AppSidebar = () => {
           <ChefHat className="w-5 h-5 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="text-sm font-bold font-display text-foreground tracking-tight">食智云</h1>
-          <p className="text-[10px] text-muted-foreground">餐饮企业管理平台</p>
+          <h1 className="text-sm font-bold font-display text-foreground tracking-tight">{t("app.name")}</h1>
+          <p className="text-[10px] text-muted-foreground">{t("app.subtitle")}</p>
         </div>
       </div>
 
@@ -115,10 +117,10 @@ const AppSidebar = () => {
       <div className="px-4 py-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-medium text-secondary-foreground">
-            管
+            {t("nav.admin").charAt(0)}
           </div>
           <div>
-            <p className="text-xs font-medium text-foreground">系统管理员</p>
+            <p className="text-xs font-medium text-foreground">{t("nav.admin")}</p>
             <p className="text-[10px] text-muted-foreground">{currentStore.name}</p>
           </div>
         </div>

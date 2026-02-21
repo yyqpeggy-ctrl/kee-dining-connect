@@ -1,34 +1,29 @@
 import AppLayout from "@/components/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Youtube, ShoppingBag, Megaphone, BarChart3 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import SocialMediaTab from "@/components/marketing/SocialMediaTab";
 import EcommerceTab from "@/components/marketing/EcommerceTab";
 import CampaignsTab from "@/components/marketing/CampaignsTab";
 import TrafficAnalyticsTab from "@/components/marketing/TrafficAnalyticsTab";
 
 const Marketing = () => {
+  const { t } = useTranslation();
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold font-display text-foreground">市场管理</h1>
-          <p className="text-sm text-muted-foreground mt-1">社交媒体运营 · 电子商务 · 营销活动 · 流量分析</p>
+          <h1 className="text-2xl font-bold font-display text-foreground">{t("marketingMgmt.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("marketingMgmt.subtitle")}</p>
         </div>
 
         <Tabs defaultValue="social" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="social" className="gap-1.5">
-              <Youtube className="w-3.5 h-3.5" />社交媒体
-            </TabsTrigger>
-            <TabsTrigger value="ecommerce" className="gap-1.5">
-              <ShoppingBag className="w-3.5 h-3.5" />电子商务
-            </TabsTrigger>
-            <TabsTrigger value="campaigns" className="gap-1.5">
-              <Megaphone className="w-3.5 h-3.5" />营销活动
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5" />流量分析
-            </TabsTrigger>
+            <TabsTrigger value="social" className="gap-1.5"><Youtube className="w-3.5 h-3.5" />{t("marketingMgmt.socialMedia")}</TabsTrigger>
+            <TabsTrigger value="ecommerce" className="gap-1.5"><ShoppingBag className="w-3.5 h-3.5" />{t("marketingMgmt.ecommerce")}</TabsTrigger>
+            <TabsTrigger value="campaigns" className="gap-1.5"><Megaphone className="w-3.5 h-3.5" />{t("marketingMgmt.campaigns")}</TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" />{t("marketingMgmt.trafficAnalytics")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="social"><SocialMediaTab /></TabsContent>
