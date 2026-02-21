@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UtensilsCrossed, Wine, CakeSlice, Martini, Star, Gamepad2 } from "lucide-react";
 
 type MenuItem = {
   id: string;
@@ -31,7 +31,7 @@ type MenuItem = {
   sort_order: number;
 };
 
-const CATEGORIES = ["tapas", "mains", "cocktails", "drinks", "desserts"];
+const CATEGORIES = ["tapas", "mains", "cocktails", "drinks", "desserts", "entertainment"];
 
 const categoryIcons: Record<string, React.ReactNode> = {
   tapas: <UtensilsCrossed className="w-4 h-4" />,
@@ -39,6 +39,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   cocktails: <Martini className="w-4 h-4" />,
   drinks: <Wine className="w-4 h-4" />,
   desserts: <CakeSlice className="w-4 h-4" />,
+  entertainment: <Gamepad2 className="w-4 h-4" />,
 };
 
 const emptyItem: Omit<MenuItem, "id"> = {

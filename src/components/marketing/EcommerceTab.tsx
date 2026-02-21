@@ -9,12 +9,12 @@ import StatCard from "@/components/StatCard";
 import { useTranslation } from "react-i18next";
 
 const products = [
-  { id: 1, nameZh: "Tapas派对套餐（4-6人）", nameEn: "Tapas Party Set (4-6 ppl)", price: "¥588", sold: 1340, stock: 99, rating: 4.9, status: "onSale" },
-  { id: 2, nameZh: "伊比利亚火腿礼盒 500g", nameEn: "Jamón Ibérico Gift Box 500g", price: "¥388", sold: 2612, stock: 120, rating: 4.9, status: "onSale" },
+  { id: 1, nameZh: "KTV包厢2小时+酒水套餐券", nameEn: "Karaoke 2hr + Drinks Package Voucher", price: "¥588", sold: 2340, stock: 999, rating: 4.9, status: "onSale" },
+  { id: 2, nameZh: "飞镖派对套餐（4人）", nameEn: "Darts Party Set (4 ppl)", price: "¥388", sold: 1612, stock: 999, rating: 4.8, status: "onSale" },
   { id: 3, nameZh: "招牌Sangria预调酒（1L装）", nameEn: "House Sangria Bottle (1L)", price: "¥128", sold: 4930, stock: 280, rating: 4.7, status: "onSale" },
-  { id: 4, nameZh: "情人节双人晚餐礼券", nameEn: "Valentine's Dinner Voucher (2 ppl)", price: "¥888", sold: 456, stock: 0, rating: 4.9, status: "soldOut" },
-  { id: 5, nameZh: "精选芝士拼盘礼盒", nameEn: "Premium Cheese Board Gift Set", price: "¥268", sold: 834, stock: 65, rating: 4.6, status: "onSale" },
-  { id: 6, nameZh: "橄榄油+香醋套装", nameEn: "Olive Oil & Vinegar Gift Set", price: "¥168", sold: 1210, stock: 200, rating: 4.5, status: "onSale" },
+  { id: 4, nameZh: "周五飞镖之夜VIP票", nameEn: "Friday Darts Night VIP Pass", price: "¥168", sold: 856, stock: 0, rating: 4.9, status: "soldOut" },
+  { id: 5, nameZh: "精酿啤酒桶5L（到店自提）", nameEn: "Craft Beer Tower 5L (Pickup)", price: "¥268", sold: 934, stock: 65, rating: 4.6, status: "onSale" },
+  { id: 6, nameZh: "生日/团建派对预订券", nameEn: "Birthday/Team Party Booking Voucher", price: "¥1,888", sold: 210, stock: 999, rating: 4.9, status: "onSale" },
 ];
 
 const orderChannel = [
