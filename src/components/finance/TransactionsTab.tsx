@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTranslation } from "react-i18next";
 
 const transactions = [
   { id: "T001", type: "income", category: "营业收入", desc: "门店营收 - 总店", amount: 28640, time: "今天 21:00", method: "微信支付", store: "总店" },
@@ -29,6 +30,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
 };
 
 const TransactionsTab = () => {
+  const { t } = useTranslation();
   const totalIncome = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
@@ -37,21 +39,21 @@ const TransactionsTab = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
-          <p className="text-xs text-muted-foreground mb-1">本期收入</p>
+          <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.periodIncome")}</p>
           <p className="text-2xl font-bold text-success flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5" />
             ¥{totalIncome.toLocaleString()}
           </p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-5">
-          <p className="text-xs text-muted-foreground mb-1">本期支出</p>
+          <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.periodExpense")}</p>
           <p className="text-2xl font-bold text-destructive flex items-center gap-2">
             <ArrowDownRight className="w-5 h-5" />
             ¥{totalExpense.toLocaleString()}
           </p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
-          <p className="text-xs text-muted-foreground mb-1">净收支</p>
+          <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.netBalance")}</p>
           <p className={`text-2xl font-bold ${totalIncome - totalExpense >= 0 ? "text-success" : "text-destructive"}`}>
             ¥{(totalIncome - totalExpense).toLocaleString()}
           </p>
@@ -62,25 +64,25 @@ const TransactionsTab = () => {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="搜索交易记录..." className="pl-9 bg-muted/50 border-border/50" />
+          <Input placeholder={t("financeMgmt.searchTransactions")} className="pl-9 bg-muted/50 border-border/50" />
         </div>
         <Select defaultValue="all">
           <SelectTrigger className="w-32 bg-muted/50">
-            <SelectValue placeholder="类型" />
+            <SelectValue placeholder={t("common.type")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部类型</SelectItem>
-            <SelectItem value="income">收入</SelectItem>
-            <SelectItem value="expense">支出</SelectItem>
+            <SelectItem value="all">{t("financeMgmt.allTypes")}</SelectItem>
+            <SelectItem value="income">{t("financeMgmt.income")}</SelectItem>
+            <SelectItem value="expense">{t("financeMgmt.expense")}</SelectItem>
           </SelectContent>
         </Select>
         <Select defaultValue="all">
           <SelectTrigger className="w-36 bg-muted/50">
-            <SelectValue placeholder="门店" />
+            <SelectValue placeholder={t("hrMgmt.store")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部门店</SelectItem>
-            <SelectItem value="hq">总部</SelectItem>
+            <SelectItem value="all">{t("financeMgmt.allStores")}</SelectItem>
+            <SelectItem value="hq">{t("financeMgmt.headquarters")}</SelectItem>
             <SelectItem value="main">总店</SelectItem>
             <SelectItem value="guomao">国贸分店</SelectItem>
             <SelectItem value="sanlitun">三里屯分店</SelectItem>
@@ -88,11 +90,11 @@ const TransactionsTab = () => {
         </Select>
         <Button variant="outline" size="sm" className="gap-2">
           <Filter className="w-4 h-4" />
-          更多筛选
+          {t("financeMgmt.moreFilters")}
         </Button>
         <Button variant="outline" size="sm" className="gap-2 ml-auto">
           <Download className="w-4 h-4" />
-          导出
+          {t("common.export")}
         </Button>
       </div>
 
@@ -135,13 +137,13 @@ const TransactionsTab = () => {
 
         {/* Pagination */}
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50">
-          <p className="text-xs text-muted-foreground">显示 1-10 共 156 条记录</p>
+          <p className="text-xs text-muted-foreground">{t("common.showing")} 1-10 {t("common.of")} 156 {t("common.records")}</p>
           <div className="flex gap-1">
-            <Button variant="outline" size="sm" disabled>上一页</Button>
+            <Button variant="outline" size="sm" disabled>{t("common.previous")}</Button>
             <Button variant="outline" size="sm" className="bg-primary/20">1</Button>
             <Button variant="outline" size="sm">2</Button>
             <Button variant="outline" size="sm">3</Button>
-            <Button variant="outline" size="sm">下一页</Button>
+            <Button variant="outline" size="sm">{t("common.next")}</Button>
           </div>
         </div>
       </motion.div>

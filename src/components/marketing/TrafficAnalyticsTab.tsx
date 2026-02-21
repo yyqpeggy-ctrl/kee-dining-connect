@@ -3,13 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import StatCard from "@/components/StatCard";
 import { Eye, MousePointerClick, UserPlus, Repeat, Globe, MapPin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const trafficSource = [
-  { name: "自然搜索", value: 32 },
-  { name: "社交媒体", value: 28 },
-  { name: "直接访问", value: 18 },
-  { name: "付费广告", value: 14 },
-  { name: "外部链接", value: 8 },
+  { name: "organicSearch", value: 32 },
+  { name: "socialMediaTraffic", value: 28 },
+  { name: "directVisit", value: 18 },
+  { name: "paidAds", value: 14 },
+  { name: "referralLinks", value: 8 },
 ];
 
 const COLORS = [
@@ -37,30 +38,32 @@ const cityData = [
 ];
 
 const conversionFunnel = [
-  { stage: "访问", count: 15990, percent: 100 },
-  { stage: "浏览菜单", count: 9840, percent: 61.5 },
-  { stage: "加入购物车", count: 4230, percent: 26.5 },
-  { stage: "下单", count: 2890, percent: 18.1 },
-  { stage: "复购", count: 1120, percent: 7.0 },
+  { stage: "funnelVisit", count: 15990, percent: 100 },
+  { stage: "funnelBrowseMenu", count: 9840, percent: 61.5 },
+  { stage: "funnelAddToCart", count: 4230, percent: 26.5 },
+  { stage: "funnelOrder", count: 2890, percent: 18.1 },
+  { stage: "funnelRepeat", count: 1120, percent: 7.0 },
 ];
 
 const TrafficAnalyticsTab = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="今日访客" value="15,990" change="+22.4%" changeType="up" icon={Eye} index={0} />
-        <StatCard title="页面浏览量" value="48,720" change="+15.8%" changeType="up" icon={MousePointerClick} index={1} />
-        <StatCard title="新客比例" value="34.2%" change="+3.1%" changeType="up" icon={UserPlus} index={2} />
-        <StatCard title="复购率" value="42.8%" change="+1.5%" changeType="up" icon={Repeat} index={3} />
+        <StatCard title={t("marketingMgmt.todayVisitors")} value="15,990" change="+22.4%" changeType="up" icon={Eye} index={0} />
+        <StatCard title={t("marketingMgmt.pageViews")} value="48,720" change="+15.8%" changeType="up" icon={MousePointerClick} index={1} />
+        <StatCard title={t("marketingMgmt.newVisitorRate")} value="34.2%" change="+3.1%" changeType="up" icon={UserPlus} index={2} />
+        <StatCard title={t("marketingMgmt.repeatPurchaseRate")} value="42.8%" change="+1.5%" changeType="up" icon={Repeat} index={3} />
       </div>
 
       {/* Traffic over time + sources */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">实时流量</CardTitle>
-            <CardDescription>今日24小时访客与浏览量趋势</CardDescription>
+            <CardTitle className="text-base">{t("marketingMgmt.realtimeTraffic")}</CardTitle>
+            <CardDescription>{t("marketingMgmt.realtimeTrafficDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -69,8 +72,8 @@ const TrafficAnalyticsTab = () => {
                 <XAxis dataKey="hour" fontSize={10} stroke="hsl(var(--muted-foreground))" interval={3} />
                 <YAxis fontSize={12} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip />
-                <Area type="monotone" dataKey="pageViews" name="浏览量" fill="hsl(var(--primary) / 0.15)" stroke="hsl(var(--primary))" strokeWidth={2} />
-                <Area type="monotone" dataKey="visitors" name="访客数" fill="hsl(var(--accent) / 0.15)" stroke="hsl(var(--accent))" strokeWidth={2} />
+                <Area type="monotone" dataKey="pageViews" name={t("marketingMgmt.pageViews")} fill="hsl(var(--primary) / 0.15)" stroke="hsl(var(--primary))" strokeWidth={2} />
+                <Area type="monotone" dataKey="visitors" name={t("marketingMgmt.visitorCount")} fill="hsl(var(--accent) / 0.15)" stroke="hsl(var(--accent))" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -78,8 +81,8 @@ const TrafficAnalyticsTab = () => {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">流量来源</CardTitle>
-            <CardDescription>各渠道占比分布</CardDescription>
+            <CardTitle className="text-base">{t("marketingMgmt.trafficSources")}</CardTitle>
+            <CardDescription>{t("marketingMgmt.trafficSourcesDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={180}>
@@ -97,7 +100,7 @@ const TrafficAnalyticsTab = () => {
                 <div key={s.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-                    <span className="text-muted-foreground">{s.name}</span>
+                    <span className="text-muted-foreground">{t(`marketingMgmt.${s.name}`)}</span>
                   </div>
                   <span className="font-medium text-foreground">{s.value}%</span>
                 </div>
@@ -113,9 +116,9 @@ const TrafficAnalyticsTab = () => {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-primary" />
-              <CardTitle className="text-base">地域分布</CardTitle>
+              <CardTitle className="text-base">{t("marketingMgmt.geoDistribution")}</CardTitle>
             </div>
-            <CardDescription>访客城市 TOP 7</CardDescription>
+            <CardDescription>{t("marketingMgmt.visitorCityTop")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -139,15 +142,15 @@ const TrafficAnalyticsTab = () => {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">转化漏斗</CardTitle>
-            <CardDescription>用户从访问到复购的全链路转化</CardDescription>
+            <CardTitle className="text-base">{t("marketingMgmt.conversionFunnel")}</CardTitle>
+            <CardDescription>{t("marketingMgmt.conversionFunnelDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {conversionFunnel.map((f, i) => (
                 <div key={f.stage}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-foreground font-medium">{f.stage}</span>
+                    <span className="text-foreground font-medium">{t(`marketingMgmt.${f.stage}`)}</span>
                     <span className="text-muted-foreground">{f.count.toLocaleString()} ({f.percent}%)</span>
                   </div>
                   <div className="h-6 bg-muted rounded overflow-hidden">

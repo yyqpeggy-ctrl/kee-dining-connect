@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useTranslation } from "react-i18next";
 
 const taxCalendar = [
   { tax: "增值税", period: "2024年2月", deadline: "2024-03-15", status: "待申报", amount: 43400 },
@@ -29,6 +30,7 @@ const invoiceStats = {
 };
 
 const TaxTab = () => {
+  const { t } = useTranslation();
   const pendingCount = taxCalendar.filter(t => t.status === "待申报").length;
   const totalTaxDue = taxCalendar.filter(t => t.status !== "已缴纳").reduce((sum, t) => sum + t.amount, 0);
 
@@ -41,10 +43,10 @@ const TaxTab = () => {
             <div className="w-9 h-9 rounded-lg bg-warning/10 flex items-center justify-center">
               <Clock className="w-4 h-4 text-warning" />
             </div>
-            <Badge variant="outline" className="text-warning border-warning/50">{pendingCount}项待办</Badge>
+            <Badge variant="outline" className="text-warning border-warning/50">{pendingCount}{t("financeMgmt.pendingItems")}</Badge>
           </div>
           <p className="text-2xl font-bold">¥{(totalTaxDue / 10000).toFixed(1)}万</p>
-          <p className="text-xs text-muted-foreground">待缴税款</p>
+          <p className="text-xs text-muted-foreground">{t("financeMgmt.taxDue")}</p>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-5">
@@ -54,7 +56,7 @@ const TaxTab = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-success">¥41.6万</p>
-          <p className="text-xs text-muted-foreground">本年已缴税款</p>
+          <p className="text-xs text-muted-foreground">{t("financeMgmt.taxPaid")}</p>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
@@ -64,7 +66,7 @@ const TaxTab = () => {
             </div>
           </div>
           <p className="text-2xl font-bold">{invoiceStats.issued.count}</p>
-          <p className="text-xs text-muted-foreground">本月开票数</p>
+          <p className="text-xs text-muted-foreground">{t("financeMgmt.invoicesIssued")}</p>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-xl p-5">
@@ -74,7 +76,7 @@ const TaxTab = () => {
             </div>
           </div>
           <p className="text-2xl font-bold">9.6%</p>
-          <p className="text-xs text-muted-foreground">综合税负率</p>
+          <p className="text-xs text-muted-foreground">{t("financeMgmt.effectiveTaxRate")}</p>
         </motion.div>
       </div>
 
@@ -82,27 +84,27 @@ const TaxTab = () => {
         {/* Tax Calendar */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-2 glass-card rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold">申报日历</h3>
+            <h3 className="text-sm font-semibold">{t("financeMgmt.taxCalendar")}</h3>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="gap-2">
                 <Calendar className="w-4 h-4" />
-                税务日历
+                {t("financeMgmt.taxCalendar")}
               </Button>
               <Button size="sm" className="gap-2">
                 <Upload className="w-4 h-4" />
-                一键申报
+                {t("financeMgmt.oneClickFile")}
               </Button>
             </div>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>税种</TableHead>
-                <TableHead>税期</TableHead>
-                <TableHead>申报截止</TableHead>
-                <TableHead className="text-right">应缴金额</TableHead>
-                <TableHead className="w-24">状态</TableHead>
-                <TableHead className="w-20">操作</TableHead>
+                <TableHead>{t("financeMgmt.taxType")}</TableHead>
+                <TableHead>{t("financeMgmt.taxPeriod")}</TableHead>
+                <TableHead>{t("financeMgmt.deadline")}</TableHead>
+                <TableHead className="text-right">{t("financeMgmt.amountDue")}</TableHead>
+                <TableHead className="w-24">{t("common.status")}</TableHead>
+                <TableHead className="w-20">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,15 +123,15 @@ const TaxTab = () => {
                       variant={item.status === "已缴纳" ? "secondary" : item.status === "已申报" ? "outline" : "destructive"}
                       className="text-xs"
                     >
-                      {item.status}
+                      {item.status === "待申报" ? t("financeMgmt.pendingFiling") : item.status === "已申报" ? t("financeMgmt.filed") : t("financeMgmt.paid")}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {item.status === "待申报" && (
-                      <Button variant="ghost" size="sm" className="text-xs h-7 px-2">申报</Button>
+                      <Button variant="ghost" size="sm" className="text-xs h-7 px-2">{t("financeMgmt.file")}</Button>
                     )}
                     {item.status === "已申报" && (
-                      <Button variant="ghost" size="sm" className="text-xs h-7 px-2">缴款</Button>
+                      <Button variant="ghost" size="sm" className="text-xs h-7 px-2">{t("financeMgmt.pay")}</Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -140,13 +142,13 @@ const TaxTab = () => {
 
         {/* Invoice Management */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-4">发票管理</h3>
+          <h3 className="text-sm font-semibold mb-4">{t("financeMgmt.invoiceManagement")}</h3>
           
           <div className="space-y-4">
             <div className="p-3 bg-muted/30 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm">销项发票</span>
-                <span className="text-xs text-muted-foreground">{invoiceStats.issued.count}张</span>
+                <span className="text-sm">{t("financeMgmt.outputInvoices")}</span>
+                <span className="text-xs text-muted-foreground">{invoiceStats.issued.count}</span>
               </div>
               <p className="text-lg font-bold text-success">¥{(invoiceStats.issued.amount / 10000).toFixed(1)}万</p>
               <Progress value={75} className="h-1 mt-2" />
@@ -154,8 +156,8 @@ const TaxTab = () => {
 
             <div className="p-3 bg-muted/30 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm">进项发票</span>
-                <span className="text-xs text-muted-foreground">{invoiceStats.received.count}张</span>
+                <span className="text-sm">{t("financeMgmt.inputInvoices")}</span>
+                <span className="text-xs text-muted-foreground">{invoiceStats.received.count}</span>
               </div>
               <p className="text-lg font-bold text-primary">¥{(invoiceStats.received.amount / 10000).toFixed(1)}万</p>
               <Progress value={52} className="h-1 mt-2" />
@@ -164,20 +166,20 @@ const TaxTab = () => {
             <div className="p-3 bg-warning/10 rounded-lg border border-warning/30">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="w-4 h-4 text-warning" />
-                <span className="text-sm font-medium">待认证发票</span>
+                <span className="text-sm font-medium">{t("financeMgmt.pendingVerification")}</span>
               </div>
-              <p className="text-lg font-bold text-warning">{invoiceStats.pending.count}张</p>
-              <p className="text-xs text-muted-foreground">金额: ¥{invoiceStats.pending.amount.toLocaleString()}</p>
+              <p className="text-lg font-bold text-warning">{invoiceStats.pending.count}</p>
+              <p className="text-xs text-muted-foreground">{t("common.amount")}: ¥{invoiceStats.pending.amount.toLocaleString()}</p>
             </div>
 
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 gap-2">
                 <Upload className="w-4 h-4" />
-                上传发票
+                {t("financeMgmt.uploadInvoice")}
               </Button>
               <Button variant="outline" size="sm" className="flex-1 gap-2">
                 <Download className="w-4 h-4" />
-                下载台账
+                {t("financeMgmt.downloadLedger")}
               </Button>
             </div>
           </div>
@@ -187,18 +189,18 @@ const TaxTab = () => {
       {/* Tax History */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold">申报历史</h3>
-          <Button variant="ghost" size="sm" className="text-xs">查看全部</Button>
+          <h3 className="text-sm font-semibold">{t("financeMgmt.filingHistory")}</h3>
+          <Button variant="ghost" size="sm" className="text-xs">{t("financeMgmt.viewAll")}</Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>税期</TableHead>
-              <TableHead className="text-right">增值税</TableHead>
-              <TableHead className="text-right">企业所得税</TableHead>
-              <TableHead className="text-right">个人所得税</TableHead>
-              <TableHead className="text-right">合计</TableHead>
-              <TableHead className="w-20">状态</TableHead>
+              <TableHead>{t("financeMgmt.taxPeriod")}</TableHead>
+              <TableHead className="text-right">{t("financeMgmt.vat")}</TableHead>
+              <TableHead className="text-right">{t("financeMgmt.corporateIncomeTax")}</TableHead>
+              <TableHead className="text-right">{t("financeMgmt.personalIncomeTax")}</TableHead>
+              <TableHead className="text-right">{t("common.total")}</TableHead>
+              <TableHead className="w-20">{t("common.status")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -212,7 +214,7 @@ const TaxTab = () => {
                 <TableCell>
                   <Badge variant="secondary" className="text-xs">
                     <CheckCircle className="w-3 h-3 mr-1" />
-                    {item.status}
+                    {t("financeMgmt.done")}
                   </Badge>
                 </TableCell>
               </TableRow>

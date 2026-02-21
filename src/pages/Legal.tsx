@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Contract {
   id: string;
@@ -41,16 +42,17 @@ const complianceItems: Compliance[] = [
   { id: "L005", name: "税务申报", category: "财税", dueDate: "2024-02-15", status: "pending" },
 ];
 
-const typeLabels: Record<string, string> = {
-  lease: "租赁合同",
-  supplier: "供应商协议",
-  employment: "劳动合同",
-  franchise: "加盟协议",
-  license: "资质证照",
-};
-
 const Legal = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"contracts" | "compliance">("contracts");
+
+  const typeLabels: Record<string, string> = {
+    lease: t("legalMgmt.lease"),
+    supplier: t("legalMgmt.supplierAgreement"),
+    employment: t("legalMgmt.employment"),
+    franchise: t("legalMgmt.franchise"),
+    license: t("legalMgmt.license"),
+  };
 
   const expiringCount = contracts.filter((c) => c.status === "expiring").length;
   const overdueCount = complianceItems.filter((c) => c.status === "overdue").length;
@@ -59,12 +61,12 @@ const Legal = () => {
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-display">法务管理</h1>
-          <p className="text-sm text-muted-foreground mt-1">合同管理与合规监控</p>
+          <h1 className="text-2xl font-bold font-display">{t("legalMgmt.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("legalMgmt.subtitle")}</p>
         </div>
         <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
           <Plus className="w-4 h-4" />
-          新增合同
+          {t("legalMgmt.newContract")}
         </button>
       </div>
 
@@ -78,8 +80,8 @@ const Legal = () => {
                   <Clock className="w-4 h-4 text-warning" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">合同即将到期</p>
-                  <p className="text-xs text-muted-foreground">{expiringCount} 份合同将在30天内到期</p>
+                  <p className="font-medium text-sm">{t("legalMgmt.contractExpiring")}</p>
+                  <p className="text-xs text-muted-foreground">{expiringCount} {t("legalMgmt.expiringIn30Days")}</p>
                 </div>
               </div>
             </motion.div>
@@ -91,8 +93,8 @@ const Legal = () => {
                   <AlertTriangle className="w-4 h-4 text-destructive" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">合规事项逾期</p>
-                  <p className="text-xs text-muted-foreground">{overdueCount} 项合规检查已过期</p>
+                  <p className="font-medium text-sm">{t("legalMgmt.complianceOverdue")}</p>
+                  <p className="text-xs text-muted-foreground">{overdueCount} {t("legalMgmt.overdueItems")}</p>
                 </div>
               </div>
             </motion.div>
@@ -109,7 +111,7 @@ const Legal = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">{contracts.length}</p>
-              <p className="text-xs text-muted-foreground">合同总数</p>
+              <p className="text-xs text-muted-foreground">{t("legalMgmt.totalContracts")}</p>
             </div>
           </div>
         </motion.div>
@@ -120,7 +122,7 @@ const Legal = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">{contracts.filter(c => c.status === "active").length}</p>
-              <p className="text-xs text-muted-foreground">有效合同</p>
+              <p className="text-xs text-muted-foreground">{t("legalMgmt.activeContracts")}</p>
             </div>
           </div>
         </motion.div>
@@ -131,7 +133,7 @@ const Legal = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">{complianceItems.length}</p>
-              <p className="text-xs text-muted-foreground">合规事项</p>
+              <p className="text-xs text-muted-foreground">{t("legalMgmt.complianceItems")}</p>
             </div>
           </div>
         </motion.div>
@@ -142,7 +144,7 @@ const Legal = () => {
             </div>
             <div>
               <p className="text-2xl font-bold">0</p>
-              <p className="text-xs text-muted-foreground">法律纠纷</p>
+              <p className="text-xs text-muted-foreground">{t("legalMgmt.legalDisputes")}</p>
             </div>
           </div>
         </motion.div>
@@ -151,10 +153,10 @@ const Legal = () => {
       {/* Tabs */}
       <div className="flex gap-1 mb-5 p-1 bg-muted/50 rounded-lg w-fit">
         <button onClick={() => setActiveTab("contracts")} className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === "contracts" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-          合同管理
+          {t("legalMgmt.contractMgmt")}
         </button>
         <button onClick={() => setActiveTab("compliance")} className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === "compliance" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-          合规监控
+          {t("legalMgmt.complianceMonitoring")}
         </button>
       </div>
 
@@ -164,13 +166,13 @@ const Legal = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">合同名称</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">类型</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">签约方</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">到期日期</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">金额</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">状态</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">操作</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("legalMgmt.contractName")}</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("legalMgmt.contractType")}</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("legalMgmt.counterparty")}</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("legalMgmt.expiryDate")}</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">{t("legalMgmt.contractValue")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.status")}</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,7 +195,7 @@ const Legal = () => {
                         contract.status === "pending" ? "bg-info/10 text-info" :
                         "bg-destructive/10 text-destructive"
                       }`}>
-                        {contract.status === "active" ? "有效" : contract.status === "expiring" ? "即将到期" : contract.status === "pending" ? "待审批" : "已过期"}
+                        {contract.status === "active" ? t("legalMgmt.active") : contract.status === "expiring" ? t("legalMgmt.expiring") : contract.status === "pending" ? t("legalMgmt.pendingApproval") : t("legalMgmt.expired")}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
@@ -219,13 +221,13 @@ const Legal = () => {
                   item.status === "pending" ? "bg-warning/10 text-warning" :
                   "bg-destructive/10 text-destructive"
                 }`}>
-                  {item.status === "compliant" ? "已完成" : item.status === "pending" ? "待处理" : "已逾期"}
+                  {item.status === "compliant" ? t("legalMgmt.compliant") : item.status === "pending" ? t("legalMgmt.pendingCompliance") : t("legalMgmt.overdue")}
                 </span>
               </div>
               <h4 className="font-medium mb-2">{item.name}</h4>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Calendar className="w-3 h-3" />
-                <span>截止日期: {item.dueDate}</span>
+                <span>{t("legalMgmt.dueDate")}: {item.dueDate}</span>
               </div>
             </motion.div>
           ))}
