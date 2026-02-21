@@ -35,6 +35,7 @@ export interface WeeklyViewData {
   dayEn?: string;
   youtube: number;
   tiktok: number;
+  instagram: number;
 }
 
 export interface FollowerTrendData {
@@ -43,6 +44,7 @@ export interface FollowerTrendData {
   monthEn?: string;
   youtube: number;
   tiktok: number;
+  instagram: number;
 }
 
 export interface SocialMediaStats {
