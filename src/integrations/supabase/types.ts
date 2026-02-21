@@ -286,6 +286,8 @@ export type Database = {
           name_en: string
           name_zh: string
           price: number
+          schedule_days: string[] | null
+          schedule_time: string | null
           sort_order: number
           updated_at: string
         }
@@ -303,6 +305,8 @@ export type Database = {
           name_en: string
           name_zh: string
           price?: number
+          schedule_days?: string[] | null
+          schedule_time?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -320,6 +324,8 @@ export type Database = {
           name_en?: string
           name_zh?: string
           price?: number
+          schedule_days?: string[] | null
+          schedule_time?: string | null
           sort_order?: number
           updated_at?: string
         }
