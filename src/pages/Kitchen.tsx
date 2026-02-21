@@ -7,7 +7,7 @@ import { useStore } from "@/contexts/StoreContext";
 interface KitchenOrder {
   id: string;
   table: string;
-  items: { name: string; quantity: number; notes?: string }[];
+  items: { nameZh: string; nameEn: string; quantity: number; notesZh?: string; notesEn?: string }[];
   orderTime: string;
   waitTime: number;
   status: "pending" | "preparing" | "ready";
@@ -15,16 +15,17 @@ interface KitchenOrder {
 }
 
 const kitchenOrders: KitchenOrder[] = [
-  { id: "K-001", table: "A1", items: [{ name: "招牌烤鱼", quantity: 1, notes: "微辣" }, { name: "蒜蓉西兰花", quantity: 1 }], orderTime: "19:32", waitTime: 12, status: "preparing", priority: "normal" },
-  { id: "K-002", table: "B1", items: [{ name: "麻辣小龙虾", quantity: 2 }, { name: "水煮牛肉", quantity: 1, notes: "不要香菜" }, { name: "酸辣土豆丝", quantity: 1 }], orderTime: "19:28", waitTime: 16, status: "preparing", priority: "rush" },
-  { id: "K-003", table: "C3", items: [{ name: "糖醋里脊", quantity: 1 }, { name: "米饭", quantity: 2 }], orderTime: "19:45", waitTime: 3, status: "pending", priority: "normal" },
-  { id: "K-004", table: "A3", items: [{ name: "凉拌黄瓜", quantity: 1 }], orderTime: "19:40", waitTime: 8, status: "ready", priority: "normal" },
-  { id: "K-005", table: "B4", items: [{ name: "宫保鸡丁", quantity: 1 }, { name: "麻婆豆腐", quantity: 1, notes: "多花椒" }], orderTime: "19:35", waitTime: 13, status: "preparing", priority: "normal" },
+  { id: "K-001", table: "A1", items: [{ nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish", quantity: 1, notesZh: "微辣", notesEn: "Mild spicy" }, { nameZh: "蒜蓉西兰花", nameEn: "Garlic Broccoli", quantity: 1 }], orderTime: "19:32", waitTime: 12, status: "preparing", priority: "normal" },
+  { id: "K-002", table: "B1", items: [{ nameZh: "麻辣小龙虾", nameEn: "Spicy Crayfish", quantity: 2 }, { nameZh: "水煮牛肉", nameEn: "Boiled Beef", quantity: 1, notesZh: "不要香菜", notesEn: "No cilantro" }, { nameZh: "酸辣土豆丝", nameEn: "Hot & Sour Potato", quantity: 1 }], orderTime: "19:28", waitTime: 16, status: "preparing", priority: "rush" },
+  { id: "K-003", table: "C3", items: [{ nameZh: "糖醋里脊", nameEn: "Sweet & Sour Pork", quantity: 1 }, { nameZh: "米饭", nameEn: "Rice", quantity: 2 }], orderTime: "19:45", waitTime: 3, status: "pending", priority: "normal" },
+  { id: "K-004", table: "A3", items: [{ nameZh: "凉拌黄瓜", nameEn: "Cucumber Salad", quantity: 1 }], orderTime: "19:40", waitTime: 8, status: "ready", priority: "normal" },
+  { id: "K-005", table: "B4", items: [{ nameZh: "宫保鸡丁", nameEn: "Kung Pao Chicken", quantity: 1 }, { nameZh: "麻婆豆腐", nameEn: "Mapo Tofu", quantity: 1, notesZh: "多花椒", notesEn: "Extra peppercorn" }], orderTime: "19:35", waitTime: 13, status: "preparing", priority: "normal" },
 ];
 
 const Kitchen = () => {
   const { currentStore } = useStore();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
 
   const statusConfig = {
     pending: { label: t("kitchenMgmt.pending"), color: "bg-warning text-warning-foreground", icon: Clock },
@@ -69,8 +70,8 @@ const Kitchen = () => {
                 {order.items.map((item, j) => (
                   <div key={j} className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-medium">{item.name} <span className="text-primary">×{item.quantity}</span></p>
-                      {item.notes && (<p className="text-xs text-warning mt-0.5">⚠️ {item.notes}</p>)}
+                      <p className="text-sm font-medium">{isZh ? item.nameZh : item.nameEn} <span className="text-primary">×{item.quantity}</span></p>
+                      {(item.notesZh || item.notesEn) && (<p className="text-xs text-warning mt-0.5">⚠️ {isZh ? item.notesZh : item.notesEn}</p>)}
                     </div>
                   </div>
                 ))}

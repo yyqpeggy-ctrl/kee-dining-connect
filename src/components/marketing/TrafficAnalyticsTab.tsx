@@ -28,13 +28,13 @@ const hourlyTraffic = Array.from({ length: 24 }, (_, i) => ({
 }));
 
 const cityData = [
-  { city: "上海", visitors: 4520, percent: "28.3%" },
-  { city: "北京", visitors: 3180, percent: "19.9%" },
-  { city: "广州", visitors: 2340, percent: "14.6%" },
-  { city: "深圳", visitors: 1890, percent: "11.8%" },
-  { city: "杭州", visitors: 1230, percent: "7.7%" },
-  { city: "成都", visitors: 980, percent: "6.1%" },
-  { city: "其他", visitors: 1850, percent: "11.6%" },
+  { cityZh: "上海", cityEn: "Shanghai", visitors: 4520, percent: "28.3%" },
+  { cityZh: "北京", cityEn: "Beijing", visitors: 3180, percent: "19.9%" },
+  { cityZh: "广州", cityEn: "Guangzhou", visitors: 2340, percent: "14.6%" },
+  { cityZh: "深圳", cityEn: "Shenzhen", visitors: 1890, percent: "11.8%" },
+  { cityZh: "杭州", cityEn: "Hangzhou", visitors: 1230, percent: "7.7%" },
+  { cityZh: "成都", cityEn: "Chengdu", visitors: 980, percent: "6.1%" },
+  { cityZh: "其他", cityEn: "Other", visitors: 1850, percent: "11.6%" },
 ];
 
 const conversionFunnel = [
@@ -46,7 +46,8 @@ const conversionFunnel = [
 ];
 
 const TrafficAnalyticsTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
 
   return (
     <div className="space-y-6">
@@ -123,14 +124,11 @@ const TrafficAnalyticsTab = () => {
           <CardContent>
             <div className="space-y-3">
               {cityData.map((c) => (
-                <div key={c.city} className="flex items-center justify-between">
-                  <span className="text-sm text-foreground w-12">{c.city}</span>
+                <div key={isZh ? c.cityZh : c.cityEn} className="flex items-center justify-between">
+                  <span className="text-sm text-foreground w-16">{isZh ? c.cityZh : c.cityEn}</span>
                   <div className="flex-1 mx-3">
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: c.percent }}
-                      />
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: c.percent }} />
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground w-16 text-right">{c.visitors.toLocaleString()}</span>
@@ -154,10 +152,7 @@ const TrafficAnalyticsTab = () => {
                     <span className="text-muted-foreground">{f.count.toLocaleString()} ({f.percent}%)</span>
                   </div>
                   <div className="h-6 bg-muted rounded overflow-hidden">
-                    <div
-                      className="h-full bg-primary/80 rounded transition-all flex items-center justify-end pr-2"
-                      style={{ width: `${f.percent}%` }}
-                    >
+                    <div className="h-full bg-primary/80 rounded transition-all flex items-center justify-end pr-2" style={{ width: `${f.percent}%` }}>
                       {f.percent > 15 && <span className="text-[10px] text-primary-foreground font-medium">{f.percent}%</span>}
                     </div>
                   </div>

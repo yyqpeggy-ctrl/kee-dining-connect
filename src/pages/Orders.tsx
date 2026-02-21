@@ -6,29 +6,35 @@ import { useState } from "react";
 
 type OrderStatus = "pending" | "preparing" | "served" | "completed" | "cancelled";
 
+interface OrderItem {
+  nameZh: string;
+  nameEn: string;
+}
+
 interface Order {
   id: string;
   table: string;
-  items: string[];
+  items: OrderItem[];
   total: string;
   time: string;
   status: OrderStatus;
 }
 
 const orders: Order[] = [
-  { id: "ORD-001", table: "A1", items: ["招牌烤鱼", "精酿IPA x2"], total: "¥268", time: "19:32", status: "preparing" },
-  { id: "ORD-002", table: "B1", items: ["麻辣小龙虾", "水煮牛肉", "米饭 x4"], total: "¥520", time: "19:15", status: "served" },
-  { id: "ORD-003", table: "A3", items: ["鲜榨橙汁 x2", "凉拌黄瓜"], total: "¥86", time: "19:45", status: "pending" },
-  { id: "ORD-004", table: "C3", items: ["精酿啤酒 x3"], total: "¥98", time: "20:01", status: "preparing" },
-  { id: "ORD-005", table: "B4", items: ["水煮牛肉", "麻婆豆腐", "白饭 x2"], total: "¥188", time: "18:50", status: "completed" },
-  { id: "ORD-006", table: "A2", items: ["招牌烤鱼", "拉菲红酒"], total: "¥680", time: "18:30", status: "completed" },
-  { id: "ORD-007", table: "B3", items: ["柠檬水 x2"], total: "¥24", time: "20:10", status: "cancelled" },
-  { id: "ORD-008", table: "C1", items: ["麻辣小龙虾 x2", "啤酒 x6", "毛豆"], total: "¥420", time: "17:55", status: "completed" },
+  { id: "ORD-001", table: "A1", items: [{ nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish" }, { nameZh: "精酿IPA x2", nameEn: "Craft IPA x2" }], total: "¥268", time: "19:32", status: "preparing" },
+  { id: "ORD-002", table: "B1", items: [{ nameZh: "麻辣小龙虾", nameEn: "Spicy Crayfish" }, { nameZh: "水煮牛肉", nameEn: "Boiled Beef" }, { nameZh: "米饭 x4", nameEn: "Rice x4" }], total: "¥520", time: "19:15", status: "served" },
+  { id: "ORD-003", table: "A3", items: [{ nameZh: "鲜榨橙汁 x2", nameEn: "Fresh OJ x2" }, { nameZh: "凉拌黄瓜", nameEn: "Cucumber Salad" }], total: "¥86", time: "19:45", status: "pending" },
+  { id: "ORD-004", table: "C3", items: [{ nameZh: "精酿啤酒 x3", nameEn: "Craft Beer x3" }], total: "¥98", time: "20:01", status: "preparing" },
+  { id: "ORD-005", table: "B4", items: [{ nameZh: "水煮牛肉", nameEn: "Boiled Beef" }, { nameZh: "麻婆豆腐", nameEn: "Mapo Tofu" }, { nameZh: "白饭 x2", nameEn: "Rice x2" }], total: "¥188", time: "18:50", status: "completed" },
+  { id: "ORD-006", table: "A2", items: [{ nameZh: "招牌烤鱼", nameEn: "Signature Grilled Fish" }, { nameZh: "拉菲红酒", nameEn: "Lafite Wine" }], total: "¥680", time: "18:30", status: "completed" },
+  { id: "ORD-007", table: "B3", items: [{ nameZh: "柠檬水 x2", nameEn: "Lemonade x2" }], total: "¥24", time: "20:10", status: "cancelled" },
+  { id: "ORD-008", table: "C1", items: [{ nameZh: "麻辣小龙虾 x2", nameEn: "Spicy Crayfish x2" }, { nameZh: "啤酒 x6", nameEn: "Beer x6" }, { nameZh: "毛豆", nameEn: "Edamame" }], total: "¥420", time: "17:55", status: "completed" },
 ];
 
 const Orders = () => {
   const [activeTab, setActiveTab] = useState<OrderStatus | "all">("all");
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
 
   const statusConfig: Record<OrderStatus, { label: string; icon: any; color: string }> = {
     pending: { label: t("orderMgmt.pending"), icon: Clock, color: "text-warning bg-warning/10" },
@@ -75,7 +81,7 @@ const Orders = () => {
                 <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1 ${config.color}`}><Icon className="w-3 h-3" />{config.label}</span>
               </div>
               <div className="space-y-1 mb-3">
-                {order.items.map((item, j) => (<p key={j} className="text-sm text-secondary-foreground">{item}</p>))}
+                {order.items.map((item, j) => (<p key={j} className="text-sm text-secondary-foreground">{isZh ? item.nameZh : item.nameEn}</p>))}
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-border/50">
                 <span className="text-xs text-muted-foreground">{order.time}</span>

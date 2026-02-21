@@ -6,11 +6,11 @@ import { Plus, Target, Users, Megaphone, CalendarDays, TrendingUp, Zap } from "l
 import { useTranslation } from "react-i18next";
 
 const campaigns = [
-  { id: 1, name: "元宵节满减活动", type: "promotion", channel: "全渠道", startDate: "2026-02-20", endDate: "2026-02-26", budget: 15000, spent: 8200, reach: "12.3万", conversions: 892, conversionRate: "7.2%", status: "inProgress" },
-  { id: 2, name: "新品试吃推广", type: "advertising", channel: "TikTok + YouTube", startDate: "2026-02-15", endDate: "2026-02-28", budget: 25000, spent: 18600, reach: "45.8万", conversions: 2340, conversionRate: "5.1%", status: "inProgress" },
-  { id: 3, name: "会员日双倍积分", type: "membership", channel: "小程序", startDate: "2026-02-18", endDate: "2026-02-18", budget: 5000, spent: 5000, reach: "3.2万", conversions: 1560, conversionRate: "12.8%", status: "ended" },
-  { id: 4, name: "春季新菜单发布", type: "brand", channel: "全渠道", startDate: "2026-03-01", endDate: "2026-03-15", budget: 35000, spent: 0, reach: "—", conversions: 0, conversionRate: "—", status: "notStarted" },
-  { id: 5, name: "KOL探店合作", type: "collaboration", channel: "TikTok", startDate: "2026-02-10", endDate: "2026-02-20", budget: 20000, spent: 20000, reach: "68.5万", conversions: 3120, conversionRate: "4.6%", status: "ended" },
+  { id: 1, nameZh: "元宵节满减活动", nameEn: "Lantern Festival Discount", type: "promotion", channelZh: "全渠道", channelEn: "All Channels", startDate: "2026-02-20", endDate: "2026-02-26", budget: 15000, spent: 8200, reach: "12.3万", conversions: 892, conversionRate: "7.2%", status: "inProgress" },
+  { id: 2, nameZh: "新品试吃推广", nameEn: "New Dish Tasting Promo", type: "advertising", channelZh: "TikTok + YouTube", channelEn: "TikTok + YouTube", startDate: "2026-02-15", endDate: "2026-02-28", budget: 25000, spent: 18600, reach: "45.8万", conversions: 2340, conversionRate: "5.1%", status: "inProgress" },
+  { id: 3, nameZh: "会员日双倍积分", nameEn: "Member Day Double Points", type: "membership", channelZh: "小程序", channelEn: "Mini App", startDate: "2026-02-18", endDate: "2026-02-18", budget: 5000, spent: 5000, reach: "3.2万", conversions: 1560, conversionRate: "12.8%", status: "ended" },
+  { id: 4, nameZh: "春季新菜单发布", nameEn: "Spring Menu Launch", type: "brand", channelZh: "全渠道", channelEn: "All Channels", startDate: "2026-03-01", endDate: "2026-03-15", budget: 35000, spent: 0, reach: "—", conversions: 0, conversionRate: "—", status: "notStarted" },
+  { id: 5, nameZh: "KOL探店合作", nameEn: "KOL Restaurant Review", type: "collaboration", channelZh: "TikTok", channelEn: "TikTok", startDate: "2026-02-10", endDate: "2026-02-20", budget: 20000, spent: 20000, reach: "68.5万", conversions: 3120, conversionRate: "4.6%", status: "ended" },
 ];
 
 const statusColor = (s: string) => {
@@ -28,7 +28,8 @@ const typeIcon = (t: string) => {
 };
 
 const CampaignsTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
 
   return (
     <div className="space-y-6">
@@ -53,8 +54,8 @@ const CampaignsTab = () => {
                       <Icon className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-sm">{c.name}</CardTitle>
-                      <CardDescription className="text-xs">{c.channel}</CardDescription>
+                      <CardTitle className="text-sm">{isZh ? c.nameZh : c.nameEn}</CardTitle>
+                      <CardDescription className="text-xs">{isZh ? c.channelZh : c.channelEn}</CardDescription>
                     </div>
                   </div>
                   <Badge variant={statusColor(c.status)}>{t(`marketingMgmt.${c.status}`)}</Badge>

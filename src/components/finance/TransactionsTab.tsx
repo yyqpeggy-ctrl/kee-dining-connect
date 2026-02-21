@@ -6,31 +6,56 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 
-const transactions = [
-  { id: "T001", type: "income", category: "营业收入", desc: "门店营收 - 总店", amount: 28640, time: "今天 21:00", method: "微信支付", store: "总店" },
-  { id: "T002", type: "income", category: "营业收入", desc: "门店营收 - 国贸分店", amount: 35280, time: "今天 21:00", method: "支付宝", store: "国贸分店" },
-  { id: "T003", type: "expense", category: "原材料采购", desc: "海鲜供应商采购", amount: 15800, time: "今天 14:30", method: "银行转账", store: "总部" },
-  { id: "T004", type: "expense", category: "人工成本", desc: "员工工资 - 2月", amount: 183000, time: "今天 10:00", method: "银行转账", store: "总部" },
-  { id: "T005", type: "income", category: "营业收入", desc: "门店营收 - 三里屯分店", amount: 42150, time: "昨天 22:00", method: "混合支付", store: "三里屯分店" },
-  { id: "T006", type: "expense", category: "租金水电", desc: "总店2月租金", amount: 45000, time: "昨天 10:00", method: "银行转账", store: "总店" },
-  { id: "T007", type: "expense", category: "租金水电", desc: "各门店水电费", amount: 8500, time: "2天前", method: "银行扣款", store: "总部" },
-  { id: "T008", type: "income", category: "其他收入", desc: "外卖平台结算", amount: 18600, time: "2天前", method: "银行转账", store: "总部" },
-  { id: "T009", type: "expense", category: "营销费用", desc: "大众点评推广", amount: 5000, time: "3天前", method: "在线支付", store: "总部" },
-  { id: "T010", type: "expense", category: "设备维护", desc: "厨房设备维修", amount: 2800, time: "3天前", method: "现金", store: "国贸分店" },
+interface Transaction {
+  id: string;
+  type: "income" | "expense";
+  categoryKey: string;
+  descZh: string;
+  descEn: string;
+  amount: number;
+  timeZh: string;
+  timeEn: string;
+  methodZh: string;
+  methodEn: string;
+  storeZh: string;
+  storeEn: string;
+  icon: string;
+}
+
+const transactions: Transaction[] = [
+  { id: "T001", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 总店", descEn: "Store Revenue - Main", amount: 28640, timeZh: "今天 21:00", timeEn: "Today 21:00", methodZh: "微信支付", methodEn: "WeChat Pay", storeZh: "总店", storeEn: "Main", icon: "wallet" },
+  { id: "T002", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 国贸分店", descEn: "Store Revenue - Guomao", amount: 35280, timeZh: "今天 21:00", timeEn: "Today 21:00", methodZh: "支付宝", methodEn: "Alipay", storeZh: "国贸分店", storeEn: "Guomao", icon: "wallet" },
+  { id: "T003", type: "expense", categoryKey: "rawMaterials", descZh: "海鲜供应商采购", descEn: "Seafood Supplier Purchase", amount: 15800, timeZh: "今天 14:30", timeEn: "Today 14:30", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "cart" },
+  { id: "T004", type: "expense", categoryKey: "laborCost", descZh: "员工工资 - 2月", descEn: "Employee Salary - Feb", amount: 183000, timeZh: "今天 10:00", timeEn: "Today 10:00", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "building" },
+  { id: "T005", type: "income", categoryKey: "operatingRevenue", descZh: "门店营收 - 三里屯分店", descEn: "Store Revenue - Sanlitun", amount: 42150, timeZh: "昨天 22:00", timeEn: "Yesterday 22:00", methodZh: "混合支付", methodEn: "Mixed Payment", storeZh: "三里屯分店", storeEn: "Sanlitun", icon: "wallet" },
+  { id: "T006", type: "expense", categoryKey: "rentUtilities", descZh: "总店2月租金", descEn: "Main Store Feb Rent", amount: 45000, timeZh: "昨天 10:00", timeEn: "Yesterday 10:00", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总店", storeEn: "Main", icon: "building" },
+  { id: "T007", type: "expense", categoryKey: "rentUtilities", descZh: "各门店水电费", descEn: "All Stores Utilities", amount: 8500, timeZh: "2天前", timeEn: "2 days ago", methodZh: "银行扣款", methodEn: "Bank Debit", storeZh: "总部", storeEn: "HQ", icon: "building" },
+  { id: "T008", type: "income", categoryKey: "otherIncome", descZh: "外卖平台结算", descEn: "Delivery Platform Settlement", amount: 18600, timeZh: "2天前", timeEn: "2 days ago", methodZh: "银行转账", methodEn: "Bank Transfer", storeZh: "总部", storeEn: "HQ", icon: "card" },
+  { id: "T009", type: "expense", categoryKey: "marketingExp", descZh: "大众点评推广", descEn: "Dianping Promotion", amount: 5000, timeZh: "3天前", timeEn: "3 days ago", methodZh: "在线支付", methodEn: "Online Payment", storeZh: "总部", storeEn: "HQ", icon: "receipt" },
+  { id: "T010", type: "expense", categoryKey: "maintenance", descZh: "厨房设备维修", descEn: "Kitchen Equipment Repair", amount: 2800, timeZh: "3天前", timeEn: "3 days ago", methodZh: "现金", methodEn: "Cash", storeZh: "国贸分店", storeEn: "Guomao", icon: "receipt" },
 ];
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  "营业收入": <Wallet className="w-4 h-4" />,
-  "其他收入": <CreditCard className="w-4 h-4" />,
-  "原材料采购": <ShoppingCart className="w-4 h-4" />,
-  "人工成本": <Building2 className="w-4 h-4" />,
-  "租金水电": <Building2 className="w-4 h-4" />,
-  "营销费用": <Receipt className="w-4 h-4" />,
-  "设备维护": <Receipt className="w-4 h-4" />,
+const categoryLabels: Record<string, { zh: string; en: string }> = {
+  operatingRevenue: { zh: "营业收入", en: "Operating Revenue" },
+  otherIncome: { zh: "其他收入", en: "Other Income" },
+  rawMaterials: { zh: "原材料采购", en: "Raw Materials" },
+  laborCost: { zh: "人工成本", en: "Labor Cost" },
+  rentUtilities: { zh: "租金水电", en: "Rent & Utilities" },
+  marketingExp: { zh: "营销费用", en: "Marketing" },
+  maintenance: { zh: "设备维护", en: "Maintenance" },
+};
+
+const iconMap: Record<string, React.ReactNode> = {
+  wallet: <Wallet className="w-4 h-4" />,
+  card: <CreditCard className="w-4 h-4" />,
+  cart: <ShoppingCart className="w-4 h-4" />,
+  building: <Building2 className="w-4 h-4" />,
+  receipt: <Receipt className="w-4 h-4" />,
 };
 
 const TransactionsTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
   const totalIncome = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
@@ -40,23 +65,15 @@ const TransactionsTab = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
           <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.periodIncome")}</p>
-          <p className="text-2xl font-bold text-success flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5" />
-            ¥{totalIncome.toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-success flex items-center gap-2"><ArrowUpRight className="w-5 h-5" />¥{totalIncome.toLocaleString()}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-5">
           <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.periodExpense")}</p>
-          <p className="text-2xl font-bold text-destructive flex items-center gap-2">
-            <ArrowDownRight className="w-5 h-5" />
-            ¥{totalExpense.toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-destructive flex items-center gap-2"><ArrowDownRight className="w-5 h-5" />¥{totalExpense.toLocaleString()}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
           <p className="text-xs text-muted-foreground mb-1">{t("financeMgmt.netBalance")}</p>
-          <p className={`text-2xl font-bold ${totalIncome - totalExpense >= 0 ? "text-success" : "text-destructive"}`}>
-            ¥{(totalIncome - totalExpense).toLocaleString()}
-          </p>
+          <p className={`text-2xl font-bold ${totalIncome - totalExpense >= 0 ? "text-success" : "text-destructive"}`}>¥{(totalIncome - totalExpense).toLocaleString()}</p>
         </motion.div>
       </div>
 
@@ -67,9 +84,7 @@ const TransactionsTab = () => {
           <Input placeholder={t("financeMgmt.searchTransactions")} className="pl-9 bg-muted/50 border-border/50" />
         </div>
         <Select defaultValue="all">
-          <SelectTrigger className="w-32 bg-muted/50">
-            <SelectValue placeholder={t("common.type")} />
-          </SelectTrigger>
+          <SelectTrigger className="w-32 bg-muted/50"><SelectValue placeholder={t("common.type")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("financeMgmt.allTypes")}</SelectItem>
             <SelectItem value="income">{t("financeMgmt.income")}</SelectItem>
@@ -77,62 +92,55 @@ const TransactionsTab = () => {
           </SelectContent>
         </Select>
         <Select defaultValue="all">
-          <SelectTrigger className="w-36 bg-muted/50">
-            <SelectValue placeholder={t("hrMgmt.store")} />
-          </SelectTrigger>
+          <SelectTrigger className="w-36 bg-muted/50"><SelectValue placeholder={t("hrMgmt.store")} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("financeMgmt.allStores")}</SelectItem>
             <SelectItem value="hq">{t("financeMgmt.headquarters")}</SelectItem>
-            <SelectItem value="main">总店</SelectItem>
-            <SelectItem value="guomao">国贸分店</SelectItem>
-            <SelectItem value="sanlitun">三里屯分店</SelectItem>
+            <SelectItem value="main">{isZh ? "总店" : "Main Store"}</SelectItem>
+            <SelectItem value="guomao">{isZh ? "国贸分店" : "Guomao Branch"}</SelectItem>
+            <SelectItem value="sanlitun">{isZh ? "三里屯分店" : "Sanlitun Branch"}</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Filter className="w-4 h-4" />
-          {t("financeMgmt.moreFilters")}
-        </Button>
-        <Button variant="outline" size="sm" className="gap-2 ml-auto">
-          <Download className="w-4 h-4" />
-          {t("common.export")}
-        </Button>
+        <Button variant="outline" size="sm" className="gap-2"><Filter className="w-4 h-4" />{t("financeMgmt.moreFilters")}</Button>
+        <Button variant="outline" size="sm" className="gap-2 ml-auto"><Download className="w-4 h-4" />{t("common.export")}</Button>
       </div>
 
       {/* Transactions List */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
         <div className="space-y-1">
-          {transactions.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  tx.type === "income" ? "bg-success/10" : "bg-destructive/10"
-                }`}>
-                  <div className={tx.type === "income" ? "text-success" : "text-destructive"}>
-                    {categoryIcons[tx.category] || <Receipt className="w-4 h-4" />}
+          {transactions.map((tx) => {
+            const catLabel = categoryLabels[tx.categoryKey];
+            return (
+              <div key={tx.id} className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${tx.type === "income" ? "bg-success/10" : "bg-destructive/10"}`}>
+                    <div className={tx.type === "income" ? "text-success" : "text-destructive"}>
+                      {iconMap[tx.icon] || <Receipt className="w-4 h-4" />}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{isZh ? tx.descZh : tx.descEn}</p>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{catLabel ? (isZh ? catLabel.zh : catLabel.en) : tx.categoryKey}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-muted-foreground">{isZh ? tx.timeZh : tx.timeEn}</span>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs text-muted-foreground">{isZh ? tx.methodZh : tx.methodEn}</span>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs text-muted-foreground">{isZh ? tx.storeZh : tx.storeEn}</span>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{tx.desc}</p>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{tx.category}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">{tx.time}</span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs text-muted-foreground">{tx.method}</span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs text-muted-foreground">{tx.store}</span>
-                  </div>
+                <div className="text-right">
+                  <span className={`font-semibold ${tx.type === "income" ? "text-success" : "text-destructive"}`}>
+                    {tx.type === "income" ? "+" : "-"}¥{tx.amount.toLocaleString()}
+                  </span>
+                  <p className="text-[10px] text-muted-foreground">{tx.id}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <span className={`font-semibold ${tx.type === "income" ? "text-success" : "text-destructive"}`}>
-                  {tx.type === "income" ? "+" : "-"}¥{tx.amount.toLocaleString()}
-                </span>
-                <p className="text-[10px] text-muted-foreground">{tx.id}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Pagination */}

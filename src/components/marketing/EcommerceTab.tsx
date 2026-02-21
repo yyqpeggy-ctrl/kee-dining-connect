@@ -9,19 +9,19 @@ import StatCard from "@/components/StatCard";
 import { useTranslation } from "react-i18next";
 
 const products = [
-  { id: 1, name: "招牌红烧肉礼盒", price: "¥168", sold: 2340, stock: 156, rating: 4.9, status: "onSale" },
-  { id: 2, name: "手工水饺速冻装（50只）", price: "¥89", sold: 5612, stock: 320, rating: 4.8, status: "onSale" },
-  { id: 3, name: "秘制辣酱（3瓶装）", price: "¥56", sold: 8930, stock: 890, rating: 4.7, status: "onSale" },
-  { id: 4, name: "年夜饭套餐（6-8人）", price: "¥888", sold: 456, stock: 0, rating: 4.9, status: "soldOut" },
-  { id: 5, name: "新春糕点礼盒", price: "¥128", sold: 1234, stock: 45, rating: 4.6, status: "onSale" },
-  { id: 6, name: "有机蔬菜沙拉套装", price: "¥45", sold: 3210, stock: 200, rating: 4.5, status: "onSale" },
+  { id: 1, nameZh: "招牌红烧肉礼盒", nameEn: "Signature Braised Pork Gift Box", price: "¥168", sold: 2340, stock: 156, rating: 4.9, status: "onSale" },
+  { id: 2, nameZh: "手工水饺速冻装（50只）", nameEn: "Handmade Frozen Dumplings (50pc)", price: "¥89", sold: 5612, stock: 320, rating: 4.8, status: "onSale" },
+  { id: 3, nameZh: "秘制辣酱（3瓶装）", nameEn: "Secret Chili Sauce (3-pack)", price: "¥56", sold: 8930, stock: 890, rating: 4.7, status: "onSale" },
+  { id: 4, nameZh: "年夜饭套餐（6-8人）", nameEn: "New Year's Eve Set (6-8 ppl)", price: "¥888", sold: 456, stock: 0, rating: 4.9, status: "soldOut" },
+  { id: 5, nameZh: "新春糕点礼盒", nameEn: "Spring Festival Pastry Box", price: "¥128", sold: 1234, stock: 45, rating: 4.6, status: "onSale" },
+  { id: 6, nameZh: "有机蔬菜沙拉套装", nameEn: "Organic Salad Kit", price: "¥45", sold: 3210, stock: 200, rating: 4.5, status: "onSale" },
 ];
 
 const orderChannel = [
-  { name: "美团", value: 35 },
-  { name: "饿了么", value: 28 },
-  { name: "抖音商城", value: 22 },
-  { name: "自营小程序", value: 15 },
+  { nameZh: "美团", nameEn: "Meituan", value: 35 },
+  { nameZh: "饿了么", nameEn: "Eleme", value: 28 },
+  { nameZh: "抖音商城", nameEn: "TikTok Shop", value: 22 },
+  { nameZh: "自营小程序", nameEn: "Own Mini App", value: 15 },
 ];
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(0, 70%, 55%)", "hsl(var(--secondary))"];
@@ -37,7 +37,8 @@ const dailySales = [
 ];
 
 const EcommerceTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === 'zh';
 
   return (
     <div className="space-y-6">
@@ -79,7 +80,7 @@ const EcommerceTab = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={orderChannel} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name} ${value}%`}>
+                <Pie data={orderChannel.map(c => ({ name: isZh ? c.nameZh : c.nameEn, value: c.value }))} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name} ${value}%`}>
                   {orderChannel.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -124,7 +125,7 @@ const EcommerceTab = () => {
             <TableBody>
               {products.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="font-medium">{isZh ? p.nameZh : p.nameEn}</TableCell>
                   <TableCell className="text-right">{p.price}</TableCell>
                   <TableCell className="text-right">{p.sold.toLocaleString()}</TableCell>
                   <TableCell className="text-right">{p.stock}</TableCell>
