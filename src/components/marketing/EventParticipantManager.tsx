@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +84,11 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
   const [reminderRules, setReminderRules] = useState<any[]>([]);
   const [rulesLoading, setRulesLoading] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  // Excel import
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [excelPreview, setExcelPreview] = useState<{ name: string; phone: string; wechat?: string; email?: string }[]>([]);
+  const [excelImporting, setExcelImporting] = useState(false);
+  const [excelFileName, setExcelFileName] = useState("");
   // Cross-event analysis
   const [crossEventData, setCrossEventData] = useState<{ phone: string; name: string; eventCount: number; events: string[] }[]>([]);
   const [crossEventLoading, setCrossEventLoading] = useState(false);
@@ -233,6 +240,73 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
     }
     setParticipants(prev => prev.filter(p => p.id !== id));
     toast({ title: isZh ? "已删除" : "Deleted" });
+  };
+
+  // Excel/CSV helpers
+  const mapFileRows = (rawRows: Record<string, string>[]): { name: string; phone: string; wechat?: string; email?: string }[] => {
+    return rawRows
+      .map(row => {
+        // Flexible column name matching (Chinese & English)
+        const name = row["姓名"] || row["name"] || row["Name"] || row["名字"] || row["联系人"] || "";
+        const phone = row["手机"] || row["手机号"] || row["phone"] || row["Phone"] || row["电话"] || row["联系电话"] || "";
+        const wechat = row["微信"] || row["微信号"] || row["wechat"] || row["WeChat"] || "";
+        const email = row["邮箱"] || row["email"] || row["Email"] || row["电子邮件"] || "";
+        return { name: name.toString().trim(), phone: phone.toString().trim(), wechat: wechat.toString().trim() || undefined, email: email.toString().trim() || undefined };
+      })
+      .filter(r => r.name && r.phone);
+  };
+
+  const handleExcelImport = async () => {
+    if (excelPreview.length === 0) return;
+    setExcelImporting(true);
+    try {
+      // Check existing phones for new customer detection
+      const phones = excelPreview.map(r => r.phone);
+      const { data: existingData } = await supabase
+        .from("event_participants")
+        .select("phone")
+        .in("phone", phones);
+      const existingPhones = new Set((existingData || []).map((r: any) => r.phone));
+
+      // Also check duplicates within this event
+      const eventPhones = new Set(participants.map(p => p.phone));
+      const newRows = excelPreview.filter(r => !eventPhones.has(r.phone));
+
+      if (newRows.length === 0) {
+        toast({ title: isZh ? "全部重复" : "All Duplicates", description: isZh ? "所有记录已存在于此活动中" : "All records already exist in this event", variant: "destructive" });
+        setExcelImporting(false);
+        return;
+      }
+
+      const rows = newRows.map(r => ({
+        event_id: eventId,
+        event_name: eventName,
+        name: r.name,
+        phone: r.phone,
+        wechat: r.wechat || null,
+        email: r.email || null,
+        source: "manual",
+        status: "registered",
+        is_new_customer: !existingPhones.has(r.phone),
+      }));
+
+      const { data, error } = await supabase.from("event_participants").insert(rows).select();
+      if (error) throw error;
+      setParticipants(prev => [...(data as Participant[]), ...prev]);
+      setExcelPreview([]);
+      setExcelFileName("");
+      const skipped = excelPreview.length - newRows.length;
+      toast({
+        title: isZh ? "导入成功" : "Import Complete",
+        description: isZh
+          ? `新增 ${data?.length} 人${skipped > 0 ? `，跳过 ${skipped} 条重复` : ""}`
+          : `Added ${data?.length}${skipped > 0 ? `, skipped ${skipped} duplicates` : ""}`,
+      });
+    } catch (err: any) {
+      toast({ title: isZh ? "导入失败" : "Import Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExcelImporting(false);
+    }
   };
 
   // AI Parse WeChat messages
@@ -693,15 +767,102 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4 text-green-600" />{isZh ? "Excel批量导入" : "Excel Import"}</CardTitle>
+                  <CardTitle className="text-sm flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4 text-green-600" />{isZh ? "Excel/CSV批量导入" : "Excel/CSV Import"}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-40" />
-                    <p className="text-xs text-muted-foreground mb-2">{isZh ? "拖拽Excel文件到此处" : "Drag Excel file here"}</p>
-                    <Button size="sm" variant="outline" className="gap-1 text-xs"><Upload className="w-3 h-3" />{isZh ? "选择文件" : "Choose File"}</Button>
-                    <p className="text-[10px] text-muted-foreground mt-2">{isZh ? "支持 .xlsx, .csv 格式" : "Supports .xlsx, .csv"}</p>
-                  </div>
+                <CardContent className="space-y-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setExcelFileName(file.name);
+                      const isCsv = file.name.endsWith(".csv");
+
+                      if (isCsv) {
+                        Papa.parse(file, {
+                          header: true,
+                          skipEmptyLines: true,
+                          complete: (results) => {
+                            const rows = mapFileRows(results.data as Record<string, string>[]);
+                            setExcelPreview(rows);
+                            toast({ title: isZh ? "解析完成" : "Parsed", description: isZh ? `${rows.length} 条记录` : `${rows.length} rows` });
+                          },
+                          error: (err) => {
+                            toast({ title: isZh ? "解析失败" : "Parse Failed", description: err.message, variant: "destructive" });
+                          },
+                        });
+                      } else {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          try {
+                            const wb = XLSX.read(evt.target?.result, { type: "array" });
+                            const ws = wb.Sheets[wb.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+                            const rows = mapFileRows(jsonData);
+                            setExcelPreview(rows);
+                            toast({ title: isZh ? "解析完成" : "Parsed", description: isZh ? `${rows.length} 条记录` : `${rows.length} rows` });
+                          } catch (err: any) {
+                            toast({ title: isZh ? "解析失败" : "Parse Failed", description: err.message, variant: "destructive" });
+                          }
+                        };
+                        reader.readAsArrayBuffer(file);
+                      }
+                      // Reset so same file can be re-selected
+                      e.target.value = "";
+                    }}
+                  />
+                  {excelPreview.length === 0 ? (
+                    <div
+                      className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/40 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files[0];
+                        if (file && fileInputRef.current) {
+                          const dt = new DataTransfer();
+                          dt.items.add(file);
+                          fileInputRef.current.files = dt.files;
+                          fileInputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+                        }
+                      }}
+                    >
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-40" />
+                      <p className="text-xs text-muted-foreground mb-2">{isZh ? "拖拽文件到此处或点击上传" : "Drag file here or click to upload"}</p>
+                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                        <Upload className="w-3 h-3" />{isZh ? "选择文件" : "Choose File"}
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground mt-2">{isZh ? "支持 .xlsx, .csv，需包含「姓名/name」和「手机/phone」列" : "Requires 'name' and 'phone' columns"}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-foreground">{excelFileName} — {excelPreview.length} {isZh ? "条记录" : "rows"}</p>
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setExcelPreview([]); setExcelFileName(""); }}>
+                          {isZh ? "清除" : "Clear"}
+                        </Button>
+                      </div>
+                      <div className="max-h-[180px] overflow-y-auto space-y-1">
+                        {excelPreview.slice(0, 20).map((row, i) => (
+                          <div key={i} className="flex items-center gap-2 p-1.5 rounded border border-border bg-card text-xs">
+                            <span className="font-medium text-foreground w-20 truncate">{row.name}</span>
+                            <span className="text-muted-foreground">{row.phone}</span>
+                            {row.wechat && <span className="text-muted-foreground text-[10px]">wx:{row.wechat}</span>}
+                            {row.email && <span className="text-muted-foreground text-[10px]">{row.email}</span>}
+                          </div>
+                        ))}
+                        {excelPreview.length > 20 && <p className="text-[10px] text-muted-foreground text-center">...{isZh ? `还有 ${excelPreview.length - 20} 条` : `${excelPreview.length - 20} more`}</p>}
+                      </div>
+                      <Button size="sm" className="w-full gap-1.5" onClick={handleExcelImport} disabled={excelImporting}>
+                        {excelImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                        {excelImporting ? (isZh ? "导入中..." : "Importing...") : (isZh ? `导入 ${excelPreview.length} 条到数据库` : `Import ${excelPreview.length} to DB`)}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
