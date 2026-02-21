@@ -4,6 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StoreProvider } from "@/contexts/StoreContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Index from "./pages/Index";
 import Tables from "./pages/Tables";
 import Inventory from "./pages/Inventory";
@@ -24,28 +28,32 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <StoreProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/tables" element={<Tables />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/kitchen" element={<Kitchen />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/procurement" element={<Procurement />} />
-            <Route path="/stores" element={<Stores />} />
-            <Route path="/hr" element={<HR />} />
-            <Route path="/finance" element={<Finance />} />
-            <Route path="/legal" element={<Legal />} />
-            <Route path="/marketing" element={<Marketing />} />
-            <Route path="/customers" element={<CustomerAnalysis />} />
-            <Route path="/menu" element={<Menu />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </StoreProvider>
+      <AuthProvider>
+        <StoreProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
+              <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+              <Route path="/kitchen" element={<ProtectedRoute><Kitchen /></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+              <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
+              <Route path="/stores" element={<ProtectedRoute><Stores /></ProtectedRoute>} />
+              <Route path="/hr" element={<ProtectedRoute><HR /></ProtectedRoute>} />
+              <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
+              <Route path="/legal" element={<ProtectedRoute><Legal /></ProtectedRoute>} />
+              <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><CustomerAnalysis /></ProtectedRoute>} />
+              <Route path="/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </StoreProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
