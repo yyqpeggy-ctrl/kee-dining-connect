@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +92,11 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
   const [notifyDialog, setNotifyDialog] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState("");
   const [notifyTarget, setNotifyTarget] = useState("all");
+  const [notifyChannel, setNotifyChannel] = useState("wechat_template");
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifyHistory, setNotifyHistory] = useState<any[]>([]);
+  const [reminderRules, setReminderRules] = useState<any[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
 
   // Computed stats
@@ -268,14 +273,109 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
     toast({ title: isZh ? "标签已添加" : "Tags Added" });
   };
 
-  const handleSendNotification = () => {
-    const targetCount = notifyTarget === "all" ? stats.total :
-      notifyTarget === "confirmed" ? stats.confirmed + stats.registered :
-      notifyTarget === "no_checkin" ? stats.confirmed + stats.registered : selectedIds.size;
-    toast({ title: isZh ? "通知已发送" : "Notification Sent", description: isZh ? `已向 ${targetCount} 人发送消息` : `Sent to ${targetCount} people` });
-    setNotifyDialog(false);
-    setNotifyMessage("");
+  // Load reminder rules and notification history from DB
+  const loadRules = useCallback(async () => {
+    setRulesLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-event-notification", {
+        body: { action: "get_rules" },
+      });
+      if (error) throw error;
+      if (data?.rules) setReminderRules(data.rules);
+    } catch (err) {
+      console.error("Failed to load rules:", err);
+    } finally {
+      setRulesLoading(false);
+    }
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-event-notification", {
+        body: { action: "get_history", eventId },
+      });
+      if (error) throw error;
+      if (data?.history) setNotifyHistory(data.history);
+    } catch (err) {
+      console.error("Failed to load history:", err);
+    }
+  }, [eventId]);
+
+  useEffect(() => {
+    if (activeTab === "notify") {
+      loadRules();
+      loadHistory();
+    }
+  }, [activeTab, loadRules, loadHistory]);
+
+  const handleSendNotification = async () => {
+    if (!notifyMessage.trim()) return;
+    
+    // Get recipients based on target
+    let recipients: { name: string; phone: string }[] = [];
+    const unique = participants.filter(p => !p.isDuplicate);
+    
+    if (notifyTarget === "all") {
+      recipients = unique.map(p => ({ name: p.name, phone: p.phone }));
+    } else if (notifyTarget === "confirmed") {
+      recipients = unique.filter(p => p.status === "confirmed" || p.status === "registered").map(p => ({ name: p.name, phone: p.phone }));
+    } else if (notifyTarget === "no_checkin") {
+      recipients = unique.filter(p => p.status !== "checked_in" && p.status !== "cancelled").map(p => ({ name: p.name, phone: p.phone }));
+    } else if (notifyTarget === "selected") {
+      recipients = unique.filter(p => selectedIds.has(p.id)).map(p => ({ name: p.name, phone: p.phone }));
+    }
+
+    if (recipients.length === 0) {
+      toast({ title: isZh ? "无发送目标" : "No Recipients", variant: "destructive" });
+      return;
+    }
+
+    setNotifySending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-event-notification", {
+        body: {
+          action: "send",
+          eventId,
+          eventName,
+          eventDate: "",
+          eventTime: "",
+          channel: notifyChannel,
+          targetType: notifyTarget,
+          recipients,
+          messageTemplate: notifyMessage,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: isZh ? "通知发送完成" : "Notification Sent",
+        description: isZh
+          ? `成功 ${data.delivered}/${data.totalSent}，失败 ${data.failed}`
+          : `Delivered ${data.delivered}/${data.totalSent}, Failed ${data.failed}`,
+      });
+      setNotifyMessage("");
+      loadHistory();
+    } catch (err: any) {
+      toast({ title: isZh ? "发送失败" : "Send Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setNotifySending(false);
+    }
   };
+
+  const handleToggleRule = async (ruleId: string, currentActive: boolean) => {
+    try {
+      const { data: ruleData } = await supabase.from("event_reminder_rules" as any).update({ is_active: !currentActive }).eq("id", ruleId).select().single();
+      if (ruleData) {
+        setReminderRules(prev => prev.map(r => r.id === ruleId ? { ...r, is_active: !currentActive } : r));
+        toast({ title: isZh ? (currentActive ? "规则已禁用" : "规则已启用") : (currentActive ? "Rule Disabled" : "Rule Enabled") });
+      }
+    } catch (err) {
+      console.error("Toggle rule error:", err);
+    }
+  };
+
+
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -701,32 +801,27 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
               <CardTitle className="text-sm flex items-center gap-1.5"><Bell className="w-4 h-4 text-primary" />{isZh ? "活动通知与提醒" : "Event Notifications"}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Channel selector */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Card className="bg-muted/30 border-border">
-                  <CardContent className="pt-4 pb-3 px-4 text-center">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2 text-green-600 opacity-60" />
-                    <p className="text-sm font-medium text-foreground">{isZh ? "微信模板消息" : "WeChat Template"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "通过微信公众号/服务号推送" : "Push via WeChat Official Account"}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-muted/30 border-border">
-                  <CardContent className="pt-4 pb-3 px-4 text-center">
-                    <Mail className="w-8 h-8 mx-auto mb-2 text-blue-500 opacity-60" />
-                    <p className="text-sm font-medium text-foreground">{isZh ? "短信通知" : "SMS Notification"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "通过短信网关发送提醒" : "Send reminders via SMS gateway"}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-muted/30 border-border">
-                  <CardContent className="pt-4 pb-3 px-4 text-center">
-                    <Smartphone className="w-8 h-8 mx-auto mb-2 text-purple-500 opacity-60" />
-                    <p className="text-sm font-medium text-foreground">{isZh ? "小程序推送" : "Mini Program Push"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "通过小程序订阅消息推送" : "Push via mini program subscription"}</p>
-                  </CardContent>
-                </Card>
+                {[
+                  { id: "wechat_template", icon: MessageSquare, color: "text-green-600", zh: "微信模板消息", en: "WeChat Template", descZh: "通过微信公众号/服务号推送（模拟）", descEn: "Push via WeChat (mock mode)" },
+                  { id: "sms", icon: Mail, color: "text-blue-500", zh: "短信通知", en: "SMS Notification", descZh: "通过短信网关发送提醒（模拟）", descEn: "Send reminders via SMS (mock mode)" },
+                  { id: "miniprogram", icon: Smartphone, color: "text-purple-500", zh: "小程序推送", en: "Mini Program Push", descZh: "通过小程序订阅消息推送（模拟）", descEn: "Push via mini program (mock mode)" },
+                ].map(ch => (
+                  <Card key={ch.id} className={`cursor-pointer transition-all border-2 ${notifyChannel === ch.id ? "border-primary bg-primary/5" : "bg-muted/30 border-border hover:border-primary/30"}`} onClick={() => setNotifyChannel(ch.id)}>
+                    <CardContent className="pt-4 pb-3 px-4 text-center">
+                      <ch.icon className={`w-8 h-8 mx-auto mb-2 ${ch.color} opacity-60`} />
+                      <p className="text-sm font-medium text-foreground">{isZh ? ch.zh : ch.en}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{isZh ? ch.descZh : ch.descEn}</p>
+                      {notifyChannel === ch.id && <Badge className="mt-1.5 text-[9px]">{isZh ? "已选择" : "Selected"}</Badge>}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               <Separator />
 
+              {/* Compose */}
               <div className="space-y-3">
                 <p className="text-sm font-medium text-foreground">{isZh ? "编辑通知内容" : "Compose Notification"}</p>
                 <Select value={notifyTarget} onValueChange={setNotifyTarget}>
@@ -740,24 +835,30 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
                 </Select>
 
                 <div className="space-y-2">
-                  <div className="flex gap-2 flex-wrap">
-                    {[
-                      { zh: "活动即将开始提醒", en: "Event starting soon reminder" },
-                      { zh: "请确认参加", en: "Please confirm attendance" },
-                      { zh: "活动地点/时间变更", en: "Venue/time change notice" },
-                      { zh: "活动已取消", en: "Event cancelled" },
-                    ].map((tpl, i) => (
-                      <Button key={i} size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setNotifyMessage(isZh ? tpl.zh : tpl.en)}>
-                        {isZh ? tpl.zh : tpl.en}
-                      </Button>
-                    ))}
-                  </div>
+                  {(() => {
+                    const templates = [
+                      { zh: "您好{name}，\u201C{event}\u201D即将开始，请准时到场！", en: "Hi {name}, '{event}' is starting soon. See you there!" },
+                      { zh: "您好{name}，请确认是否参加\u201C{event}\u201D", en: "Hi {name}, please confirm attendance for '{event}'" },
+                      { zh: "通知：\u201C{event}\u201D活动时间/地点有变更", en: "Notice: '{event}' time/venue has changed" },
+                      { zh: "很遗憾，\u201C{event}\u201D已取消，敬请谅解", en: "Unfortunately, '{event}' has been cancelled" },
+                    ];
+                    return (
+                      <div className="flex gap-2 flex-wrap">
+                        {templates.map((tpl, i) => (
+                          <Button key={i} size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setNotifyMessage(isZh ? tpl.zh : tpl.en)}>
+                            {(isZh ? tpl.zh : tpl.en).replace(/\{.*?\}/g, "...").substring(0, 20)}...
+                          </Button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <Textarea value={notifyMessage} onChange={e => setNotifyMessage(e.target.value)} rows={3} className="text-xs" placeholder={isZh ? "输入通知内容，支持使用 {name} {event} {date} {time} 等变量" : "Enter message. Use {name} {event} {date} {time} variables"} />
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="gap-1.5 flex-1" onClick={handleSendNotification} disabled={!notifyMessage.trim()}>
-                    <Send className="w-3.5 h-3.5" />{isZh ? "发送通知" : "Send Notification"}
+                  <Button className="gap-1.5 flex-1" onClick={handleSendNotification} disabled={!notifyMessage.trim() || notifySending}>
+                    {notifySending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    {notifySending ? (isZh ? "发送中..." : "Sending...") : (isZh ? "发送通知" : "Send Notification")}
                   </Button>
                   <Button variant="outline" className="gap-1.5">
                     <Clock className="w-3.5 h-3.5" />{isZh ? "定时发送" : "Schedule"}
@@ -767,22 +868,78 @@ const EventParticipantManager = ({ eventId, eventName, eventNameEn, expectedGues
 
               <Separator />
 
+              {/* Auto Reminder Rules from DB */}
               <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">{isZh ? "自动提醒规则" : "Auto Reminder Rules"}</p>
-                <div className="space-y-1.5">
-                  {[
-                    { zh: "活动前24小时自动提醒已确认参与者", en: "Auto remind confirmed 24h before event", active: true },
-                    { zh: "活动前2小时发送签到提醒", en: "Send check-in reminder 2h before event", active: true },
-                    { zh: "活动结束后发送感谢消息及评价邀请", en: "Send thank you & review request after event", active: false },
-                    { zh: "未签到者活动后30分钟标记为No Show", en: "Mark no-shows 30min after event start", active: true },
-                  ].map((rule, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 rounded-md border border-border bg-card text-xs">
-                      <span className="text-foreground">{isZh ? rule.zh : rule.en}</span>
-                      <Badge variant={rule.active ? "default" : "secondary"} className="text-[9px]">{rule.active ? (isZh ? "已启用" : "Active") : (isZh ? "未启用" : "Inactive")}</Badge>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">{isZh ? "自动提醒规则" : "Auto Reminder Rules"}</p>
+                  <Badge variant="outline" className="text-[9px] gap-1"><Clock className="w-2.5 h-2.5" />{isZh ? "每15分钟检查" : "Checks every 15min"}</Badge>
                 </div>
+                {rulesLoading ? (
+                  <div className="text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" /></div>
+                ) : reminderRules.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {reminderRules.map(rule => (
+                      <div key={rule.id} className="flex items-center justify-between p-2.5 rounded-md border border-border bg-card text-xs">
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{isZh ? rule.rule_name_zh : rule.rule_name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {isZh ? `${rule.trigger_relative_to === "event_start" ? "活动开始" : "活动结束"}${rule.trigger_offset_minutes > 0 ? "后" : "前"}${Math.abs(rule.trigger_offset_minutes)}分钟` : `${Math.abs(rule.trigger_offset_minutes)}min ${rule.trigger_offset_minutes > 0 ? "after" : "before"} ${rule.trigger_relative_to === "event_start" ? "start" : "end"}`}
+                            {" · "}{rule.channel === "all" ? (isZh ? "全渠道" : "All channels") : rule.channel}
+                            {" · "}{isZh ? `目标: ${rule.target_type}` : `Target: ${rule.target_type}`}
+                          </p>
+                        </div>
+                        <Button size="sm" variant={rule.is_active ? "default" : "secondary"} className="h-6 text-[9px] gap-1 ml-2" onClick={() => handleToggleRule(rule.id, rule.is_active)}>
+                          {rule.is_active ? (isZh ? "已启用" : "Active") : (isZh ? "已禁用" : "Inactive")}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {[
+                      { zh: "活动前24小时自动提醒已确认参与者", en: "Auto remind confirmed 24h before event", active: true },
+                      { zh: "活动前2小时发送签到提醒", en: "Send check-in reminder 2h before event", active: true },
+                      { zh: "活动结束后发送感谢消息及评价邀请", en: "Send thank you & review request after event", active: false },
+                      { zh: "未签到者活动后30分钟标记为No Show", en: "Mark no-shows 30min after event start", active: true },
+                    ].map((rule, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 rounded-md border border-border bg-card text-xs">
+                        <span className="text-foreground">{isZh ? rule.zh : rule.en}</span>
+                        <Badge variant={rule.active ? "default" : "secondary"} className="text-[9px]">{rule.active ? (isZh ? "已启用" : "Active") : (isZh ? "未启用" : "Inactive")}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Notification History */}
+              {notifyHistory.length > 0 && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">{isZh ? "发送记录" : "Send History"}</p>
+                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                      {notifyHistory.map((h: any) => (
+                        <div key={h.id} className="flex items-center justify-between p-2 rounded-md border border-border bg-card text-xs">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className="text-[8px] px-1 h-3.5">{h.channel}</Badge>
+                              <span className="font-medium text-foreground">{isZh ? `发送给 ${h.recipient_count} 人` : `Sent to ${h.recipient_count}`}</span>
+                              <Badge variant={h.status === "sent" ? "default" : h.status === "failed" ? "destructive" : "secondary"} className="text-[8px] px-1 h-3.5">
+                                {h.status === "sent" ? (isZh ? "已发送" : "Sent") : h.status === "failed" ? (isZh ? "失败" : "Failed") : h.status}
+                              </Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[300px]">{h.message_template}</p>
+                          </div>
+                          <div className="text-right text-[10px] text-muted-foreground ml-2 shrink-0">
+                            <p>{h.delivery_stats?.delivered || 0}/{h.recipient_count} {isZh ? "送达" : "delivered"}</p>
+                            <p>{h.sent_at ? new Date(h.sent_at).toLocaleString(isZh ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ""}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
