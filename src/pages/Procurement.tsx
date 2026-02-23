@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import {
   ShoppingCart, Package, Clock, Plus, Search, Building2, DollarSign,
-  CheckCircle, FileText, Shield, CreditCard, Users
+  CheckCircle, FileText, Shield, CreditCard, Users, Brain
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { useState, useEffect, useCallback } from "react";
@@ -16,6 +16,7 @@ import ProcurementApprovalTab from "@/components/procurement/ProcurementApproval
 import ProcurementPaymentTab from "@/components/procurement/ProcurementPaymentTab";
 import ProcurementContractTab from "@/components/procurement/ProcurementContractTab";
 import SupplierManagementTab from "@/components/procurement/SupplierManagementTab";
+import AIProcurementTab from "@/components/procurement/AIProcurementTab";
 
 const Procurement = () => {
   const { t, i18n } = useTranslation();
@@ -109,7 +110,10 @@ const Procurement = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-6 mb-6 bg-muted/50">
+          <TabsTrigger value="ai-suggest" className="gap-2 data-[state=active]:bg-primary/20 text-xs">
+            <Brain className="w-4 h-4" />{isZh ? "AI建议" : "AI Suggest"}
+          </TabsTrigger>
           <TabsTrigger value="orders" className="gap-2 data-[state=active]:bg-primary/20 text-xs">
             <Package className="w-4 h-4" />{t("procurementMgmt.purchaseOrders")}
           </TabsTrigger>
@@ -126,6 +130,9 @@ const Procurement = () => {
             <FileText className="w-4 h-4" />{t("procurementMgmt.contractTab")}
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="ai-suggest">
+          <AIProcurementTab onRefresh={fetchOrders} />
+        </TabsContent>
         <TabsContent value="orders">
           <ProcurementOrdersTab orders={filtered} onRefresh={fetchOrders} />
         </TabsContent>

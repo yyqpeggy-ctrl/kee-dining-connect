@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.ocr-contract]
 verify_jwt = false
+
+[functions.ai-procurement-suggest]
+verify_jwt = false
