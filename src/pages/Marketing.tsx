@@ -1,4 +1,6 @@
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
+import { useStore } from "@/contexts/StoreContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -12,14 +14,17 @@ import EventsTab from "@/components/marketing/EventsTab";
 const Marketing = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+  const { storeName } = useStore();
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold font-display text-foreground">{t("marketingMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("marketingMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("marketingMgmt.subtitle")}</p>
         </div>
+
+        <StoreIndicator />
 
         <Tabs defaultValue="social" className="space-y-4">
           <TabsList>

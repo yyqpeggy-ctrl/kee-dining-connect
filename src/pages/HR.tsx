@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Users, UserPlus, Clock, Award, Phone, MoreHorizontal, Search, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
+import { useStore } from "@/contexts/StoreContext";
 import { useState } from "react";
 
 interface Employee {
@@ -36,6 +38,7 @@ const HR = () => {
   const [selectedDept, setSelectedDept] = useState("all");
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+  const { storeName } = useStore();
 
   const filtered = employees.filter((emp) => {
     const name = isZh ? emp.nameZh : emp.nameEn;
@@ -55,10 +58,12 @@ const HR = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("hrMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("hrMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("hrMgmt.subtitle")}</p>
         </div>
         <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"><UserPlus className="w-4 h-4" />{t("hrMgmt.addEmployee")}</button>
       </div>
+
+      <StoreIndicator />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4">

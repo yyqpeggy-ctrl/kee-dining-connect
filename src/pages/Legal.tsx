@@ -4,6 +4,8 @@ import {
   Download, Plus, Eye, MoreHorizontal, Shield, Gavel
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
+import { useStore } from "@/contexts/StoreContext";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -50,6 +52,7 @@ const Legal = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
   const [activeTab, setActiveTab] = useState<"contracts" | "compliance">("contracts");
+  const { storeName } = useStore();
 
   const typeLabels: Record<string, string> = {
     lease: t("legalMgmt.lease"),
@@ -67,12 +70,14 @@ const Legal = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("legalMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("legalMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("legalMgmt.subtitle")}</p>
         </div>
         <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
           <Plus className="w-4 h-4" />{t("legalMgmt.newContract")}
         </button>
       </div>
+
+      <StoreIndicator />
 
       {/* Alerts */}
       {(expiringCount > 0 || overdueCount > 0) && (

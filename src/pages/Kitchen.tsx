@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Clock, CheckCircle2, Flame, Timer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 
 interface KitchenOrder {
@@ -23,7 +24,7 @@ const kitchenOrders: KitchenOrder[] = [
 ];
 
 const Kitchen = () => {
-  const { currentStore } = useStore();
+  const { storeName } = useStore();
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
 
@@ -42,7 +43,7 @@ const Kitchen = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("kitchenMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{currentStore.name} · {t("kitchenMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("kitchenMgmt.subtitle")}</p>
         </div>
         <div className="flex gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs"><Clock className="w-3.5 h-3.5" /><span>{t("kitchenMgmt.pending")} {pendingCount}</span></div>
@@ -50,6 +51,8 @@ const Kitchen = () => {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs"><CheckCircle2 className="w-3.5 h-3.5" /><span>{t("kitchenMgmt.ready")} {readyCount}</span></div>
         </div>
       </div>
+
+      <StoreIndicator />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {kitchenOrders.map((order, i) => {
