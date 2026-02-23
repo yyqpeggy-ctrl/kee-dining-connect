@@ -298,7 +298,8 @@
     "headquarters": "Headquarters",
     "moreFilters": "More Filters",
     "pendingItems": "pending items",
-    "itemsCountUnit": "items"
+    "itemsCountUnit": "items",
+    "crossModule": "Cross-Module"
   },
   "legalMgmt": {
     "title": "Legal Management",

@@ -298,7 +298,8 @@
     "headquarters": "总部",
     "moreFilters": "更多筛选",
     "pendingItems": "项待办",
-    "itemsCountUnit": "项"
+    "itemsCountUnit": "项",
+    "crossModule": "智能联动"
   },
   "legalMgmt": {
     "title": "法务管理",
