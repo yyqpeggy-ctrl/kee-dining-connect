@@ -25,6 +25,7 @@ interface Supplier {
   rating: number;
   status: string;
   notes: string;
+  wechat_openid: string;
 }
 
 interface Props {
@@ -38,7 +39,7 @@ const emptyForm = {
   bank_name: "", bank_branch: "", bank_account: "", bank_account_name: "",
   tax_id: "", invoice_type: "general", invoice_address: "", invoice_phone: "",
   invoice_bank_name: "", invoice_bank_account: "",
-  rating: 3, status: "active", notes: "",
+  rating: 3, status: "active", notes: "", wechat_openid: "",
 };
 
 const SupplierFormDialog = ({ supplier, onClose, onSaved }: Props) => {
@@ -97,6 +98,17 @@ const SupplierFormDialog = ({ supplier, onClose, onSaved }: Props) => {
               <Field label={isZh ? "邮箱" : "Email"} field="email" type="email" />
               <Field label={isZh ? "地址" : "Address"} field="address" span />
             </div>
+          </div>
+
+          {/* WeChat binding */}
+          <div>
+            <p className="text-sm font-semibold mb-3 border-l-2 border-success pl-2">{isZh ? "微信通知绑定" : "WeChat Notification"}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={isZh ? "微信 OpenID" : "WeChat OpenID"} field="wechat_openid" mono span />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {isZh ? "💡 供应商关注公众号后，系统将自动获取OpenID。也可手动填写。绑定后采购单确认时自动推送微信通知。" : "💡 Auto-captured when supplier follows the official account. Can also be entered manually. Enables auto WeChat notifications on order confirmation."}
+            </p>
           </div>
 
           {/* Bank info */}

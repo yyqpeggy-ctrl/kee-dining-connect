@@ -34,6 +34,7 @@ interface Supplier {
   blacklist_reason: string;
   tags: string[];
   notes: string;
+  wechat_openid: string;
   created_at: string;
 }
 

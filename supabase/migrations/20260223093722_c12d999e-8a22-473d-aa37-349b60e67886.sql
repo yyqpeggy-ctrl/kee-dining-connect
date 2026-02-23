@@ -1,0 +1,1 @@
+ALTER TABLE public.suppliers ADD COLUMN wechat_openid TEXT DEFAULT '';
