@@ -25,7 +25,7 @@ interface Review {
 const reviews: Review[] = [
   {
     id: "1", author: "吃货小王", avatar: "🧑", rating: 5, date: "2026-02-20",
-    contentZh: "超级棒的飞镖酒吧！环境很Chill，适合朋友聚会。Tapas很好吃，特别推荐西班牙火腿和蒜香虾。KTV包厢音响效果也不错，下次还来！",
+    contentZh: "超级棒的飞镖酒吧！环境很Chill，适合朋友聚会。Tapas很好吃，特别推荐西班牙火腿和蒜香虾。公共区KTV音响效果也不错，下次还来！",
     contentEn: "Amazing darts bar! Super chill vibe, great for hangouts. Tapas are delicious, especially the Jamón and Gambas. KTV sound system is great too. Will be back!",
     tags: ["飞镖", "Tapas", "KTV", "聚会"],
     likes: 42, images: 3,
@@ -42,7 +42,7 @@ const reviews: Review[] = [
   },
   {
     id: "3", author: "美食达人Lisa", avatar: "👩", rating: 5, date: "2026-02-18",
-    contentZh: "朋友生日来的KTV包厢，服务态度超好！送了生日小蛋糕，很贴心。点了一桌Tapas配Sangria，氛围感拉满。强烈推荐周五飞镖之夜活动！",
+    contentZh: "朋友生日来唱KTV，服务态度超好！送了生日小蛋糕，很贴心。点了一桌Tapas配Sangria，氛围感拉满。强烈推荐周五飞镖之夜活动！",
     contentEn: "Came for a birthday KTV session. Staff was super nice — they even brought a birthday cake! Ordered tapas with Sangria, amazing atmosphere. Highly recommend Friday Darts Night!",
     tags: ["KTV", "生日", "服务好", "飞镖之夜"],
     likes: 86, images: 5,
@@ -66,12 +66,12 @@ const reviews: Review[] = [
   },
   {
     id: "6", author: "外滩常客Tom", avatar: "🧑‍💼", rating: 5, date: "2026-02-15",
-    contentZh: "Best casual bar in Shanghai! Love the mix of international and local vibes. KTV rooms are clean and modern. Happy Hour的买一送一太划算了！每周必来。",
-    contentEn: "Best casual bar in Shanghai! Love the mix of international and local vibes. KTV rooms are clean and modern. Happy Hour BOGO is such a steal! Weekly regular now.",
+    contentZh: "Best casual bar in Shanghai! Love the mix of international and local vibes. KTV区域设备很新，氛围很好。Happy Hour的买一送一太划算了！每周必来。",
+    contentEn: "Best casual bar in Shanghai! Love the mix of international and local vibes. KTV area is well-equipped and fun. Happy Hour BOGO is such a steal! Weekly regular now.",
     tags: ["Happy Hour", "KTV", "国际化", "常客"],
     likes: 52, images: 2,
-    replyZh: "Tom 谢谢你的支持！你已经是我们的VIP老朋友了，下次来给你留最好的包厢！🍻",
-    replyEn: "Thanks for the love Tom! You're a VIP regular now — we'll save the best room for you next time! 🍻",
+    replyZh: "Tom 谢谢你的支持！你已经是我们的VIP老朋友了，下次来给你留最好的位置！🍻",
+    replyEn: "Thanks for the love Tom! You're a VIP regular now — we'll save the best spot for you next time! 🍻",
     replyDate: "2026-02-15",
   },
 ];

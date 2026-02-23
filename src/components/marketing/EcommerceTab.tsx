@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 
 // --- Shared products ---
 const products = [
-  { id: 1, nameZh: "KTV包厢2小时+酒水套餐券", nameEn: "Karaoke 2hr + Drinks Package Voucher", price: "¥588", sold: 2340, stock: 999, rating: 4.9, status: "onSale" },
+  { id: 1, nameZh: "KTV欢唱2小时+酒水套餐券", nameEn: "Karaoke 2hr + Drinks Package Voucher", price: "¥588", sold: 2340, stock: 999, rating: 4.9, status: "onSale" },
   { id: 2, nameZh: "飞镖派对套餐（4人）", nameEn: "Darts Party Set (4 ppl)", price: "¥388", sold: 1612, stock: 999, rating: 4.8, status: "onSale" },
   { id: 3, nameZh: "招牌Sangria预调酒（1L装）", nameEn: "House Sangria Bottle (1L)", price: "¥128", sold: 4930, stock: 280, rating: 4.7, status: "onSale" },
   { id: 4, nameZh: "周五飞镖之夜VIP票", nameEn: "Friday Darts Night VIP Pass", price: "¥168", sold: 856, stock: 0, rating: 4.9, status: "soldOut" },
@@ -70,7 +70,7 @@ const miniProgramUserSource = [
 // --- Dianping Group Buy Data ---
 const dianpingDeals = [
   { id: 1, nameZh: "双人Tapas+红酒套餐", nameEn: "Tapas+Wine Set for 2", originalPrice: 368, dealPrice: 258, sold: 3680, verified: 2840, refunded: 120, rating: 4.8, expiry: "2026-03-31", status: "active" },
-  { id: 2, nameZh: "KTV欢唱套餐（3小时）", nameEn: "KTV 3hr Package", originalPrice: 688, dealPrice: 428, sold: 1920, verified: 1560, refunded: 85, rating: 4.7, expiry: "2026-04-15", status: "active" },
+  { id: 2, nameZh: "KTV欢唱套餐（3小时）", nameEn: "KTV 3hr Singing Package", originalPrice: 688, dealPrice: 428, sold: 1920, verified: 1560, refunded: 85, rating: 4.7, expiry: "2026-04-15", status: "active" },
   { id: 3, nameZh: "工作日午餐特惠套餐", nameEn: "Weekday Lunch Special", originalPrice: 88, dealPrice: 58, sold: 5200, verified: 4800, refunded: 180, rating: 4.6, expiry: "2026-03-15", status: "active" },
   { id: 4, nameZh: "精酿啤酒品鉴套餐", nameEn: "Craft Beer Tasting Set", originalPrice: 198, dealPrice: 138, sold: 1450, verified: 1280, refunded: 45, rating: 4.9, expiry: "2026-05-01", status: "active" },
   { id: 5, nameZh: "飞镖大赛入场券+酒水", nameEn: "Darts Tournament Entry + Drinks", originalPrice: 228, dealPrice: 168, sold: 860, verified: 720, refunded: 30, rating: 4.8, expiry: "2026-02-28", status: "expiring" },
