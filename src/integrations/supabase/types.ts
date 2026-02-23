@@ -52,6 +52,57 @@ export type Database = {
           },
         ]
       }
+      daily_procurement_suggestions: {
+        Row: {
+          created_at: string
+          id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          suggestions: Json
+          summary_en: string | null
+          summary_zh: string | null
+          total_estimated_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          suggestions?: Json
+          summary_en?: string | null
+          summary_zh?: string | null
+          total_estimated_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          suggestions?: Json
+          summary_en?: string | null
+          summary_zh?: string | null
+          total_estimated_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_notifications: {
         Row: {
           channel: string
