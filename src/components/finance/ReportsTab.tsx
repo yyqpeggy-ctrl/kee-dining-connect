@@ -1,25 +1,26 @@
 import { motion } from "framer-motion";
-import { Download, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPie, Pie, Cell } from "recharts";
+import { Download, Store } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
-import { computeIncomeStatement, computeBalanceSheet, computeCashFlow } from "@/data/financeData";
-import { useMemo } from "react";
+import { computeIncomeStatement, computeBalanceSheet, computeCashFlow, stores, StoreId } from "@/data/financeData";
+import { useState, useMemo } from "react";
 
 const ReportsTab = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
+  const [selectedStore, setSelectedStore] = useState<StoreId>("all");
 
-  const income = useMemo(() => computeIncomeStatement(), []);
-  const balance = useMemo(() => computeBalanceSheet(), []);
-  const cashFlow = useMemo(() => computeCashFlow(), []);
+  const income = useMemo(() => computeIncomeStatement(selectedStore), [selectedStore]);
+  const balance = useMemo(() => computeBalanceSheet(selectedStore), [selectedStore]);
+  const cashFlow = useMemo(() => computeCashFlow(selectedStore), [selectedStore]);
 
   const fmt = (n: number) => `¥${n.toLocaleString()}`;
   const fmtSigned = (n: number) => n >= 0 ? `+${fmt(n)}` : `-¥${Math.abs(n).toLocaleString()}`;
 
-  // For charts
-  const expenseData = income.sections.slice(1).flatMap(s => s.items).map((item, i) => ({
+  const expenseData = income.sections.slice(1).flatMap(s => s.items).map((item) => ({
     name: isZh ? item.zh : item.en,
     value: item.amount,
   })).filter(d => d.value > 0);
@@ -31,7 +32,6 @@ const ReportsTab = () => {
     "hsl(120, 50%, 45%)", "hsl(0, 70%, 55%)", "hsl(200, 70%, 50%)",
   ];
 
-  // Cash flow bar chart data
   const cfBarData = [
     { name: isZh ? "经营活动" : "Operating", value: cashFlow.operating.net },
     { name: isZh ? "投资活动" : "Investing", value: cashFlow.investing.net },
@@ -46,15 +46,39 @@ const ReportsTab = () => {
   const currentLiabilities = balance.liabilities.filter(a => !a.nameZh.includes("长期")).reduce((s, a) => s + a.balance, 0);
   const currentRatio = currentLiabilities > 0 ? (currentAssets / currentLiabilities).toFixed(2) : "N/A";
 
+  const storeName = stores.find(s => s.id === selectedStore);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("financeMgmt.financialReports")}</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
+            <Store className="w-4 h-4 text-muted-foreground" />
+            <Select value={selectedStore} onValueChange={(v) => setSelectedStore(v as StoreId)}>
+              <SelectTrigger className="w-[160px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {stores.map(store => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {isZh ? store.nameZh : store.nameEn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />{t("financeMgmt.exportExcel")}</Button>
           <Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />{t("financeMgmt.exportPDF")}</Button>
         </div>
       </div>
+
+      {selectedStore !== "all" && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
+          <Store className="w-4 h-4 text-primary" />
+          <span>{isZh ? `当前查看: ${storeName?.nameZh} 独立报表` : `Viewing: ${storeName?.nameEn} standalone reports`}</span>
+        </div>
+      )}
 
       <Tabs defaultValue="income" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
@@ -68,11 +92,16 @@ const ReportsTab = () => {
         <TabsContent value="income">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
             <div className="flex items-center justify-between mb-5">
-              <h4 className="font-semibold">{t("financeMgmt.incomeStatement")} (2026{isZh ? "年2月" : " Feb"})</h4>
+              <h4 className="font-semibold">
+                {t("financeMgmt.incomeStatement")} (2026{isZh ? "年2月" : " Feb"})
+                {selectedStore !== "all" && <span className="text-primary ml-2">— {isZh ? storeName?.nameZh : storeName?.nameEn}</span>}
+              </h4>
               <span className="text-xs text-muted-foreground">{isZh ? "单位: 人民币元" : "Unit: CNY"}</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4 bg-muted/30 rounded-lg p-2">
-              {isZh ? "📊 以下数据全部来源于做账管理标签页的50条会计凭证，自动归类汇总。" : "📊 All data derived from the 50 journal entries in the Bookkeeping tab."}
+              {isZh 
+                ? `📊 ${selectedStore === "all" ? "全部门店汇总数据" : storeName?.nameZh + "独立数据"}，来源于做账管理标签页的会计凭证。` 
+                : `📊 ${selectedStore === "all" ? "All stores consolidated" : storeName?.nameEn + " standalone"} data from journal entries.`}
             </p>
 
             <div className="space-y-4">
@@ -129,7 +158,9 @@ const ReportsTab = () => {
         <TabsContent value="balance">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2">
-              {isZh ? "📊 科目余额来源于做账管理的账户余额表，反映截至2026年2月15日的财务状况。" : "📊 Balances from the Bookkeeping account ledger, reflecting financial position as of Feb 15, 2026."}
+              {isZh 
+                ? `📊 ${selectedStore === "all" ? "全部门店汇总" : storeName?.nameZh}科目余额，反映截至2026年2月15日的财务状况。`
+                : `📊 ${selectedStore === "all" ? "All stores consolidated" : storeName?.nameEn} balances as of Feb 15, 2026.`}
             </p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Assets */}
@@ -235,10 +266,11 @@ const ReportsTab = () => {
         <TabsContent value="cashflow">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2">
-              {isZh ? "📊 现金流量表数据来源于做账凭证中的收支明细，按经营/投资/筹资三大活动分类汇总。" : "📊 Cash flow derived from journal entry receipts & payments, classified by operating/investing/financing activities."}
+              {isZh 
+                ? `📊 ${selectedStore === "all" ? "全部门店汇总" : storeName?.nameZh}现金流量表，按经营/投资/筹资三大活动分类汇总。`
+                : `📊 ${selectedStore === "all" ? "All stores consolidated" : storeName?.nameEn} cash flow, classified by activities.`}
             </p>
 
-            {/* Chart */}
             <div className="glass-card rounded-xl p-5">
               <h4 className="font-semibold mb-4">{isZh ? "现金流量汇总" : "Cash Flow Summary"}</h4>
               <ResponsiveContainer width="100%" height={250}>
@@ -369,7 +401,6 @@ const ReportsTab = () => {
         {/* ===== Business Analysis ===== */}
         <TabsContent value="analysis">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            {/* Cost Breakdown Pie */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="glass-card rounded-xl p-5">
                 <h4 className="font-semibold mb-4">{isZh ? "成本费用构成（来自凭证）" : "Cost Breakdown (from entries)"}</h4>
@@ -415,7 +446,6 @@ const ReportsTab = () => {
               </div>
             </div>
 
-            {/* Key Ratios */}
             <div className="glass-card rounded-xl p-5">
               <h4 className="font-semibold mb-4">{t("financeMgmt.keyMetrics")}</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
