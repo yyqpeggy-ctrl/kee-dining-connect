@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { DollarSign, CreditCard, CheckCircle, AlertTriangle } from "lucide-react";
+import { DollarSign, CreditCard, CheckCircle, AlertTriangle, Download, CheckSquare, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
+import { generateBankPaymentExcel } from "./bankPaymentExport";
 
 interface Props {
   orders: Tables<"procurement_orders">[];
@@ -16,6 +17,44 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
   const isZh = i18n.language === "zh";
   const [payingId, setPayingId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === payableOrders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(payableOrders.map(o => o.id)));
+    }
+  };
+
+  const handleBatchExport = () => {
+    const selected = payableOrders.filter(o => selectedIds.has(o.id));
+    if (selected.length === 0) {
+      toast.error(isZh ? "请先勾选要导出的订单" : "Please select orders to export");
+      return;
+    }
+    const rows = selected.map(o => ({
+      orderNumber: o.order_number,
+      supplierName: o.supplier_name,
+      supplierBank: "",
+      supplierAccount: "",
+      amount: o.total_amount - o.paid_amount,
+      currency: o.currency || "CNY",
+      paymentDate: new Date().toISOString().slice(0, 10),
+      storeName: isZh ? o.store_name_zh : o.store_name_en,
+      notes: `${isZh ? "采购付款" : "Procurement"} ${o.order_number}`,
+    }));
+    generateBankPaymentExcel(rows, isZh);
+    toast.success(isZh ? `已导出 ${selected.length} 笔付款单` : `Exported ${selected.length} payment(s)`);
+  };
 
   // Only show confirmed+ orders for payment
   const payableOrders = orders.filter(o => ["confirmed", "shipping", "received"].includes(o.status));
@@ -67,10 +106,24 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
 
       {/* Unpaid Orders */}
       <div>
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-warning" />
-          {t("procurementMgmt.unpaidAmount")} ({payableOrders.length})
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-warning" />
+            {t("procurementMgmt.unpaidAmount")} ({payableOrders.length})
+          </h3>
+          {payableOrders.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button onClick={toggleSelectAll} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+                {selectedIds.size === payableOrders.length ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                {isZh ? "全选" : "Select All"}
+              </button>
+              <button onClick={handleBatchExport} disabled={selectedIds.size === 0} className="px-3 py-1 text-xs bg-success text-success-foreground rounded-md hover:bg-success/90 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                <Download className="w-3 h-3" />
+                {isZh ? `批量导出Excel (${selectedIds.size})` : `Export Excel (${selectedIds.size})`}
+              </button>
+            </div>
+          )}
+        </div>
         {payableOrders.length === 0 ? (
           <p className="text-xs text-muted-foreground py-4 text-center">{isZh ? "暂无待付款订单" : "No unpaid orders"}</p>
         ) : (
@@ -78,7 +131,10 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
             {payableOrders.map(order => (
               <div key={order.id} className="glass-card rounded-xl p-4 border-l-4 border-l-warning">
                 <div className="flex items-center justify-between mb-2">
-                  <div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => toggleSelect(order.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {selectedIds.has(order.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                    </button>
                     <span className="font-mono font-bold text-sm">{order.order_number}</span>
                     <span className="text-muted-foreground text-xs ml-2">{order.supplier_name}</span>
                   </div>
