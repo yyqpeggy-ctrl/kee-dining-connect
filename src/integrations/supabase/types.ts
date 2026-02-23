@@ -684,6 +684,7 @@ export type Database = {
           store_name_en: string
           store_name_zh: string
           supplier_contact: string | null
+          supplier_id: string | null
           supplier_name: string
           total_amount: number
           type: string
@@ -714,6 +715,7 @@ export type Database = {
           store_name_en?: string
           store_name_zh?: string
           supplier_contact?: string | null
+          supplier_id?: string | null
           supplier_name?: string
           total_amount?: number
           type?: string
@@ -744,6 +746,7 @@ export type Database = {
           store_name_en?: string
           store_name_zh?: string
           supplier_contact?: string | null
+          supplier_id?: string | null
           supplier_name?: string
           total_amount?: number
           type?: string
@@ -763,6 +766,13 @@ export type Database = {
             columns: ["linked_inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -927,6 +937,173 @@ export type Database = {
           store_id?: string
           store_name_en?: string
           store_name_zh?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supplier_contracts: {
+        Row: {
+          contract_number: string
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          end_date: string | null
+          extracted_bank_account: string | null
+          extracted_bank_account_name: string | null
+          extracted_bank_name: string | null
+          extracted_invoice_info: Json | null
+          extracted_tax_id: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          notes: string | null
+          ocr_extracted_data: Json | null
+          ocr_status: string | null
+          payment_terms: string | null
+          start_date: string | null
+          status: string
+          supplier_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          contract_number?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          end_date?: string | null
+          extracted_bank_account?: string | null
+          extracted_bank_account_name?: string | null
+          extracted_bank_name?: string | null
+          extracted_invoice_info?: Json | null
+          extracted_tax_id?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          ocr_extracted_data?: Json | null
+          ocr_status?: string | null
+          payment_terms?: string | null
+          start_date?: string | null
+          status?: string
+          supplier_id: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          contract_number?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          end_date?: string | null
+          extracted_bank_account?: string | null
+          extracted_bank_account_name?: string | null
+          extracted_bank_name?: string | null
+          extracted_invoice_info?: Json | null
+          extracted_tax_id?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          ocr_extracted_data?: Json | null
+          ocr_status?: string | null
+          payment_terms?: string | null
+          start_date?: string | null
+          status?: string
+          supplier_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contracts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          bank_account: string | null
+          bank_account_name: string | null
+          bank_branch: string | null
+          bank_name: string | null
+          blacklist_reason: string | null
+          contact_person: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          invoice_address: string | null
+          invoice_bank_account: string | null
+          invoice_bank_name: string | null
+          invoice_phone: string | null
+          invoice_type: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          rating: number | null
+          short_name: string | null
+          status: string
+          tags: string[] | null
+          tax_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          bank_account?: string | null
+          bank_account_name?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          blacklist_reason?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          invoice_address?: string | null
+          invoice_bank_account?: string | null
+          invoice_bank_name?: string | null
+          invoice_phone?: string | null
+          invoice_type?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          short_name?: string | null
+          status?: string
+          tags?: string[] | null
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          bank_account?: string | null
+          bank_account_name?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          blacklist_reason?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          invoice_address?: string | null
+          invoice_bank_account?: string | null
+          invoice_bank_name?: string | null
+          invoice_phone?: string | null
+          invoice_type?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          short_name?: string | null
+          status?: string
+          tags?: string[] | null
+          tax_id?: string | null
           updated_at?: string
         }
         Relationships: []
