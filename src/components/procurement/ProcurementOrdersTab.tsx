@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ReceiptOCRDialog from "./ReceiptOCRDialog";
 
 interface Props {
   orders: Tables<"procurement_orders">[];
@@ -107,6 +108,9 @@ const ProcurementOrdersTab = ({ orders, onRefresh }: Props) => {
                 <button onClick={() => handleStatusChange(order.id, "received")} className="px-3 py-1 text-xs bg-success/10 text-success rounded-md hover:bg-success/20 transition-colors">
                   {isZh ? "确认收货" : "Confirm Received"}
                 </button>
+              )}
+              {["shipping", "received", "confirmed"].includes(order.status) && (
+                <ReceiptOCRDialog order={order} onComplete={onRefresh} />
               )}
             </div>
           </motion.div>

@@ -767,6 +767,104 @@ export type Database = {
           },
         ]
       }
+      procurement_receipts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          extracted_date: string | null
+          extracted_items: Json | null
+          extracted_supplier: string | null
+          extracted_total: number | null
+          file_type: string
+          file_url: string
+          id: string
+          match_details: Json | null
+          match_status: string
+          notes: string | null
+          ocr_result: Json | null
+          ocr_status: string
+          payment_request_status: string
+          payment_requested_at: string | null
+          payment_requested_by: string | null
+          procurement_order_id: string | null
+          signature_confidence: number | null
+          signature_detected: boolean | null
+          signature_notes: string | null
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          supplier_invoice_ocr: Json | null
+          supplier_invoice_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          extracted_date?: string | null
+          extracted_items?: Json | null
+          extracted_supplier?: string | null
+          extracted_total?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          match_details?: Json | null
+          match_status?: string
+          notes?: string | null
+          ocr_result?: Json | null
+          ocr_status?: string
+          payment_request_status?: string
+          payment_requested_at?: string | null
+          payment_requested_by?: string | null
+          procurement_order_id?: string | null
+          signature_confidence?: number | null
+          signature_detected?: boolean | null
+          signature_notes?: string | null
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          supplier_invoice_ocr?: Json | null
+          supplier_invoice_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          extracted_date?: string | null
+          extracted_items?: Json | null
+          extracted_supplier?: string | null
+          extracted_total?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          match_details?: Json | null
+          match_status?: string
+          notes?: string | null
+          ocr_result?: Json | null
+          ocr_status?: string
+          payment_request_status?: string
+          payment_requested_at?: string | null
+          payment_requested_by?: string | null
+          procurement_order_id?: string | null
+          signature_confidence?: number | null
+          signature_detected?: boolean | null
+          signature_notes?: string | null
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          supplier_invoice_ocr?: Json | null
+          supplier_invoice_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_receipts_procurement_order_id_fkey"
+            columns: ["procurement_order_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       renovation_projects: {
         Row: {
           budget: number
