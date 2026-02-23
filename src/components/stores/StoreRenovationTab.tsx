@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Hammer,
   Package,
@@ -9,101 +12,127 @@ import {
   Clock,
   MoreHorizontal,
   Plus,
-  Wrench,
-  Monitor,
-  Sofa,
-  UtensilsCrossed,
+  Trash2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 
 const StoreRenovationTab = () => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const isZh = i18n.language === "zh";
+  const queryClient = useQueryClient();
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false);
+  const [newAsset, setNewAsset] = useState({
+    name_zh: "", name_en: "", category: "equipment",
+    store_id: "1", store_name_zh: "总店", store_name_en: "Main Store",
+    purchase_date: new Date().toISOString().split("T")[0],
+    original_value: 0, salvage_value: 0, useful_life_years: 5,
+  });
 
+  // Fetch fixed assets from DB
+  const { data: assets = [], isLoading } = useQuery({
+    queryKey: ["fixed-assets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fixed_assets")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Create asset mutation
+  const createAsset = useMutation({
+    mutationFn: async (asset: typeof newAsset) => {
+      const netValue = asset.original_value - asset.salvage_value;
+      const monthlyDep = asset.useful_life_years > 0
+        ? (asset.original_value - asset.salvage_value) / (asset.useful_life_years * 12)
+        : 0;
+      const monthsSincePurchase = Math.max(0, Math.floor(
+        (Date.now() - new Date(asset.purchase_date).getTime()) / (1000 * 60 * 60 * 24 * 30)
+      ));
+      const accDep = Math.min(netValue, monthlyDep * monthsSincePurchase);
+
+      const { error } = await supabase.from("fixed_assets").insert({
+        ...asset,
+        accumulated_depreciation: Math.round(accDep * 100) / 100,
+        net_value: Math.round((asset.original_value - accDep) * 100) / 100,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fixed-assets"] });
+      setAssetDialogOpen(false);
+      setNewAsset({ name_zh: "", name_en: "", category: "equipment", store_id: "1", store_name_zh: "总店", store_name_en: "Main Store", purchase_date: new Date().toISOString().split("T")[0], original_value: 0, salvage_value: 0, useful_life_years: 5 });
+      toast({ title: isZh ? "资产登记成功" : "Asset registered" });
+    },
+    onError: () => toast({ title: isZh ? "登记失败" : "Failed", variant: "destructive" }),
+  });
+
+  // Delete asset
+  const deleteAsset = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("fixed_assets").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fixed-assets"] });
+      toast({ title: isZh ? "已删除" : "Deleted" });
+    },
+  });
+
+  // Renovation projects remain mock (no DB table yet)
   const renovationProjects = [
-    {
-      id: "1",
-      storeZh: "望京分店",
-      storeEn: "Wangjing Branch",
-      phaseZh: "内部装修",
-      phaseEn: "Interior Renovation",
-      statusZh: "进行中",
-      statusEn: "In Progress",
-      status: "in_progress",
-      progress: 65,
-      startDate: "2026-01-15",
-      endDate: "2026-03-20",
-      budget: 580000,
-      spent: 372000,
-      managerZh: "刘工",
-      managerEn: "Engineer Liu",
-      notes: isZh ? "吧台区域已完工，KTV区域施工中" : "Bar area completed, KTV area in progress",
-    },
-    {
-      id: "2",
-      storeZh: "中关村新店",
-      storeEn: "Zhongguancun New Store",
-      phaseZh: "设计审批",
-      phaseEn: "Design Approval",
-      statusZh: "待审批",
-      statusEn: "Pending Approval",
-      status: "pending",
-      progress: 20,
-      startDate: "2026-03-01",
-      endDate: "2026-06-15",
-      budget: 920000,
-      spent: 45000,
-      managerZh: "陈工",
-      managerEn: "Engineer Chen",
-      notes: isZh ? "设计方案已提交，等待消防审批" : "Design submitted, awaiting fire safety approval",
-    },
-    {
-      id: "3",
-      storeZh: "三里屯分店",
-      storeEn: "Sanlitun Branch",
-      phaseZh: "局部翻新",
-      phaseEn: "Partial Renovation",
-      statusZh: "已完成",
-      statusEn: "Completed",
-      status: "completed",
-      progress: 100,
-      startDate: "2025-11-01",
-      endDate: "2026-01-10",
-      budget: 280000,
-      spent: 265000,
-      managerZh: "张工",
-      managerEn: "Engineer Zhang",
-      notes: isZh ? "卫生间和外立面翻新完毕" : "Restroom and facade renovation completed",
-    },
+    { id: "1", storeZh: "望京分店", storeEn: "Wangjing Branch", phaseZh: "内部装修", phaseEn: "Interior Renovation", status: "in_progress", progress: 65, startDate: "2026-01-15", endDate: "2026-03-20", budget: 580000, spent: 372000, managerZh: "刘工", managerEn: "Engineer Liu", notes: isZh ? "吧台区域已完工，KTV区域施工中" : "Bar area completed, KTV area in progress" },
+    { id: "2", storeZh: "中关村新店", storeEn: "Zhongguancun New Store", phaseZh: "设计审批", phaseEn: "Design Approval", status: "pending", progress: 20, startDate: "2026-03-01", endDate: "2026-06-15", budget: 920000, spent: 45000, managerZh: "陈工", managerEn: "Engineer Chen", notes: isZh ? "设计方案已提交，等待消防审批" : "Design submitted, awaiting fire safety approval" },
+    { id: "3", storeZh: "三里屯分店", storeEn: "Sanlitun Branch", phaseZh: "局部翻新", phaseEn: "Partial Renovation", status: "completed", progress: 100, startDate: "2025-11-01", endDate: "2026-01-10", budget: 280000, spent: 265000, managerZh: "张工", managerEn: "Engineer Zhang", notes: isZh ? "卫生间和外立面翻新完毕" : "Restroom and facade renovation completed" },
   ];
 
-  const fixedAssets = [
-    { id: "1", nameZh: "商用冰箱（双门）", nameEn: "Commercial Fridge (Double)", categoryZh: "厨房设备", categoryEn: "Kitchen Equipment", icon: UtensilsCrossed, storeZh: "总店", storeEn: "Main Store", purchaseDate: "2024-06-15", value: 28000, depreciation: 4667, netValue: 23333, status: "normal", lifeYears: 6 },
-    { id: "2", nameZh: "POS收银系统", nameEn: "POS System", categoryZh: "电子设备", categoryEn: "Electronics", icon: Monitor, storeZh: "国贸分店", storeEn: "Guomao Branch", purchaseDate: "2025-01-10", value: 15000, depreciation: 3000, netValue: 12000, status: "normal", lifeYears: 5 },
-    { id: "3", nameZh: "KTV音响设备", nameEn: "KTV Sound System", categoryZh: "娱乐设备", categoryEn: "Entertainment", icon: Monitor, storeZh: "三里屯分店", storeEn: "Sanlitun Branch", purchaseDate: "2025-03-20", value: 45000, depreciation: 9000, netValue: 36000, status: "normal", lifeYears: 5 },
-    { id: "4", nameZh: "定制吧台桌椅", nameEn: "Custom Bar Furniture", categoryZh: "家具", categoryEn: "Furniture", icon: Sofa, storeZh: "总店", storeEn: "Main Store", purchaseDate: "2024-02-01", value: 62000, depreciation: 12400, netValue: 49600, status: "normal", lifeYears: 5 },
-    { id: "5", nameZh: "中央空调系统", nameEn: "Central AC System", categoryZh: "基础设施", categoryEn: "Infrastructure", icon: Wrench, storeZh: "国贸分店", storeEn: "Guomao Branch", purchaseDate: "2023-08-10", value: 120000, depreciation: 30000, netValue: 90000, status: "maintenance", lifeYears: 10 },
-    { id: "6", nameZh: "户外遮阳棚", nameEn: "Outdoor Canopy", categoryZh: "基础设施", categoryEn: "Infrastructure", icon: Wrench, storeZh: "三里屯分店", storeEn: "Sanlitun Branch", purchaseDate: "2025-05-01", value: 35000, depreciation: 7000, netValue: 28000, status: "normal", lifeYears: 5 },
-  ];
-
-  const totalAssetValue = fixedAssets.reduce((s, a) => s + a.value, 0);
-  const totalNetValue = fixedAssets.reduce((s, a) => s + a.netValue, 0);
+  const totalAssetValue = assets.reduce((s, a) => s + Number(a.original_value), 0);
+  const totalNetValue = assets.reduce((s, a) => s + Number(a.net_value), 0);
   const totalBudget = renovationProjects.reduce((s, p) => s + p.budget, 0);
-  const totalSpent = renovationProjects.reduce((s, p) => s + p.spent, 0);
 
   const statusBadge = (status: string) => {
     const map: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+      in_use: { variant: "outline", label: isZh ? "使用中" : "In Use" },
       in_progress: { variant: "default", label: isZh ? "进行中" : "In Progress" },
       pending: { variant: "secondary", label: isZh ? "待审批" : "Pending" },
       completed: { variant: "outline", label: isZh ? "已完成" : "Completed" },
-      normal: { variant: "outline", label: isZh ? "正常" : "Normal" },
       maintenance: { variant: "destructive", label: isZh ? "维修中" : "Maintenance" },
+      disposed: { variant: "secondary", label: isZh ? "已报废" : "Disposed" },
+      idle: { variant: "secondary", label: isZh ? "闲置" : "Idle" },
     };
-    const info = map[status] || map.normal;
+    const info = map[status] || { variant: "outline" as const, label: status };
     return <Badge variant={info.variant}>{info.label}</Badge>;
+  };
+
+  const storeOptions = [
+    { id: "1", zh: "总店", en: "Main Store" },
+    { id: "2", zh: "国贸分店", en: "Guomao Branch" },
+    { id: "3", zh: "三里屯分店", en: "Sanlitun Branch" },
+    { id: "4", zh: "望京分店", en: "Wangjing Branch" },
+  ];
+
+  const categoryOptions = [
+    { value: "equipment", zh: "厨房设备", en: "Kitchen Equipment" },
+    { value: "electronics", zh: "电子设备", en: "Electronics" },
+    { value: "furniture", zh: "家具", en: "Furniture" },
+    { value: "infrastructure", zh: "基础设施", en: "Infrastructure" },
+    { value: "entertainment", zh: "娱乐设备", en: "Entertainment" },
+    { value: "other", zh: "其他", en: "Other" },
+  ];
+
+  const getCategoryLabel = (cat: string) => {
+    const found = categoryOptions.find((c) => c.value === cat);
+    return found ? (isZh ? found.zh : found.en) : cat;
   };
 
   return (
@@ -196,13 +225,88 @@ const StoreRenovationTab = () => {
           </div>
         </TabsContent>
 
-        {/* Fixed Assets */}
+        {/* Fixed Assets from DB */}
         <TabsContent value="assets" className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{isZh ? "门店固定资产台账与折旧管理" : "Fixed asset ledger and depreciation tracking"}</p>
-            <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1">
-              <Plus className="w-3 h-3" />{isZh ? "登记资产" : "Register Asset"}
-            </button>
+            <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
+              <DialogTrigger asChild>
+                <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1">
+                  <Plus className="w-3 h-3" />{isZh ? "登记资产" : "Register Asset"}
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{isZh ? "登记固定资产" : "Register Fixed Asset"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">{isZh ? "中文名称" : "Chinese Name"}</Label>
+                      <Input value={newAsset.name_zh} onChange={(e) => setNewAsset({ ...newAsset, name_zh: e.target.value })} placeholder={isZh ? "如：商用冰箱" : "e.g. Commercial Fridge"} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isZh ? "英文名称" : "English Name"}</Label>
+                      <Input value={newAsset.name_en} onChange={(e) => setNewAsset({ ...newAsset, name_en: e.target.value })} placeholder="e.g. Commercial Fridge" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">{isZh ? "分类" : "Category"}</Label>
+                      <Select value={newAsset.category} onValueChange={(v) => setNewAsset({ ...newAsset, category: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {categoryOptions.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{isZh ? c.zh : c.en}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isZh ? "所属门店" : "Store"}</Label>
+                      <Select value={newAsset.store_id} onValueChange={(v) => {
+                        const store = storeOptions.find((s) => s.id === v);
+                        setNewAsset({ ...newAsset, store_id: v, store_name_zh: store?.zh || "", store_name_en: store?.en || "" });
+                      }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {storeOptions.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{isZh ? s.zh : s.en}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">{isZh ? "购入日期" : "Purchase Date"}</Label>
+                      <Input type="date" value={newAsset.purchase_date} onChange={(e) => setNewAsset({ ...newAsset, purchase_date: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isZh ? "使用年限" : "Useful Life (yrs)"}</Label>
+                      <Input type="number" value={newAsset.useful_life_years} onChange={(e) => setNewAsset({ ...newAsset, useful_life_years: parseInt(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">{isZh ? "原值(¥)" : "Original Value(¥)"}</Label>
+                      <Input type="number" value={newAsset.original_value} onChange={(e) => setNewAsset({ ...newAsset, original_value: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isZh ? "残值(¥)" : "Salvage Value(¥)"}</Label>
+                      <Input type="number" value={newAsset.salvage_value} onChange={(e) => setNewAsset({ ...newAsset, salvage_value: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => createAsset.mutate(newAsset)}
+                    disabled={!newAsset.name_zh || createAsset.isPending}
+                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {createAsset.isPending ? (isZh ? "提交中..." : "Submitting...") : (isZh ? "确认登记" : "Confirm")}
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <div className="glass-card rounded-xl overflow-hidden">
@@ -217,27 +321,35 @@ const StoreRenovationTab = () => {
                   <TableHead className="text-right">{isZh ? "累计折旧(¥)" : "Depreciation(¥)"}</TableHead>
                   <TableHead className="text-right">{isZh ? "净值(¥)" : "Net Value(¥)"}</TableHead>
                   <TableHead>{isZh ? "状态" : "Status"}</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {fixedAssets.map((asset) => (
-                  <TableRow key={asset.id}>
-                    <TableCell className="font-medium">{isZh ? asset.nameZh : asset.nameEn}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{isZh ? asset.categoryZh : asset.categoryEn}</TableCell>
-                    <TableCell className="text-xs">{isZh ? asset.storeZh : asset.storeEn}</TableCell>
-                    <TableCell className="text-xs">{asset.purchaseDate}</TableCell>
-                    <TableCell className="text-right text-sm">¥{asset.value.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">¥{asset.depreciation.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">¥{asset.netValue.toLocaleString()}</TableCell>
-                    <TableCell>{statusBadge(asset.status)}</TableCell>
-                  </TableRow>
-                ))}
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
+                ) : assets.length === 0 ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "暂无资产数据，点击「登记资产」开始添加" : "No assets yet. Click 'Register Asset' to add."}</TableCell></TableRow>
+                ) : (
+                  assets.map((asset) => (
+                    <TableRow key={asset.id}>
+                      <TableCell className="font-medium">{isZh ? asset.name_zh : (asset.name_en || asset.name_zh)}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{getCategoryLabel(asset.category)}</TableCell>
+                      <TableCell className="text-xs">{isZh ? asset.store_name_zh : (asset.store_name_en || asset.store_name_zh)}</TableCell>
+                      <TableCell className="text-xs">{asset.purchase_date}</TableCell>
+                      <TableCell className="text-right text-sm">¥{Number(asset.original_value).toLocaleString()}</TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">¥{Number(asset.accumulated_depreciation).toLocaleString()}</TableCell>
+                      <TableCell className="text-right text-sm font-medium">¥{Number(asset.net_value).toLocaleString()}</TableCell>
+                      <TableCell>{statusBadge(asset.status)}</TableCell>
+                      <TableCell>
+                        <button onClick={() => deleteAsset.mutate(asset.id)} className="p-1 rounded hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
-          </div>
-
-          <div className="text-xs text-muted-foreground text-center py-2">
-            {isZh ? "固定资产数据将在接入ERP系统后自动同步，当前为示例数据" : "Asset data will auto-sync after ERP integration, currently showing sample data"}
           </div>
         </TabsContent>
       </Tabs>

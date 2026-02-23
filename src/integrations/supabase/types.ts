@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_depreciation_records: {
+        Row: {
+          accumulated_total: number
+          asset_id: string
+          created_at: string
+          depreciation_amount: number
+          id: string
+          net_value_after: number
+          period: string
+        }
+        Insert: {
+          accumulated_total?: number
+          asset_id: string
+          created_at?: string
+          depreciation_amount?: number
+          id?: string
+          net_value_after?: number
+          period: string
+        }
+        Update: {
+          accumulated_total?: number
+          asset_id?: string
+          created_at?: string
+          depreciation_amount?: number
+          id?: string
+          net_value_after?: number
+          period?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_depreciation_records_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_notifications: {
         Row: {
           channel: string
@@ -170,6 +208,93 @@ export type Database = {
           target_type?: string
           trigger_offset_minutes?: number
           trigger_relative_to?: string
+        }
+        Relationships: []
+      }
+      fixed_assets: {
+        Row: {
+          accumulated_depreciation: number
+          category: string
+          created_at: string
+          created_by: string | null
+          depreciation_method: string
+          disposed_at: string | null
+          disposed_reason: string | null
+          disposed_value: number | null
+          id: string
+          location: string | null
+          name_en: string
+          name_zh: string
+          net_value: number
+          notes: string | null
+          original_value: number
+          purchase_date: string
+          salvage_value: number
+          serial_number: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          supplier: string | null
+          updated_at: string
+          useful_life_years: number
+          warranty_expiry: string | null
+        }
+        Insert: {
+          accumulated_depreciation?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          depreciation_method?: string
+          disposed_at?: string | null
+          disposed_reason?: string | null
+          disposed_value?: number | null
+          id?: string
+          location?: string | null
+          name_en?: string
+          name_zh: string
+          net_value?: number
+          notes?: string | null
+          original_value?: number
+          purchase_date?: string
+          salvage_value?: number
+          serial_number?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          supplier?: string | null
+          updated_at?: string
+          useful_life_years?: number
+          warranty_expiry?: string | null
+        }
+        Update: {
+          accumulated_depreciation?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          depreciation_method?: string
+          disposed_at?: string | null
+          disposed_reason?: string | null
+          disposed_value?: number | null
+          id?: string
+          location?: string | null
+          name_en?: string
+          name_zh?: string
+          net_value?: number
+          notes?: string | null
+          original_value?: number
+          purchase_date?: string
+          salvage_value?: number
+          serial_number?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          supplier?: string | null
+          updated_at?: string
+          useful_life_years?: number
+          warranty_expiry?: string | null
         }
         Relationships: []
       }
