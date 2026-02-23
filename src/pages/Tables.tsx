@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Users, Clock, CheckCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
+import { useStore } from "@/contexts/StoreContext";
 
 type TableStatus = "available" | "occupied" | "reserved" | "cleaning";
 
@@ -33,7 +35,9 @@ const tables: TableItem[] = [
 ];
 
 const Tables = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === "zh";
+  const { storeName } = useStore();
 
   const statusConfig: Record<TableStatus, { label: string; color: string; bg: string }> = {
     available: { label: t("tableMgmt.available"), color: "text-success", bg: "bg-success/10 border-success/20" },
@@ -53,7 +57,7 @@ const Tables = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("tableMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("tableMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("tableMgmt.subtitle")}</p>
         </div>
         <div className="flex gap-3">
           {(["available", "occupied", "reserved"] as const).map((s) => (
@@ -64,6 +68,8 @@ const Tables = () => {
           ))}
         </div>
       </div>
+
+      <StoreIndicator />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {tables.map((table, i) => {

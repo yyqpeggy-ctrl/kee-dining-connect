@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useStore } from "@/contexts/StoreContext";
+import StoreIndicator from "@/components/StoreIndicator";
 import ProcurementOrdersTab from "@/components/procurement/ProcurementOrdersTab";
 import ProcurementApprovalTab from "@/components/procurement/ProcurementApprovalTab";
 import ProcurementPaymentTab from "@/components/procurement/ProcurementPaymentTab";
@@ -18,7 +19,7 @@ import ProcurementContractTab from "@/components/procurement/ProcurementContract
 const Procurement = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
-  const { currentStore } = useStore();
+  const { currentStore, isHQ } = useStore();
   const [orders, setOrders] = useState<Tables<"procurement_orders">[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -54,13 +55,16 @@ const Procurement = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("procurementMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("procurementMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{isZh ? currentStore.name : currentStore.nameEn} · {t("procurementMgmt.subtitle")}</p>
         </div>
         <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
           <Plus className="w-4 h-4" />
           {t("procurementMgmt.newPO")}
         </button>
       </div>
+
+      {/* Store indicator */}
+      <StoreIndicator />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

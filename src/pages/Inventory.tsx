@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
+import { useStore } from "@/contexts/StoreContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +44,7 @@ const Inventory = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
   const queryClient = useQueryClient();
+  const { storeName } = useStore();
   const [deductDialog, setDeductDialog] = useState<InventoryItem | null>(null);
   const [deductQty, setDeductQty] = useState(1);
   const [deductReason, setDeductReason] = useState("manual");
@@ -105,7 +108,7 @@ const Inventory = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("inventoryMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("inventoryMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("inventoryMgmt.subtitle")}</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={() => setLogsOpen(true)}>
@@ -121,6 +124,8 @@ const Inventory = () => {
           </div>
         </div>
       </div>
+
+      <StoreIndicator />
 
       <div className="relative mb-5">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

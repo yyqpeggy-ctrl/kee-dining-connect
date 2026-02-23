@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
-import { MapPin, Users, Clock, MoreHorizontal, Phone, Settings } from "lucide-react";
+import { MapPin, Users, Clock, MoreHorizontal, Phone, Settings, Building2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/contexts/StoreContext";
+import { stores as allStoresList } from "@/components/StoreSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StoreRenovationTab from "@/components/stores/StoreRenovationTab";
 
@@ -23,16 +24,18 @@ interface StoreData {
 }
 
 const storesData: StoreData[] = [
-  { id: "1", nameZh: "总店", nameEn: "Main Store", address: "朝阳区建国路88号", phone: "010-8888-1001", managerZh: "张经理", managerEn: "Manager Zhang", status: "online", todayRevenue: "¥28,640", todayOrders: 186, tables: 20, staff: 15, openTime: "10:00 - 22:00" },
-  { id: "2", nameZh: "国贸分店", nameEn: "Guomao Branch", address: "朝阳区国贸中心B座1层", phone: "010-8888-1002", managerZh: "李经理", managerEn: "Manager Li", status: "online", todayRevenue: "¥35,280", todayOrders: 224, tables: 25, staff: 18, openTime: "10:00 - 23:00" },
-  { id: "3", nameZh: "三里屯分店", nameEn: "Sanlitun Branch", address: "朝阳区三里屯路19号", phone: "010-8888-1003", managerZh: "王经理", managerEn: "Manager Wang", status: "online", todayRevenue: "¥42,150", todayOrders: 268, tables: 30, staff: 22, openTime: "11:00 - 02:00" },
-  { id: "4", nameZh: "望京分店", nameEn: "Wangjing Branch", address: "朝阳区望京SOHO T1", phone: "010-8888-1004", managerZh: "赵经理", managerEn: "Manager Zhao", status: "offline", todayRevenue: "¥0", todayOrders: 0, tables: 18, staff: 12, openTime: "" },
+  { id: "flagship", nameZh: "旗舰店", nameEn: "Flagship - The Bund", address: "上海市黄浦区外滩18号", phone: "021-6888-1001", managerZh: "张经理", managerEn: "Manager Zhang", status: "online", todayRevenue: "¥38,640", todayOrders: 186, tables: 20, staff: 15, openTime: "10:00 - 02:00" },
+  { id: "french", nameZh: "法租界店", nameEn: "French Concession", address: "上海市徐汇区永康路68号", phone: "021-6888-1002", managerZh: "李经理", managerEn: "Manager Li", status: "online", todayRevenue: "¥25,280", todayOrders: 142, tables: 16, staff: 12, openTime: "11:00 - 01:00" },
+  { id: "jingan", nameZh: "静安店", nameEn: "Jing'an", address: "上海市静安区巨鹿路158号", phone: "021-6888-1003", managerZh: "王经理", managerEn: "Manager Wang", status: "online", todayRevenue: "¥32,150", todayOrders: 168, tables: 18, staff: 14, openTime: "11:00 - 02:00" },
+  { id: "xintiandi", nameZh: "新天地店", nameEn: "Xintiandi", address: "上海市黄浦区太仓路181弄", phone: "021-6888-1004", managerZh: "赵经理", managerEn: "Manager Zhao", status: "offline", todayRevenue: "¥0", todayOrders: 0, tables: 14, staff: 10, openTime: "" },
 ];
 
 const Stores = () => {
-  const { currentStore, setCurrentStore } = useStore();
+  const { currentStore, setCurrentStore, isHQ } = useStore();
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+
+  const displayStores = isHQ ? storesData : storesData.filter(s => s.id === currentStore.id);
 
   const totalRevenue = storesData.filter((s) => s.status === "online").reduce((sum, s) => sum + parseInt(s.todayRevenue.replace(/[¥,]/g, "")), 0);
   const totalOrders = storesData.reduce((sum, s) => sum + s.todayOrders, 0);
@@ -43,7 +46,10 @@ const Stores = () => {
         <div>
           <h1 className="text-2xl font-bold font-display">{t("storeMgmt.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {t("common.of")} {storesData.length} {t("storeMgmt.storesTotal")} · {storesData.filter((s) => s.status === "online").length} {t("storeMgmt.operating")}
+            {isHQ 
+              ? `${storesData.length} ${isZh ? "个独立法人实体" : "independent legal entities"} · ${storesData.filter(s => s.status === "online").length} ${t("storeMgmt.operating")}`
+              : `${isZh ? currentStore.name : currentStore.nameEn} — ${isZh ? "独立法人视图" : "Standalone Entity View"}`
+            }
           </p>
         </div>
       </div>
@@ -55,70 +61,71 @@ const Stores = () => {
         </TabsList>
 
         <TabsContent value="stores" className="space-y-6">
-          <div className="flex items-center justify-end">
-            <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">{t("storeMgmt.addStore")}</button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">{t("storeMgmt.allStoreRevenue")}</p>
-              <p className="text-2xl font-bold font-display text-primary">¥{totalRevenue.toLocaleString()}</p>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">{t("storeMgmt.allStoreOrders")}</p>
-              <p className="text-2xl font-bold font-display">{totalOrders}</p>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">{t("storeMgmt.totalStaff")}</p>
-              <p className="text-2xl font-bold font-display">{storesData.reduce((sum, s) => sum + s.staff, 0)}</p>
-            </motion.div>
-          </div>
+          {isHQ && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">{t("storeMgmt.allStoreRevenue")}</p>
+                <p className="text-2xl font-bold font-display text-primary">¥{totalRevenue.toLocaleString()}</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">{t("storeMgmt.allStoreOrders")}</p>
+                <p className="text-2xl font-bold font-display">{totalOrders}</p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">{t("storeMgmt.totalStaff")}</p>
+                <p className="text-2xl font-bold font-display">{storesData.reduce((sum, s) => sum + s.staff, 0)}</p>
+              </motion.div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {storesData.map((store, i) => (
-              <motion.div key={store.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className={`glass-card rounded-xl p-5 ${currentStore.id === store.id ? "ring-1 ring-primary/50" : ""}`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${store.status === "online" ? "bg-primary/15" : "bg-muted"}`}>
-                      <MapPin className={`w-5 h-5 ${store.status === "online" ? "text-primary" : "text-muted-foreground"}`} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold font-display">{isZh ? store.nameZh : store.nameEn}</h3>
-                        {currentStore.id === store.id && (<span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full">{t("nav.currentStore")}</span>)}
-                        <span className={`w-2 h-2 rounded-full ${store.status === "online" ? "bg-success animate-pulse" : "bg-muted-foreground"}`} />
+            {displayStores.map((store, i) => {
+              const storeObj = allStoresList.find(s => s.id === store.id);
+              return (
+                <motion.div key={store.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className={`glass-card rounded-xl p-5 ${currentStore.id === store.id ? "ring-1 ring-primary/50" : ""}`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${store.status === "online" ? "bg-primary/15" : "bg-muted"}`}>
+                        <MapPin className={`w-5 h-5 ${store.status === "online" ? "text-primary" : "text-muted-foreground"}`} />
                       </div>
-                      <p className="text-xs text-muted-foreground">{store.address}</p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold font-display">{isZh ? store.nameZh : store.nameEn}</h3>
+                          {currentStore.id === store.id && (<span className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full">{t("nav.currentStore")}</span>)}
+                          <span className={`w-2 h-2 rounded-full ${store.status === "online" ? "bg-success animate-pulse" : "bg-muted-foreground"}`} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{store.address}</p>
+                      </div>
+                    </div>
+                    <button className="p-1.5 rounded-md hover:bg-muted transition-colors"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-muted/30 rounded-lg p-3">
+                      <p className="text-[10px] text-muted-foreground mb-1">{t("storeMgmt.todayRevenue")}</p>
+                      <p className={`text-lg font-bold ${store.status === "online" ? "text-primary" : "text-muted-foreground"}`}>{store.todayRevenue}</p>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-3">
+                      <p className="text-[10px] text-muted-foreground mb-1">{t("storeMgmt.todayOrders")}</p>
+                      <p className="text-lg font-bold">{store.todayOrders}</p>
                     </div>
                   </div>
-                  <button className="p-1.5 rounded-md hover:bg-muted transition-colors"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-[10px] text-muted-foreground mb-1">{t("storeMgmt.todayRevenue")}</p>
-                    <p className={`text-lg font-bold ${store.status === "online" ? "text-primary" : "text-muted-foreground"}`}>{store.todayRevenue}</p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{store.staff} {t("common.staff")}</span>
+                    <span>{store.tables} {t("common.tables")}</span>
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{store.openTime || t("common.renovating")}</span>
                   </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="text-[10px] text-muted-foreground mb-1">{t("storeMgmt.todayOrders")}</p>
-                    <p className="text-lg font-bold">{store.todayOrders}</p>
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <div className="flex items-center gap-2 text-xs"><Phone className="w-3 h-3 text-muted-foreground" /><span className="text-muted-foreground">{store.phone}</span></div>
+                    <div className="flex gap-2">
+                      {store.status === "online" && currentStore.id !== store.id && storeObj && (
+                        <button onClick={() => setCurrentStore(storeObj)} className="text-xs px-3 py-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors">{t("common.switchTo")}</button>
+                      )}
+                      <button className="text-xs px-3 py-1.5 bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors flex items-center gap-1"><Settings className="w-3 h-3" />{t("common.settings")}</button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{store.staff} {t("common.staff")}</span>
-                  <span>{store.tables} {t("common.tables")}</span>
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{store.openTime || t("common.renovating")}</span>
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                  <div className="flex items-center gap-2 text-xs"><Phone className="w-3 h-3 text-muted-foreground" /><span className="text-muted-foreground">{store.phone}</span></div>
-                  <div className="flex gap-2">
-                    {store.status === "online" && currentStore.id !== store.id && (
-                      <button onClick={() => setCurrentStore({ id: store.id, name: isZh ? store.nameZh : store.nameEn, address: store.address, status: store.status })} className="text-xs px-3 py-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors">{t("common.switchTo")}</button>
-                    )}
-                    <button className="text-xs px-3 py-1.5 bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors flex items-center gap-1"><Settings className="w-3 h-3" />{t("common.settings")}</button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </TabsContent>
 

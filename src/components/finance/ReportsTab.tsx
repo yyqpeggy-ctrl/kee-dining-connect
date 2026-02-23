@@ -1,17 +1,18 @@
 import { motion } from "framer-motion";
-import { Download, Store } from "lucide-react";
+import { Download } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { computeIncomeStatement, computeBalanceSheet, computeCashFlow, stores, StoreId } from "@/data/financeData";
 import { useState, useMemo } from "react";
+import { useStore } from "@/contexts/StoreContext";
 
 const ReportsTab = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
-  const [selectedStore, setSelectedStore] = useState<StoreId>("all");
+  const { storeId: globalStoreId } = useStore();
+  const selectedStore = globalStoreId as StoreId;
 
   const income = useMemo(() => computeIncomeStatement(selectedStore), [selectedStore]);
   const balance = useMemo(() => computeBalanceSheet(selectedStore), [selectedStore]);
@@ -53,32 +54,11 @@ const ReportsTab = () => {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("financeMgmt.financialReports")}</h3>
         <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-2">
-            <Store className="w-4 h-4 text-muted-foreground" />
-            <Select value={selectedStore} onValueChange={(v) => setSelectedStore(v as StoreId)}>
-              <SelectTrigger className="w-[160px] h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map(store => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {isZh ? store.nameZh : store.nameEn}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />{t("financeMgmt.exportExcel")}</Button>
           <Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />{t("financeMgmt.exportPDF")}</Button>
         </div>
       </div>
 
-      {selectedStore !== "all" && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
-          <Store className="w-4 h-4 text-primary" />
-          <span>{isZh ? `当前查看: ${storeName?.nameZh} 独立报表` : `Viewing: ${storeName?.nameEn} standalone reports`}</span>
-        </div>
-      )}
 
       <Tabs defaultValue="income" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">

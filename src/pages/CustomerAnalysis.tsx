@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, AreaChart, Area } from "recharts";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
+import { useStore } from "@/contexts/StoreContext";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +14,7 @@ const COLORS = ["hsl(var(--primary))", "hsl(0, 70%, 55%)", "hsl(var(--accent))",
 const CustomerAnalysis = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
+  const { storeName } = useStore();
 
   const nationalityData = [
     { name: isZh ? "欧美客户" : "Western", value: 38 },
@@ -83,8 +86,10 @@ const CustomerAnalysis = () => {
     <AppLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold font-display">{t("customerAnalysis.title")}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t("customerAnalysis.subtitle")}</p>
+        <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("customerAnalysis.subtitle")}</p>
       </div>
+
+      <StoreIndicator />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

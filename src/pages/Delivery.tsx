@@ -2,6 +2,7 @@ import { Bike, Clock, Package, TrendingUp, PlugZap, Plug, RefreshCw, Timer } fro
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +30,9 @@ const platformData = [
 ];
 
 const Delivery = () => {
-  const { currentStore } = useStore();
-  const { t } = useTranslation();
+  const { currentStore, storeName } = useStore();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === "zh";
   const [meituanConnected, setMeituanConnected] = useState(false);
   const [elemeConnected, setElemeConnected] = useState(false);
   const [meituanAutoAccept, setMeituanAutoAccept] = useState(true);
@@ -45,7 +47,7 @@ const Delivery = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold font-display">{t("deliveryMgmt.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{currentStore.name} · {t("deliveryMgmt.subtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("deliveryMgmt.subtitle")}</p>
         </div>
         <div className="flex gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs"><Clock className="w-3.5 h-3.5" /><span>{t("deliveryMgmt.pendingOrders")} {pendingCount}</span></div>
@@ -53,6 +55,8 @@ const Delivery = () => {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs"><Bike className="w-3.5 h-3.5" /><span>{t("deliveryMgmt.deliveringOrders")} {deliveringCount}</span></div>
         </div>
       </div>
+
+      <StoreIndicator />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

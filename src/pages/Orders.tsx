@@ -5,8 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
+import StoreIndicator from "@/components/StoreIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useStore } from "@/contexts/StoreContext";
 
 type OrderStatus = "pending" | "preparing" | "served" | "completed" | "cancelled";
 
@@ -34,6 +36,7 @@ const Orders = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
   const queryClient = useQueryClient();
+  const { storeName } = useStore();
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
@@ -97,9 +100,11 @@ const Orders = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold font-display">{t("orderMgmt.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {t("orderMgmt.subtitle")} · {t("common.of")} {orders.length} {t("orderMgmt.totalOrders")}
+          {storeName(isZh)} · {t("orderMgmt.subtitle")} · {t("common.of")} {orders.length} {t("orderMgmt.totalOrders")}
         </p>
       </div>
+
+      <StoreIndicator />
 
       <div className="flex gap-1 mb-5 p-1 bg-muted/50 rounded-lg w-fit">
         {tabs.map((tab) => (
