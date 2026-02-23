@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
-import { FileText, AlertTriangle, CheckCircle, Clock, Upload, Download, Calendar, Calculator } from "lucide-react";
+import { FileText, AlertTriangle, CheckCircle, Clock, Upload, Download, Calendar, Calculator, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
+import TaxReportsTab from "./TaxReportsTab";
 
 const taxCalendar = [
   { tax: "增值税", period: "2024年2月", deadline: "2024-03-15", status: "待申报", amount: 43400 },
@@ -30,13 +32,20 @@ const invoiceStats = {
 };
 
 const TaxTab = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language === "zh";
   const pendingCount = taxCalendar.filter(t => t.status === "待申报").length;
   const totalTaxDue = taxCalendar.filter(t => t.status !== "已缴纳").reduce((sum, t) => sum + t.amount, 0);
 
   return (
+    <Tabs defaultValue="filing" className="w-full">
+      <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsTrigger value="filing" className="gap-2"><Calendar className="w-4 h-4" />{isZh ? "申报缴税" : "Tax Filing"}</TabsTrigger>
+        <TabsTrigger value="reports" className="gap-2"><ClipboardList className="w-4 h-4" />{isZh ? "报税报表" : "Tax Reports"}</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="filing">
     <div className="space-y-6">
-      {/* Tax Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
@@ -223,6 +232,12 @@ const TaxTab = () => {
         </Table>
       </motion.div>
     </div>
+      </TabsContent>
+
+      <TabsContent value="reports">
+        <TaxReportsTab />
+      </TabsContent>
+    </Tabs>
   );
 };
 
