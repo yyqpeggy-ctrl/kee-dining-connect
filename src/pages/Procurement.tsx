@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import {
   ShoppingCart, Package, Clock, Plus, Search, Building2, DollarSign,
-  CheckCircle, FileText, Shield, CreditCard
+  CheckCircle, FileText, Shield, CreditCard, Users
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { useState, useEffect, useCallback } from "react";
@@ -15,6 +15,7 @@ import ProcurementOrdersTab from "@/components/procurement/ProcurementOrdersTab"
 import ProcurementApprovalTab from "@/components/procurement/ProcurementApprovalTab";
 import ProcurementPaymentTab from "@/components/procurement/ProcurementPaymentTab";
 import ProcurementContractTab from "@/components/procurement/ProcurementContractTab";
+import SupplierManagementTab from "@/components/procurement/SupplierManagementTab";
 
 const Procurement = () => {
   const { t, i18n } = useTranslation();
@@ -108,9 +109,12 @@ const Procurement = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-muted/50">
           <TabsTrigger value="orders" className="gap-2 data-[state=active]:bg-primary/20 text-xs">
             <Package className="w-4 h-4" />{t("procurementMgmt.purchaseOrders")}
+          </TabsTrigger>
+          <TabsTrigger value="suppliers" className="gap-2 data-[state=active]:bg-primary/20 text-xs">
+            <Building2 className="w-4 h-4" />{isZh ? "供应商" : "Suppliers"}
           </TabsTrigger>
           <TabsTrigger value="approval" className="gap-2 data-[state=active]:bg-primary/20 text-xs">
             <CheckCircle className="w-4 h-4" />{t("procurementMgmt.approvalTab")}
@@ -124,6 +128,9 @@ const Procurement = () => {
         </TabsList>
         <TabsContent value="orders">
           <ProcurementOrdersTab orders={filtered} onRefresh={fetchOrders} />
+        </TabsContent>
+        <TabsContent value="suppliers">
+          <SupplierManagementTab />
         </TabsContent>
         <TabsContent value="approval">
           <ProcurementApprovalTab orders={filtered} onRefresh={fetchOrders} />

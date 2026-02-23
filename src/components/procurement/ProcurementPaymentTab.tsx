@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateBankPaymentExcel } from "./bankPaymentExport";
 
 interface Props {
@@ -18,6 +18,24 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [supplierBankMap, setSupplierBankMap] = useState<Record<string, { bank_name: string; bank_account: string; bank_account_name: string }>>({});
+  const [showBankConfirm, setShowBankConfirm] = useState(false);
+  const [pendingExportRows, setPendingExportRows] = useState<any[]>([]);
+
+  // Fetch supplier bank info for all unique supplier names
+  useEffect(() => {
+    const fetchSupplierBank = async () => {
+      const names = [...new Set(orders.map(o => o.supplier_name))];
+      if (names.length === 0) return;
+      const { data } = await supabase.from("suppliers").select("name, bank_name, bank_branch, bank_account, bank_account_name").in("name", names);
+      if (data) {
+        const map: Record<string, any> = {};
+        data.forEach(s => { map[s.name] = { bank_name: `${s.bank_name}${s.bank_branch ? " " + s.bank_branch : ""}`, bank_account: s.bank_account, bank_account_name: s.bank_account_name }; });
+        setSupplierBankMap(map);
+      }
+    };
+    fetchSupplierBank();
+  }, [orders]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -41,19 +59,30 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
       toast.error(isZh ? "请先勾选要导出的订单" : "Please select orders to export");
       return;
     }
-    const rows = selected.map(o => ({
-      orderNumber: o.order_number,
-      supplierName: o.supplier_name,
-      supplierBank: "",
-      supplierAccount: "",
-      amount: o.total_amount - o.paid_amount,
-      currency: o.currency || "CNY",
-      paymentDate: new Date().toISOString().slice(0, 10),
-      storeName: isZh ? o.store_name_zh : o.store_name_en,
-      notes: `${isZh ? "采购付款" : "Procurement"} ${o.order_number}`,
-    }));
-    generateBankPaymentExcel(rows, isZh);
-    toast.success(isZh ? `已导出 ${selected.length} 笔付款单` : `Exported ${selected.length} payment(s)`);
+    const rows = selected.map(o => {
+      const bank = supplierBankMap[o.supplier_name];
+      return {
+        orderNumber: o.order_number,
+        supplierName: o.supplier_name,
+        supplierBank: bank?.bank_name || "",
+        supplierAccount: bank?.bank_account || "",
+        amount: o.total_amount - o.paid_amount,
+        currency: o.currency || "CNY",
+        paymentDate: new Date().toISOString().slice(0, 10),
+        storeName: isZh ? o.store_name_zh : o.store_name_en,
+        notes: `${isZh ? "采购付款" : "Procurement"} ${o.order_number}`,
+      };
+    });
+    // Show confirmation dialog with bank info
+    setPendingExportRows(rows);
+    setShowBankConfirm(true);
+  };
+
+  const confirmExport = () => {
+    generateBankPaymentExcel(pendingExportRows, isZh);
+    toast.success(isZh ? `已导出 ${pendingExportRows.length} 笔付款单` : `Exported ${pendingExportRows.length} payment(s)`);
+    setShowBankConfirm(false);
+    setPendingExportRows([]);
   };
 
   // Only show confirmed+ orders for payment
@@ -187,6 +216,41 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bank info confirmation dialog */}
+      {showBankConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-xl max-h-[80vh] overflow-y-auto">
+            <div className="p-4 border-b border-border">
+              <h3 className="font-bold text-sm">{isZh ? "确认银行付款信息" : "Confirm Bank Payment Info"}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{isZh ? "以下银行信息来自供应商主档，请核对后导出" : "Bank info from supplier records. Please verify before export."}</p>
+            </div>
+            <div className="p-4 space-y-3">
+              {pendingExportRows.map((row, i) => (
+                <div key={i} className="bg-muted/30 rounded-lg p-3 text-xs space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold">{row.supplierName}</span>
+                    <span className="font-bold text-primary">¥{row.amount.toLocaleString()}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-muted-foreground">
+                    <span>{isZh ? "开户行" : "Bank"}: {row.supplierBank || <span className="text-destructive">{isZh ? "未录入" : "Missing"}</span>}</span>
+                    <span>{isZh ? "账号" : "Account"}: <span className="font-mono">{row.supplierAccount || <span className="text-destructive">{isZh ? "未录入" : "Missing"}</span>}</span></span>
+                  </div>
+                  {!row.supplierBank && (
+                    <p className="text-destructive text-[10px]">{isZh ? "⚠ 该供应商银行信息缺失，请先在供应商管理中完善" : "⚠ Missing bank info. Please update in Supplier Management."}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-border">
+              <button onClick={() => setShowBankConfirm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{isZh ? "取消" : "Cancel"}</button>
+              <button onClick={confirmExport} className="px-4 py-2 bg-success text-success-foreground rounded-lg text-sm font-medium hover:bg-success/90 transition-colors flex items-center gap-2">
+                <Download className="w-4 h-4" />{isZh ? "确认导出" : "Confirm Export"}
+              </button>
+            </div>
           </div>
         </div>
       )}
