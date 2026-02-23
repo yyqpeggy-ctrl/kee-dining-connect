@@ -127,9 +127,9 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
           category: i.category || "other",
         }));
 
-        const { error } = await supabase.from("procurement_orders").insert({
+        const { data: orderData, error } = await supabase.from("procurement_orders").insert({
           type: "ingredient",
-          status: "confirmed", // Manager already confirmed, skip pending
+          status: "confirmed",
           supplier_name: supplierName,
           supplier_id: supplierData?.id || null,
           supplier_contact: supplierData?.contact_person || "",
@@ -140,7 +140,7 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
           store_name_en: currentStore.nameEn,
           created_by: user?.id || null,
           notes: isZh ? "AI智能采购建议 - 经理确认下单" : "AI procurement suggestion - Manager confirmed",
-        });
+        }).select("order_number").single();
 
         if (error) {
           console.error("Create order error:", error);
@@ -152,12 +152,37 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
           ? `已为 ${supplierName} 创建采购单 (${items.length}项, ¥${totalAmount.toLocaleString()})`
           : `Order created for ${supplierName} (${items.length} items, ¥${totalAmount.toLocaleString()})`
         );
+
+        // Auto-notify supplier via WeChat
+        try {
+          const { data: notifyResult } = await supabase.functions.invoke("notify-supplier", {
+            body: {
+              supplier_name: supplierName,
+              supplier_phone: supplierData?.phone || "",
+              supplier_contact: supplierData?.contact_person || "",
+              order_number: orderData?.order_number || "",
+              items: orderItems,
+              total_amount: totalAmount,
+              currency: "CNY",
+              store_name: currentStore.name,
+              notes: "",
+            },
+          });
+          if (notifyResult?.mode === "mock") {
+            toast.info(isZh
+              ? `📱 ${supplierName} 通知已模拟发送（配置微信凭证后自动切换真实发送）`
+              : `📱 ${supplierName} notification simulated (configure WeChat to enable real sending)`
+            );
+          } else {
+            toast.success(isZh ? `📱 已通知 ${supplierName}` : `📱 Notified ${supplierName}`);
+          }
+        } catch (notifyErr) {
+          console.error("Notify error:", notifyErr);
+          toast.warning(isZh ? `⚠ ${supplierName} 通知发送失败` : `⚠ Failed to notify ${supplierName}`);
+        }
       }
 
-      // TODO: Auto-send WeChat notification to suppliers
-      toast.info(isZh ? "📱 供应商微信通知功能开发中" : "📱 WeChat supplier notification coming soon");
 
-      onRefresh();
       setResult(null);
       setEditedSuggestions([]);
       setSelected(new Set());
