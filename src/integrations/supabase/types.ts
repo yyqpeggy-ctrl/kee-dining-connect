@@ -1051,6 +1051,7 @@ export type Database = {
           tags: string[] | null
           tax_id: string | null
           updated_at: string
+          wechat_openid: string | null
         }
         Insert: {
           address?: string | null
@@ -1078,6 +1079,7 @@ export type Database = {
           tags?: string[] | null
           tax_id?: string | null
           updated_at?: string
+          wechat_openid?: string | null
         }
         Update: {
           address?: string | null
@@ -1105,6 +1107,7 @@ export type Database = {
           tags?: string[] | null
           tax_id?: string | null
           updated_at?: string
+          wechat_openid?: string | null
         }
         Relationships: []
       }
