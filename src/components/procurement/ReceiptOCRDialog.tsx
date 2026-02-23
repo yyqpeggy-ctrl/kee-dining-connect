@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog";
+import PaymentSlip from "./PaymentSlip";
 
 interface Props {
   order: Tables<"procurement_orders">;
@@ -212,9 +213,7 @@ const ReceiptOCRDialog = ({ order, onComplete }: Props) => {
       if (updateError) throw updateError;
 
       toast.success(isZh ? "付款申请已提交" : "Payment request submitted");
-      setOpen(false);
-      reset();
-      onComplete();
+      setStep("payment");
     } catch (e: any) {
       toast.error(e.message || (isZh ? "提交失败" : "Submit failed"));
     } finally {
@@ -508,6 +507,22 @@ const ReceiptOCRDialog = ({ order, onComplete }: Props) => {
                 {canRequestPayment
                   ? (isZh ? "提交付款申请" : "Submit Payment Request")
                   : (isZh ? "核对未通过，无法发起付款" : "Cannot submit - verification failed")}
+              </button>
+            </motion.div>
+          )}
+
+          {/* Step 6: Payment Slip */}
+          {step === "payment" && ocrResult && matchResult && (
+            <motion.div key="payment" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+              <PaymentSlip
+                order={order}
+                ocrResult={ocrResult}
+                matchResult={matchResult}
+                invoiceOcr={invoiceOcr}
+                invoiceMatch={invoiceMatch}
+              />
+              <button onClick={() => { setOpen(false); reset(); onComplete(); }} className="w-full py-2 bg-muted text-muted-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors">
+                {isZh ? "关闭" : "Close"}
               </button>
             </motion.div>
           )}
