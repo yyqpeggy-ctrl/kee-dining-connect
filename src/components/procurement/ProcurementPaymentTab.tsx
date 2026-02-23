@@ -20,7 +20,7 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [supplierBankMap, setSupplierBankMap] = useState<Record<string, { bank_name: string; bank_account: string; bank_account_name: string }>>({});
   const [showBankConfirm, setShowBankConfirm] = useState(false);
-  const [pendingExportRows, setPendingExportRows] = useState<any[]>([]);
+  const [pendingExportRows, setPendingExportRows] = useState<{orderNumber:string;supplierName:string;supplierBank:string;supplierAccount:string;amount:number;currency:string;paymentDate:string;storeName:string;notes:string}[]>([]);
 
   // Fetch supplier bank info for all unique supplier names
   useEffect(() => {
@@ -230,17 +230,41 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
             </div>
             <div className="p-4 space-y-3">
               {pendingExportRows.map((row, i) => (
-                <div key={i} className="bg-muted/30 rounded-lg p-3 text-xs space-y-1">
+                <div key={i} className="bg-muted/30 rounded-lg p-3 text-xs space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-bold">{row.supplierName}</span>
                     <span className="font-bold text-primary">¥{row.amount.toLocaleString()}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1 text-muted-foreground">
-                    <span>{isZh ? "开户行" : "Bank"}: {row.supplierBank || <span className="text-destructive">{isZh ? "未录入" : "Missing"}</span>}</span>
-                    <span>{isZh ? "账号" : "Account"}: <span className="font-mono">{row.supplierAccount || <span className="text-destructive">{isZh ? "未录入" : "Missing"}</span>}</span></span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-muted-foreground block mb-0.5">{isZh ? "开户行" : "Bank"}</label>
+                      <input
+                        value={row.supplierBank}
+                        onChange={e => {
+                          const next = [...pendingExportRows];
+                          next[i] = { ...next[i], supplierBank: e.target.value };
+                          setPendingExportRows(next);
+                        }}
+                        placeholder={isZh ? "请输入开户行" : "Enter bank name"}
+                        className="w-full px-2 py-1 rounded border border-border bg-background text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground block mb-0.5">{isZh ? "账号" : "Account"}</label>
+                      <input
+                        value={row.supplierAccount}
+                        onChange={e => {
+                          const next = [...pendingExportRows];
+                          next[i] = { ...next[i], supplierAccount: e.target.value };
+                          setPendingExportRows(next);
+                        }}
+                        placeholder={isZh ? "请输入银行账号" : "Enter account number"}
+                        className="w-full px-2 py-1 rounded border border-border bg-background text-xs font-mono"
+                      />
+                    </div>
                   </div>
-                  {!row.supplierBank && (
-                    <p className="text-destructive text-[10px]">{isZh ? "⚠ 该供应商银行信息缺失，请先在供应商管理中完善" : "⚠ Missing bank info. Please update in Supplier Management."}</p>
+                  {!row.supplierBank && !row.supplierAccount && (
+                    <p className="text-destructive text-[10px]">{isZh ? "⚠ 银行信息为空，请填写后导出" : "⚠ Bank info empty. Please fill before export."}</p>
                   )}
                 </div>
               ))}
