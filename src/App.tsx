@@ -13,6 +13,7 @@ import Tables from "./pages/Tables";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Kitchen from "./pages/Kitchen";
+import Delivery from "./pages/Delivery";
 import Stores from "./pages/Stores";
 import HR from "./pages/HR";
 import Finance from "./pages/Finance";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
               <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
               <Route path="/kitchen" element={<ProtectedRoute><Kitchen /></ProtectedRoute>} />
+              <Route path="/delivery" element={<ProtectedRoute><Delivery /></ProtectedRoute>} />
               <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
               <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
               <Route path="/stores" element={<ProtectedRoute><Stores /></ProtectedRoute>} />
