@@ -13,6 +13,7 @@ import {
   Scale,
   ShoppingCart,
   CookingPot,
+  Bike,
   Megaphone,
   PieChart,
   BookOpen,
@@ -33,6 +34,7 @@ const AppSidebar = () => {
         { to: "/tables", icon: UtensilsCrossed, label: t("nav.tables") },
         { to: "/orders", icon: ClipboardList, label: t("nav.orders") },
         { to: "/kitchen", icon: CookingPot, label: t("nav.kitchen") },
+        { to: "/delivery", icon: Bike, label: t("nav.delivery") },
       ],
     },
     {
