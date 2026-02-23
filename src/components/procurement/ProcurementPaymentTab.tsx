@@ -78,11 +78,30 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
     setShowBankConfirm(true);
   };
 
-  const confirmExport = () => {
+  const confirmExport = async () => {
     generateBankPaymentExcel(pendingExportRows, isZh);
-    toast.success(isZh ? `已导出 ${pendingExportRows.length} 笔付款单` : `Exported ${pendingExportRows.length} payment(s)`);
+    // Write back modified bank info to supplier master data
+    for (const row of pendingExportRows) {
+      if (row.supplierBank || row.supplierAccount) {
+        const existing = supplierBankMap[row.supplierName];
+        const bankChanged = row.supplierBank && row.supplierBank !== (existing?.bank_name || "");
+        const accountChanged = row.supplierAccount && row.supplierAccount !== (existing?.bank_account || "");
+        if (bankChanged || accountChanged) {
+          const updates: Record<string, string> = {};
+          if (row.supplierBank) {
+            const parts = row.supplierBank.split(" ");
+            updates.bank_name = parts[0];
+            if (parts.length > 1) updates.bank_branch = parts.slice(1).join(" ");
+          }
+          if (row.supplierAccount) updates.bank_account = row.supplierAccount;
+          await supabase.from("suppliers").update(updates).eq("name", row.supplierName);
+        }
+      }
+    }
+    toast.success(isZh ? `已导出 ${pendingExportRows.length} 笔付款单，银行信息已同步` : `Exported ${pendingExportRows.length} payment(s), bank info synced`);
     setShowBankConfirm(false);
     setPendingExportRows([]);
+    onRefresh();
   };
 
   // Only show confirmed+ orders for payment
