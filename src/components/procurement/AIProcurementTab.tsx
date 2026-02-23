@@ -60,15 +60,20 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
   // Fetch pending daily suggestions
   const fetchDailySuggestions = useCallback(async () => {
     setLoadingDaily(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("daily_procurement_suggestions")
       .select("*")
       .eq("status", "pending")
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(10);
+    // For non-HQ stores, only show their own suggestions
+    if (storeId !== "all") {
+      query = query.eq("store_id", storeId);
+    }
+    const { data, error } = await query;
     if (!error && data) setDailySuggestions(data as unknown as DailySuggestion[]);
     setLoadingDaily(false);
-  }, []);
+  }, [storeId]);
 
   useEffect(() => { fetchDailySuggestions(); }, [fetchDailySuggestions]);
 
@@ -474,7 +479,7 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
           <p className="text-sm text-muted-foreground">{isZh ? "点击上方按钮，AI将分析库存、销售、活动等数据生成采购建议" : "Click above to let AI analyze your data and generate procurement suggestions"}</p>
           <p className="text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
             <CalendarClock className="w-3 h-3" />
-            {isZh ? "每日早上8:00（北京时间）系统将自动运行AI分析" : "Daily auto-analysis runs at 8:00 AM (Beijing time)"}
+            {isZh ? "每日早上8:00（北京时间）系统将为每个门店独立运行AI分析" : "Daily auto-analysis runs at 8:00 AM (Beijing time) for each store"}
           </p>
         </div>
       )}
