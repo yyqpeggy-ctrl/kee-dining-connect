@@ -211,6 +211,122 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_transactions: {
+        Row: {
+          amount: number
+          category: string
+          compliance_status: string
+          created_at: string
+          created_by: string | null
+          credit_account: string
+          currency: string
+          debit_account: string
+          description_en: string
+          description_zh: string
+          id: string
+          linked_asset_id: string | null
+          linked_depreciation_id: string | null
+          linked_order_id: string | null
+          linked_procurement_id: string | null
+          notes: string | null
+          payment_method: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          transaction_number: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          compliance_status?: string
+          created_at?: string
+          created_by?: string | null
+          credit_account?: string
+          currency?: string
+          debit_account?: string
+          description_en?: string
+          description_zh?: string
+          id?: string
+          linked_asset_id?: string | null
+          linked_depreciation_id?: string | null
+          linked_order_id?: string | null
+          linked_procurement_id?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          transaction_number?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          compliance_status?: string
+          created_at?: string
+          created_by?: string | null
+          credit_account?: string
+          currency?: string
+          debit_account?: string
+          description_en?: string
+          description_zh?: string
+          id?: string
+          linked_asset_id?: string | null
+          linked_depreciation_id?: string | null
+          linked_order_id?: string | null
+          linked_procurement_id?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          transaction_number?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_transactions_linked_asset_id_fkey"
+            columns: ["linked_asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_linked_depreciation_id_fkey"
+            columns: ["linked_depreciation_id"]
+            isOneToOne: false
+            referencedRelation: "asset_depreciation_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_linked_procurement_id_fkey"
+            columns: ["linked_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fixed_assets: {
         Row: {
           accumulated_depreciation: number
@@ -542,6 +658,114 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      procurement_orders: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          compliance_checked: boolean
+          compliance_notes: string | null
+          contract_number: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          items: Json
+          linked_asset_id: string | null
+          linked_inventory_item_id: string | null
+          notes: string | null
+          order_number: string
+          paid_amount: number
+          paid_at: string | null
+          payment_due_date: string | null
+          payment_method: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          supplier_contact: string | null
+          supplier_name: string
+          total_amount: number
+          type: string
+          updated_at: string
+          warranty_months: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          compliance_checked?: boolean
+          compliance_notes?: string | null
+          contract_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          items?: Json
+          linked_asset_id?: string | null
+          linked_inventory_item_id?: string | null
+          notes?: string | null
+          order_number?: string
+          paid_amount?: number
+          paid_at?: string | null
+          payment_due_date?: string | null
+          payment_method?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          supplier_contact?: string | null
+          supplier_name?: string
+          total_amount?: number
+          type?: string
+          updated_at?: string
+          warranty_months?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          compliance_checked?: boolean
+          compliance_notes?: string | null
+          contract_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          items?: Json
+          linked_asset_id?: string | null
+          linked_inventory_item_id?: string | null
+          notes?: string | null
+          order_number?: string
+          paid_amount?: number
+          paid_at?: string | null
+          payment_due_date?: string | null
+          payment_method?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          supplier_contact?: string | null
+          supplier_name?: string
+          total_amount?: number
+          type?: string
+          updated_at?: string
+          warranty_months?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_orders_linked_asset_id_fkey"
+            columns: ["linked_asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_orders_linked_inventory_item_id_fkey"
+            columns: ["linked_inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       renovation_projects: {
         Row: {

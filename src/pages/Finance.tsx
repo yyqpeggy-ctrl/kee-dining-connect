@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator } from "lucide-react";
+import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator, Link2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
@@ -9,6 +9,7 @@ import AccountingTab from "@/components/finance/AccountingTab";
 import ReportsTab from "@/components/finance/ReportsTab";
 import TaxTab from "@/components/finance/TaxTab";
 import TransactionsTab from "@/components/finance/TransactionsTab";
+import CrossModuleDashboard from "@/components/finance/CrossModuleDashboard";
 
 const monthlyData = [
   { month: "1月", revenue: 580000, expense: 420000, profit: 160000 },
@@ -40,13 +41,15 @@ const Finance = () => {
 
       <FinanceKPICards totalRevenue={totalRevenue} totalExpense={totalExpense} totalProfit={totalProfit} />
 
-      <Tabs defaultValue="accounting" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50">
+      <Tabs defaultValue="crossmodule" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-muted/50">
+          <TabsTrigger value="crossmodule" className="gap-2 data-[state=active]:bg-primary/20"><Link2 className="w-4 h-4" />{t("financeMgmt.crossModule")}</TabsTrigger>
           <TabsTrigger value="accounting" className="gap-2 data-[state=active]:bg-primary/20"><BookOpen className="w-4 h-4" />{t("financeMgmt.accounting")}</TabsTrigger>
           <TabsTrigger value="reports" className="gap-2 data-[state=active]:bg-primary/20"><FileSpreadsheet className="w-4 h-4" />{t("financeMgmt.reports")}</TabsTrigger>
           <TabsTrigger value="tax" className="gap-2 data-[state=active]:bg-primary/20"><Calculator className="w-4 h-4" />{t("financeMgmt.tax")}</TabsTrigger>
           <TabsTrigger value="transactions" className="gap-2 data-[state=active]:bg-primary/20"><Receipt className="w-4 h-4" />{t("financeMgmt.transactions")}</TabsTrigger>
         </TabsList>
+        <TabsContent value="crossmodule"><CrossModuleDashboard /></TabsContent>
         <TabsContent value="accounting"><AccountingTab /></TabsContent>
         <TabsContent value="reports"><ReportsTab /></TabsContent>
         <TabsContent value="tax"><TaxTab /></TabsContent>
