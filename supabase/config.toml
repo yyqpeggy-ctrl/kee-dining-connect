@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.notify-supplier]
 verify_jwt = false
+
+[functions.daily-procurement-analysis]
+verify_jwt = false

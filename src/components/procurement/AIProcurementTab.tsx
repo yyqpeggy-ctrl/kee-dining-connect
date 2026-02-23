@@ -1,12 +1,12 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Sparkles, AlertTriangle, Clock, CheckCircle, Loader2, ShoppingCart, Trash2, Plus, Minus, Send } from "lucide-react";
+import { Brain, Sparkles, AlertTriangle, Clock, CheckCircle, Loader2, ShoppingCart, Trash2, Plus, Minus, Send, CalendarClock, RefreshCw, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/contexts/StoreContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
+import { format } from "date-fns";
 interface Suggestion {
   item_name_zh: string;
   item_name_en?: string;
@@ -29,6 +29,21 @@ interface AIResult {
   total_estimated_cost: number;
 }
 
+interface DailySuggestion {
+  id: string;
+  store_name_zh: string;
+  store_name_en: string;
+  suggestions: Suggestion[];
+  summary_zh: string;
+  summary_en?: string;
+  total_estimated_cost: number;
+  status: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_notes?: string;
+  created_at: string;
+}
+
 const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
@@ -39,6 +54,23 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editedSuggestions, setEditedSuggestions] = useState<Suggestion[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [dailySuggestions, setDailySuggestions] = useState<DailySuggestion[]>([]);
+  const [loadingDaily, setLoadingDaily] = useState(true);
+
+  // Fetch pending daily suggestions
+  const fetchDailySuggestions = useCallback(async () => {
+    setLoadingDaily(true);
+    const { data, error } = await supabase
+      .from("daily_procurement_suggestions")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (!error && data) setDailySuggestions(data as unknown as DailySuggestion[]);
+    setLoadingDaily(false);
+  }, []);
+
+  useEffect(() => { fetchDailySuggestions(); }, [fetchDailySuggestions]);
 
   const fetchSuggestions = useCallback(async () => {
     setLoading(true);
@@ -191,6 +223,36 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
     } finally {
       setConfirming(false);
     }
+  };
+
+  const handleApproveDailySuggestion = async (ds: DailySuggestion) => {
+    // Load suggestions into the editor for review
+    setResult({
+      suggestions: ds.suggestions,
+      summary_zh: ds.summary_zh,
+      summary_en: ds.summary_en,
+      total_estimated_cost: ds.total_estimated_cost,
+    });
+    setEditedSuggestions(ds.suggestions);
+    setSelected(new Set(ds.suggestions.map((_, i) => i)));
+    // Mark as approved
+    await supabase.from("daily_procurement_suggestions").update({
+      status: "approved",
+      reviewed_by: user?.id || null,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", ds.id);
+    setDailySuggestions(prev => prev.filter(d => d.id !== ds.id));
+    toast.success(isZh ? "已加载建议，请确认后下单" : "Suggestions loaded, confirm to place orders");
+  };
+
+  const handleRejectDailySuggestion = async (ds: DailySuggestion) => {
+    await supabase.from("daily_procurement_suggestions").update({
+      status: "rejected",
+      reviewed_by: user?.id || null,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", ds.id);
+    setDailySuggestions(prev => prev.filter(d => d.id !== ds.id));
+    toast.info(isZh ? "已忽略该建议" : "Suggestion dismissed");
   };
 
   const urgencyConfig = {
@@ -346,11 +408,74 @@ const AIProcurementTab = ({ onRefresh }: { onRefresh: () => void }) => {
         )}
       </AnimatePresence>
 
+      {/* Pending daily suggestions */}
+      {!result && !loading && dailySuggestions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <CalendarClock className="w-4 h-4 text-primary" />
+            {isZh ? "每日自动分析建议（待审批）" : "Daily Auto-Analysis (Pending Review)"}
+            <button onClick={fetchDailySuggestions} className="ml-auto text-muted-foreground hover:text-foreground">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {dailySuggestions.map(ds => (
+            <motion.div
+              key={ds.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card rounded-xl p-4 border-l-4 border-l-warning"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/10 text-warning font-medium">
+                      {isZh ? "待审批" : "Pending"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(ds.created_at), "yyyy-MM-dd HH:mm")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      · {ds.store_name_zh}
+                    </span>
+                  </div>
+                  <p className="text-sm mb-1">{isZh ? ds.summary_zh : (ds.summary_en || ds.summary_zh)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(ds.suggestions || []).length} {isZh ? "项建议" : "suggestions"}
+                    {" · "}
+                    {isZh ? "预估" : "Est."} <span className="font-bold text-primary">¥{(ds.total_estimated_cost || 0).toLocaleString()}</span>
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handleApproveDailySuggestion(ds)}
+                    className="px-3 py-1.5 bg-success text-success-foreground rounded-lg text-xs font-medium hover:bg-success/90 flex items-center gap-1"
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    {isZh ? "审批下单" : "Review & Order"}
+                  </button>
+                  <button
+                    onClick={() => handleRejectDailySuggestion(ds)}
+                    className="px-3 py-1.5 bg-muted text-muted-foreground rounded-lg text-xs font-medium hover:bg-destructive/10 hover:text-destructive flex items-center gap-1"
+                  >
+                    <XCircle className="w-3 h-3" />
+                    {isZh ? "忽略" : "Dismiss"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       {/* Empty state */}
-      {!result && !loading && (
+      {!result && !loading && dailySuggestions.length === 0 && (
         <div className="glass-card rounded-xl p-12 text-center">
           <Brain className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">{isZh ? "点击上方按钮，AI将分析库存、销售、活动等数据生成采购建议" : "Click above to let AI analyze your data and generate procurement suggestions"}</p>
+          <p className="text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
+            <CalendarClock className="w-3 h-3" />
+            {isZh ? "每日早上8:00（北京时间）系统将自动运行AI分析" : "Daily auto-analysis runs at 8:00 AM (Beijing time)"}
+          </p>
         </div>
       )}
     </motion.div>
