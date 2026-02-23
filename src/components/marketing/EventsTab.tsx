@@ -66,8 +66,8 @@ const events: Event[] = [
     type: "party", typeZh: "派对", date: "2026-03-01", time: "18:00-22:00",
     status: "planning", expectedGuests: 35, registeredGuests: 35,
     budget: 5000, revenue: 12000,
-    descZh: "含KTV包厢、定制蛋糕、Tapas拼盘及畅饮套餐", descEn: "KTV room, custom cake, tapas platter & open bar",
-    icon: Cake, resources: ["KTV包厢", "定制蛋糕", "气球装饰", "Tapas拼盘 x3"],
+    descZh: "含KTV区域、定制蛋糕、Tapas拼盘及畅饮套餐", descEn: "KTV area, custom cake, tapas platter & open bar",
+    icon: Cake, resources: ["KTV区域", "定制蛋糕", "气球装饰", "Tapas拼盘 x3"],
     promotions: [
       { platform: "WeChat", platformZh: "微信公众号", status: "published", reach: 2100, signups: 8 },
       { platform: "Xiaohongshu", platformZh: "小红书", status: "draft", reach: 0, signups: 0 },
