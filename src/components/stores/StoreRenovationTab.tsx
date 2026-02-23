@@ -49,11 +49,14 @@ const StoreRenovationTab = () => {
 
   // Asset dialog state
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<string | null>(null);
   const [newAsset, setNewAsset] = useState({
     name_zh: "", name_en: "", category: "equipment",
     store_id: "1", store_name_zh: "总店", store_name_en: "Main Store",
     purchase_date: new Date().toISOString().split("T")[0],
     original_value: 0, salvage_value: 0, useful_life_years: 5,
+    status: "in_use", notes: "", serial_number: "", supplier: "",
+    location: "", warranty_expiry: "",
   });
 
   // Renovation dialog state
@@ -111,6 +114,21 @@ const StoreRenovationTab = () => {
     onError: () => toast({ title: isZh ? "登记失败" : "Failed", variant: "destructive" }),
   });
 
+  const updateAsset = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
+      const { error } = await supabase.from("fixed_assets").update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fixed-assets"] });
+      setAssetDialogOpen(false);
+      setEditingAsset(null);
+      resetAssetForm();
+      toast({ title: isZh ? "资产已更新" : "Asset updated" });
+    },
+    onError: () => toast({ title: isZh ? "更新失败" : "Update failed", variant: "destructive" }),
+  });
+
   const deleteAsset = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("fixed_assets").delete().eq("id", id);
@@ -166,7 +184,45 @@ const StoreRenovationTab = () => {
     },
   });
 
-  const resetAssetForm = () => setNewAsset({ name_zh: "", name_en: "", category: "equipment", store_id: "1", store_name_zh: "总店", store_name_en: "Main Store", purchase_date: new Date().toISOString().split("T")[0], original_value: 0, salvage_value: 0, useful_life_years: 5 });
+  const resetAssetForm = () => setNewAsset({ name_zh: "", name_en: "", category: "equipment", store_id: "1", store_name_zh: "总店", store_name_en: "Main Store", purchase_date: new Date().toISOString().split("T")[0], original_value: 0, salvage_value: 0, useful_life_years: 5, status: "in_use", notes: "", serial_number: "", supplier: "", location: "", warranty_expiry: "" });
+
+  const openEditAsset = (a: typeof assets[0]) => {
+    setEditingAsset(a.id);
+    setNewAsset({
+      name_zh: a.name_zh, name_en: a.name_en,
+      category: a.category, store_id: a.store_id,
+      store_name_zh: a.store_name_zh, store_name_en: a.store_name_en,
+      purchase_date: a.purchase_date,
+      original_value: Number(a.original_value), salvage_value: Number(a.salvage_value),
+      useful_life_years: a.useful_life_years,
+      status: a.status, notes: a.notes || "",
+      serial_number: a.serial_number || "", supplier: a.supplier || "",
+      location: a.location || "", warranty_expiry: a.warranty_expiry || "",
+    });
+    setAssetDialogOpen(true);
+  };
+
+  const handleAssetSubmit = () => {
+    if (editingAsset) {
+      const depreciable = newAsset.original_value - newAsset.salvage_value;
+      const monthlyDep = newAsset.useful_life_years > 0 ? depreciable / (newAsset.useful_life_years * 12) : 0;
+      const months = Math.max(0, Math.floor((Date.now() - new Date(newAsset.purchase_date).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+      const accDep = Math.min(depreciable, monthlyDep * months);
+      const disposed_at = newAsset.status === "disposed" ? new Date().toISOString() : null;
+      updateAsset.mutate({
+        id: editingAsset,
+        updates: {
+          ...newAsset,
+          warranty_expiry: newAsset.warranty_expiry || null,
+          accumulated_depreciation: Math.round(accDep * 100) / 100,
+          net_value: Math.round((newAsset.original_value - accDep) * 100) / 100,
+          disposed_at,
+        },
+      });
+    } else {
+      createAsset.mutate(newAsset);
+    }
+  };
 
   const resetProjectForm = () => setNewProject({ store_id: "1", store_name_zh: "总店", store_name_en: "Main Store", phase_zh: "内部装修", phase_en: "Interior Renovation", status: "pending", progress: 0, start_date: new Date().toISOString().split("T")[0], end_date: "", budget: 0, spent: 0, manager_zh: "", manager_en: "", notes: "", contractor: "" });
 
@@ -420,17 +476,17 @@ const StoreRenovationTab = () => {
         <TabsContent value="assets" className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{isZh ? "门店固定资产台账与折旧管理" : "Fixed asset ledger and depreciation tracking"}</p>
-            <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
+            <Dialog open={assetDialogOpen} onOpenChange={(open) => { setAssetDialogOpen(open); if (!open) { setEditingAsset(null); resetAssetForm(); } }}>
               <DialogTrigger asChild>
                 <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1">
                   <Plus className="w-3 h-3" />{isZh ? "登记资产" : "Register Asset"}
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>{isZh ? "登记固定资产" : "Register Fixed Asset"}</DialogTitle>
+                  <DialogTitle>{editingAsset ? (isZh ? "编辑固定资产" : "Edit Asset") : (isZh ? "登记固定资产" : "Register Fixed Asset")}</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">{isZh ? "中文名称" : "Chinese Name"}</Label>
@@ -459,6 +515,24 @@ const StoreRenovationTab = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
+                      <Label className="text-xs">{isZh ? "状态" : "Status"}</Label>
+                      <Select value={newAsset.status} onValueChange={(v) => setNewAsset({ ...newAsset, status: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="in_use">{isZh ? "使用中" : "In Use"}</SelectItem>
+                          <SelectItem value="maintenance">{isZh ? "维修中" : "Maintenance"}</SelectItem>
+                          <SelectItem value="idle">{isZh ? "闲置" : "Idle"}</SelectItem>
+                          <SelectItem value="disposed">{isZh ? "已报废" : "Disposed"}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isZh ? "存放位置" : "Location"}</Label>
+                      <Input value={newAsset.location} onChange={(e) => setNewAsset({ ...newAsset, location: e.target.value })} placeholder={isZh ? "如：后厨" : "e.g. Kitchen"} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
                       <Label className="text-xs">{isZh ? "购入日期" : "Purchase Date"}</Label>
                       <Input type="date" value={newAsset.purchase_date} onChange={(e) => setNewAsset({ ...newAsset, purchase_date: e.target.value })} />
                     </div>
@@ -477,8 +551,30 @@ const StoreRenovationTab = () => {
                       <Input type="number" value={newAsset.salvage_value} onChange={(e) => setNewAsset({ ...newAsset, salvage_value: parseFloat(e.target.value) || 0 })} />
                     </div>
                   </div>
-                  <button onClick={() => createAsset.mutate(newAsset)} disabled={!newAsset.name_zh || createAsset.isPending} className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
-                    {createAsset.isPending ? (isZh ? "提交中..." : "Submitting...") : (isZh ? "确认登记" : "Confirm")}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">{isZh ? "序列号" : "Serial Number"}</Label>
+                      <Input value={newAsset.serial_number} onChange={(e) => setNewAsset({ ...newAsset, serial_number: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{isZh ? "供应商" : "Supplier"}</Label>
+                      <Input value={newAsset.supplier} onChange={(e) => setNewAsset({ ...newAsset, supplier: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">{isZh ? "质保到期" : "Warranty Expiry"}</Label>
+                    <Input type="date" value={newAsset.warranty_expiry} onChange={(e) => setNewAsset({ ...newAsset, warranty_expiry: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">{isZh ? "备注" : "Notes"}</Label>
+                    <Textarea value={newAsset.notes} onChange={(e) => setNewAsset({ ...newAsset, notes: e.target.value })} rows={2} />
+                  </div>
+                  <button
+                    onClick={handleAssetSubmit}
+                    disabled={!newAsset.name_zh || createAsset.isPending || updateAsset.isPending}
+                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {(createAsset.isPending || updateAsset.isPending) ? (isZh ? "提交中..." : "Submitting...") : editingAsset ? (isZh ? "保存修改" : "Save Changes") : (isZh ? "确认登记" : "Confirm")}
                   </button>
                 </div>
               </DialogContent>
@@ -497,7 +593,7 @@ const StoreRenovationTab = () => {
                   <TableHead className="text-right">{isZh ? "累计折旧(¥)" : "Depreciation(¥)"}</TableHead>
                   <TableHead className="text-right">{isZh ? "净值(¥)" : "Net Value(¥)"}</TableHead>
                   <TableHead>{isZh ? "状态" : "Status"}</TableHead>
-                  <TableHead className="w-10"></TableHead>
+                  <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -517,9 +613,14 @@ const StoreRenovationTab = () => {
                       <TableCell className="text-right text-sm font-medium">¥{Number(asset.net_value).toLocaleString()}</TableCell>
                       <TableCell>{statusBadge(asset.status)}</TableCell>
                       <TableCell>
-                        <button onClick={() => deleteAsset.mutate(asset.id)} className="p-1 rounded hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEditAsset(asset)} className="p-1 rounded hover:bg-muted transition-colors">
+                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                          <button onClick={() => deleteAsset.mutate(asset.id)} className="p-1 rounded hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                          </button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
