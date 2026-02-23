@@ -19,20 +19,24 @@ import ProcurementContractTab from "@/components/procurement/ProcurementContract
 const Procurement = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
-  const { currentStore, isHQ } = useStore();
+  const { currentStore, isHQ, storeId } = useStore();
   const [orders, setOrders] = useState<Tables<"procurement_orders">[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("procurement_orders")
       .select("*")
       .order("created_at", { ascending: false });
+    if (!isHQ) {
+      query = query.eq("store_id", storeId);
+    }
+    const { data, error } = await query;
     if (!error && data) setOrders(data);
     setLoading(false);
-  }, []);
+  }, [isHQ, storeId]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
