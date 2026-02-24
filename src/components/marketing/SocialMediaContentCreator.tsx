@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -441,7 +441,10 @@ const SocialMediaContentCreator = () => {
         <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">{isZh ? "AI 驱动" : "AI Powered"}</Badge>
       </div>
 
-      <Tabs defaultValue="poster" className="space-y-4">
+      <Tabs defaultValue="poster" className="space-y-4" onValueChange={(tab) => {
+        if (tab === "topics" && !aiTopicResult && !isLoadingTopics) fetchAITopics();
+        if (tab === "schedule" && !aiScheduleResult && !isLoadingSchedule) fetchAISchedule();
+      }}>
         <TabsList className="bg-muted/50">
           <TabsTrigger value="poster" className="gap-1.5"><Image className="w-3.5 h-3.5" />{isZh ? "海报设计" : "Poster Design"}</TabsTrigger>
           <TabsTrigger value="video" className="gap-1.5"><Video className="w-3.5 h-3.5" />{isZh ? "视频剪辑" : "Video Edit"}</TabsTrigger>
