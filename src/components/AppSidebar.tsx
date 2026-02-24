@@ -15,7 +15,6 @@ import {
   CookingPot,
   Bike,
   Megaphone,
-  PieChart,
   BookOpen,
 } from "lucide-react";
 import StoreSelector from "./StoreSelector";
@@ -52,7 +51,6 @@ const AppSidebar = () => {
         { to: "/hr", icon: Users, label: t("nav.hr") },
         { to: "/finance", icon: DollarSign, label: t("nav.finance") },
         { to: "/legal", icon: Scale, label: t("nav.legal") },
-        { to: "/customers", icon: PieChart, label: t("nav.customers") },
         { to: "/menu", icon: BookOpen, label: t("nav.menu") },
       ],
     },
