@@ -66,6 +66,10 @@ interface EditTask {
   outputUrl?: string;
   sourceUrl?: string;
   instructions: string;
+  coverImage?: string;
+  coverStatus?: "generating" | "done" | "error";
+  aiTitle?: string;
+  aiTags?: string[];
 }
 
 // Module-level cache to persist AI results across page navigations
@@ -475,6 +479,51 @@ const SocialMediaContentCreator = () => {
     });
   };
 
+  const generateVideoCover = async (taskId: string) => {
+    try {
+      const style = videoStyles.find(s => s.id === selectedVideoStyle);
+      const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
+      const { data, error } = await supabase.functions.invoke("ai-poster-image", {
+        body: {
+          template_name: template?.name || "Short Video",
+          headline: isZh
+            ? `${style?.name || "精彩"} · 营销短视频封面`
+            : `${style?.name || "Featured"} · Marketing Video Cover`,
+          subtitle: isZh ? "自动生成的视频封面" : "AI-generated video cover",
+          body_copy: "",
+          style: selectedVideoStyle || "energetic",
+          color_palette: selectedVideoStyle === "cyberpunk" ? ["#00f0ff", "#ff00ff", "#0a0a2e", "#1a1a4e"]
+            : selectedVideoStyle === "south_american" ? ["#ff6b35", "#f7c948", "#25a18e", "#ff1654"]
+            : selectedVideoStyle === "chill_groove" ? ["#f4a261", "#e9c46a", "#2a9d8f", "#264653"]
+            : ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
+          extra_instructions: isZh
+            ? `这是视频封面图，风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}，需要有视觉冲击力和营销吸引力`
+            : `This is a video cover image, style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}, needs visual impact and marketing appeal`,
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Also generate title and tags from AI suggestions
+      const aiTitle = aiSuggestions?.recommended_titles?.[0] || (isZh ? "AI 精选短视频" : "AI Curated Short");
+      const aiTags = aiSuggestions?.recommended_tags?.slice(0, 5) || [];
+
+      setEditTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, coverImage: data.image_url, coverStatus: "done" as const, aiTitle, aiTags }
+          : t
+      ));
+      toast.success(isZh ? "🎨 视频封面已自动生成！" : "🎨 Video cover auto-generated!");
+    } catch (e: any) {
+      console.error("Cover generation error:", e);
+      setEditTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, coverStatus: "error" as const } : t
+      ));
+      toast.error(isZh ? "封面生成失败" : "Cover generation failed");
+    }
+  };
+
   const startAIEdit = () => {
     if (uploadedVideos.length < 2) {
       toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
@@ -520,7 +569,9 @@ const SocialMediaContentCreator = () => {
           const newProgress = Math.min(t.progress + Math.random() * 10, 100);
           if (newProgress >= 100) {
             clearInterval(interval);
-            return { ...t, status: "done", progress: 100 };
+            // Auto-generate cover when done
+            generateVideoCover(mergedTask.id);
+            return { ...t, status: "done", progress: 100, coverStatus: "generating" };
           }
           return { ...t, progress: Math.round(newProgress) };
         }));
@@ -557,7 +608,11 @@ const SocialMediaContentCreator = () => {
     { id: "short", name: isZh ? "15秒短视频" : "15s Short", platform: "TikTok / 抖音", ratio: "9:16" },
     { id: "reel", name: isZh ? "60秒Reel" : "60s Reel", platform: "Instagram / 小红书", ratio: "9:16" },
     { id: "vlog", name: isZh ? "3分钟Vlog" : "3min Vlog", platform: "YouTube / B站", ratio: "16:9" },
+    { id: "story", name: isZh ? "故事集锦" : "Story Highlights", platform: "Instagram / WeChat", ratio: "9:16" },
+    { id: "product", name: isZh ? "产品展示" : "Product Showcase", platform: isZh ? "小红书 / 淘宝" : "Xiaohongshu / Taobao", ratio: "1:1" },
     { id: "live", name: isZh ? "直播预告片" : "Live Preview", platform: isZh ? "全平台" : "All Platforms", ratio: "1:1" },
+    { id: "cineshort", name: isZh ? "电影感短片" : "Cine Short", platform: "YouTube / B站", ratio: "2.39:1" },
+    { id: "carousel", name: isZh ? "轮播视频" : "Carousel Video", platform: isZh ? "小红书 / Instagram" : "Xiaohongshu / IG", ratio: "4:5" },
   ];
 
   const videoStyles = [
@@ -567,6 +622,9 @@ const SocialMediaContentCreator = () => {
     { id: "trendy", name: isZh ? "🎵 潮流网感" : "🎵 Trendy", desc: isZh ? "热门BGM、卡点剪辑、社交平台爆款风格" : "Trending BGM, beat-synced cuts, viral style", color: "bg-purple-500/10 text-purple-500" },
     { id: "minimal", name: isZh ? "🍃 简约清新" : "🍃 Minimal", desc: isZh ? "留白构图、自然色调、轻音乐" : "Clean composition, natural tones, light music", color: "bg-green-500/10 text-green-500" },
     { id: "cinematic", name: isZh ? "🎬 电影质感" : "🎬 Cinematic", desc: isZh ? "宽幅画面、调色渲染、史诗感配乐" : "Widescreen, color grading, epic soundtrack", color: "bg-cyan-500/10 text-cyan-500" },
+    { id: "cyberpunk", name: isZh ? "🌆 赛博朋克" : "🌆 Cyberpunk", desc: isZh ? "霓虹色调、故障转场、电子合成器BGM、未来感HUD叠加" : "Neon palette, glitch transitions, synth BGM, futuristic HUD overlays", color: "bg-fuchsia-500/10 text-fuchsia-500" },
+    { id: "south_american", name: isZh ? "🌴 南美肆意" : "🌴 South American", desc: isZh ? "热带色彩、狂欢节节奏、拉丁BGM、自由奔放镜头运动" : "Tropical palette, carnival rhythm, Latin BGM, wild camera movement", color: "bg-orange-500/10 text-orange-500" },
+    { id: "chill_groove", name: isZh ? "🎧 放松动感" : "🎧 Chill Groove", desc: isZh ? "Lofi节奏、柔和滤镜、慵懒运镜、City Pop氛围" : "Lofi beats, soft filters, lazy camera, City Pop vibes", color: "bg-teal-500/10 text-teal-500" },
   ];
 
   const aiTopics = [
@@ -1049,6 +1107,44 @@ const SocialMediaContentCreator = () => {
                           {task.instructions && (
                             <p className="text-[11px] text-muted-foreground mt-2 truncate">{isZh ? "要求：" : "Instructions: "}{task.instructions}</p>
                           )}
+                          {/* AI Cover */}
+                          {task.status === "done" && (
+                            <div className="mt-3 p-3 rounded-lg border border-border bg-muted/20">
+                              <p className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                <ImagePlus className="w-3 h-3" />{isZh ? "AI 自动封面" : "AI Auto Cover"}
+                                {task.coverStatus === "generating" && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
+                                {task.coverStatus === "done" && <Check className="w-3 h-3 text-green-500 ml-1" />}
+                              </p>
+                              {task.coverImage ? (
+                                <div className="flex items-start gap-3">
+                                  <img src={task.coverImage} alt="cover" className="w-24 h-16 rounded-md object-cover border border-border" />
+                                  <div className="flex-1 min-w-0">
+                                    {task.aiTitle && <p className="text-sm font-medium text-foreground truncate">{task.aiTitle}</p>}
+                                    {task.aiTags && task.aiTags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {task.aiTags.map((tag, i) => (
+                                          <Badge key={i} variant="outline" className="text-[9px]">{tag}</Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : task.coverStatus === "generating" ? (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span className="text-xs">{isZh ? "AI 正在生成封面、标题、标签..." : "AI generating cover, title, tags..."}</span>
+                                </div>
+                              ) : task.coverStatus === "error" ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-destructive">{isZh ? "封面生成失败" : "Cover failed"}</span>
+                                  <Button size="sm" variant="outline" className="text-[10px] h-6" onClick={() => {
+                                    setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, coverStatus: "generating" as const } : t));
+                                    generateVideoCover(task.id);
+                                  }}>{isZh ? "重试" : "Retry"}</Button>
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
                           {task.status === "done" && (
                             <div className="flex items-center gap-2 mt-3">
                               <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => openPreview(task)}>
@@ -1100,20 +1196,37 @@ const SocialMediaContentCreator = () => {
                     <div className="space-y-4">
                       {editTasks.filter(t => t.status === "done").map(task => (
                         <div key={task.id} className="p-4 rounded-lg border border-border">
-                          <div className="flex items-center gap-3 mb-4 cursor-pointer" onClick={() => openPreview(task)}>
-                            <div className="w-24 h-14 rounded-lg bg-muted flex items-center justify-center relative group overflow-hidden">
-                              {task.sourceUrl ? (
-                                <video src={task.sourceUrl} className="w-full h-full object-cover" muted />
-                              ) : (
-                                <FileVideo className="w-6 h-6 text-muted-foreground/50" />
-                              )}
-                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Play className="w-5 h-5 text-white" />
+                          {/* Cover + Video preview */}
+                          <div className="flex items-start gap-4 mb-4">
+                            {task.coverImage ? (
+                              <div className="w-28 h-28 rounded-lg overflow-hidden border border-border shrink-0">
+                                <img src={task.coverImage} alt="cover" className="w-full h-full object-cover" />
                               </div>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{task.videoName}</p>
-                              <p className="text-[11px] text-muted-foreground">{task.template} · {task.platform}</p>
+                            ) : (
+                              <div className="w-28 h-16 rounded-lg bg-muted flex items-center justify-center relative group overflow-hidden shrink-0 cursor-pointer" onClick={() => openPreview(task)}>
+                                {task.sourceUrl ? (
+                                  <video src={task.sourceUrl} className="w-full h-full object-cover" muted />
+                                ) : (
+                                  <FileVideo className="w-6 h-6 text-muted-foreground/50" />
+                                )}
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Play className="w-5 h-5 text-white" />
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-foreground">{task.aiTitle || task.videoName}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">{task.template} · {task.platform}</p>
+                              {task.aiTags && task.aiTags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {task.aiTags.map((tag, i) => (
+                                    <Badge key={i} variant="secondary" className="text-[9px]">{tag}</Badge>
+                                  ))}
+                                </div>
+                              )}
+                              <Button size="sm" variant="ghost" className="gap-1 text-xs h-6 mt-1 p-0 text-primary" onClick={() => openPreview(task)}>
+                                <Play className="w-3 h-3" />{isZh ? "预览视频" : "Preview Video"}
+                              </Button>
                             </div>
                           </div>
 
