@@ -2,7 +2,7 @@ import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake } from "lucide-react";
+import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import SocialMediaTab from "@/components/marketing/SocialMediaTab";
 import EcommerceTab from "@/components/marketing/EcommerceTab";
@@ -12,6 +12,7 @@ import DianpingReviewsTab from "@/components/marketing/DianpingReviewsTab";
 import EventsTab from "@/components/marketing/EventsTab";
 import CustomerAnalysisTab from "@/components/marketing/CustomerAnalysisTab";
 import PartnersTab from "@/components/marketing/PartnersTab";
+import ClubsTab from "@/components/marketing/ClubsTab";
 
 const Marketing = () => {
   const { t, i18n } = useTranslation();
@@ -37,6 +38,7 @@ const Marketing = () => {
             <TabsTrigger value="events" className="gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{isZh ? "活动策划" : "Events"}</TabsTrigger>
             <TabsTrigger value="customers" className="gap-1.5"><PieChart className="w-3.5 h-3.5" />{isZh ? "客群分析" : "Customers"}</TabsTrigger>
             <TabsTrigger value="partners" className="gap-1.5"><Handshake className="w-3.5 h-3.5" />{isZh ? "合作伙伴" : "Partners"}</TabsTrigger>
+            <TabsTrigger value="clubs" className="gap-1.5"><UsersRound className="w-3.5 h-3.5" />{isZh ? "社团管理" : "Clubs"}</TabsTrigger>
             <TabsTrigger value="analytics" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" />{t("marketingMgmt.trafficAnalytics")}</TabsTrigger>
           </TabsList>
 
@@ -47,6 +49,7 @@ const Marketing = () => {
           <TabsContent value="events"><EventsTab /></TabsContent>
           <TabsContent value="customers"><CustomerAnalysisTab /></TabsContent>
           <TabsContent value="partners"><PartnersTab /></TabsContent>
+          <TabsContent value="clubs"><ClubsTab /></TabsContent>
           <TabsContent value="analytics"><TrafficAnalyticsTab /></TabsContent>
         </Tabs>
       </div>
