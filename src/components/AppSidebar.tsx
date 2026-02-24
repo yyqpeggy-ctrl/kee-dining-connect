@@ -17,6 +17,8 @@ import {
   Megaphone,
   BookOpen,
   Database,
+  GitBranch,
+  Shield,
 } from "lucide-react";
 import StoreSelector from "./StoreSelector";
 import { useStore } from "@/contexts/StoreContext";
@@ -59,6 +61,8 @@ const AppSidebar = () => {
       title: t("nav.general"),
       items: [
         { to: "/data-center", icon: Database, label: t("nav.dataCenter") },
+        { to: "/workflow", icon: GitBranch, label: t("nav.workflow") },
+        { to: "/permissions", icon: Shield, label: t("nav.permissions") },
       ],
     },
   ];

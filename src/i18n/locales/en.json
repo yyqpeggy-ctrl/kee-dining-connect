@@ -23,6 +23,8 @@
     "menu": "Menu",
     "dataCenter": "Data Center",
     "general": "General",
+    "workflow": "Workflow",
+    "permissions": "Permissions",
     "admin": "Admin",
     "currentStore": "Current"
   },
