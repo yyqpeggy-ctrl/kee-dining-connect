@@ -27,6 +27,8 @@ export interface SubtitleStyle {
   position: "bottom" | "top" | "center"; // vertical position
 }
 
+export type TransitionType = "fade" | "wipe-left" | "wipe-right" | "wipe-up" | "wipe-down" | "slide-left" | "slide-right" | "dissolve" | "zoom" | "none";
+
 /**
  * Get video duration from a blob URL
  */
@@ -155,6 +157,123 @@ function drawSubtitles(
   ctx.fillText(subtitle.en, w / 2, boxY + padding + zhFontSize + padding * 0.5);
 }
 
+/**
+ * Apply transition effect to the canvas based on transition type and progress (0→1).
+ * progress=0 means fully showing previous (black), progress=1 means fully showing current.
+ */
+function applyTransitionIn(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  progress: number, // 0→1 (0=start of transition, 1=fully revealed)
+  transition: TransitionType,
+) {
+  const inv = 1 - progress; // inverse progress
+  switch (transition) {
+    case "none":
+      break;
+    case "fade":
+      ctx.fillStyle = `rgba(0, 0, 0, ${inv})`;
+      ctx.fillRect(0, 0, w, h);
+      break;
+    case "wipe-left": {
+      // Wipe from right to left: black covers right portion
+      const cutX = Math.round(w * progress);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(cutX, 0, w - cutX, h);
+      break;
+    }
+    case "wipe-right": {
+      const cutX = Math.round(w * inv);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, cutX, h);
+      break;
+    }
+    case "wipe-up": {
+      const cutY = Math.round(h * progress);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, cutY, w, h - cutY);
+      break;
+    }
+    case "wipe-down": {
+      const cutY = Math.round(h * inv);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, w, cutY);
+      break;
+    }
+    case "slide-left": {
+      // Slide: shift entire image from right, fill gap with black
+      const imgData = ctx.getImageData(0, 0, w, h);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, w, h);
+      const offsetX = Math.round(w * inv);
+      ctx.putImageData(imgData, -offsetX, 0, offsetX, 0, w, h);
+      break;
+    }
+    case "slide-right": {
+      const imgData = ctx.getImageData(0, 0, w, h);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, w, h);
+      const offsetX = Math.round(w * inv);
+      ctx.putImageData(imgData, offsetX, 0, 0, 0, w - offsetX, h);
+      break;
+    }
+    case "dissolve": {
+      // Dissolve: pixelated noise mask
+      ctx.fillStyle = `rgba(0, 0, 0, ${inv * inv})`; // quadratic ease
+      ctx.fillRect(0, 0, w, h);
+      // Add noise grain for dissolve feel
+      if (inv > 0.05) {
+        const blockSize = 16;
+        for (let y = 0; y < h; y += blockSize) {
+          for (let x = 0; x < w; x += blockSize) {
+            if (Math.random() > progress) {
+              ctx.fillStyle = "rgba(0,0,0,0.8)";
+              ctx.fillRect(x, y, blockSize, blockSize);
+            }
+          }
+        }
+      }
+      break;
+    }
+    case "zoom": {
+      // Zoom in from center
+      if (inv > 0.01) {
+        const scale = progress; // 0→1
+        const imgData = ctx.getImageData(0, 0, w, h);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, w, h);
+        // Draw scaled
+        const sw = Math.round(w * scale);
+        const sh = Math.round(h * scale);
+        if (sw > 0 && sh > 0) {
+          const offCanvas = document.createElement("canvas");
+          offCanvas.width = w;
+          offCanvas.height = h;
+          const offCtx = offCanvas.getContext("2d")!;
+          offCtx.putImageData(imgData, 0, 0);
+          ctx.drawImage(offCanvas, (w - sw) / 2, (h - sh) / 2, sw, sh);
+        }
+      }
+      break;
+    }
+  }
+}
+
+/**
+ * Apply transition-out effect (end of segment).
+ */
+function applyTransitionOut(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  progress: number, // 0→1 (0=start of fade out, 1=fully black)
+  transition: TransitionType,
+) {
+  // Mirror the in-transition: reuse with inverted progress
+  applyTransitionIn(ctx, w, h, 1 - progress, transition);
+}
+
 function playSegmentOnCanvas(
   video: HTMLVideoElement,
   endTime: number,
@@ -162,6 +281,7 @@ function playSegmentOnCanvas(
   ctx: CanvasRenderingContext2D,
   getSubtitle?: () => VideoSubtitle | undefined,
   subtitleStyle?: SubtitleStyle,
+  transition: TransitionType = "fade",
 ): Promise<void> {
   return new Promise((resolve) => {
     // Resize canvas to match video
@@ -170,7 +290,7 @@ function playSegmentOnCanvas(
 
     const segStart = video.currentTime;
     const segDuration = endTime - segStart;
-    const fadeDuration = Math.min(0.4, segDuration * 0.15); // 0.4s or 15% of clip
+    const transDuration = transition === "none" ? 0 : Math.min(0.5, segDuration * 0.15);
 
     let animFrameId: number | null = null;
 
@@ -184,18 +304,18 @@ function playSegmentOnCanvas(
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Apply fade-in / fade-out for smooth transitions
+      // Apply transition effects
       const elapsed = video.currentTime - segStart;
       const remaining = endTime - video.currentTime;
-      let fadeAlpha = 0;
-      if (elapsed < fadeDuration) {
-        fadeAlpha = 1 - (elapsed / fadeDuration); // fade in from black
-      } else if (remaining < fadeDuration) {
-        fadeAlpha = 1 - (remaining / fadeDuration); // fade out to black
-      }
-      if (fadeAlpha > 0.01) {
-        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (transDuration > 0) {
+        if (elapsed < transDuration) {
+          const progress = elapsed / transDuration;
+          applyTransitionIn(ctx, canvas.width, canvas.height, progress, transition);
+        } else if (remaining < transDuration) {
+          const progress = 1 - (remaining / transDuration);
+          applyTransitionOut(ctx, canvas.width, canvas.height, progress, transition);
+        }
       }
 
       // Overlay subtitles
@@ -233,6 +353,7 @@ export async function trimAndMerge(
   onProgress?: (pct: number) => void,
   subtitles?: VideoSubtitle[],
   subtitleStyle?: SubtitleStyle,
+  transition: TransitionType = "fade",
 ): Promise<string> {
   const canvas = document.createElement("canvas");
   canvas.width = 1280;
@@ -326,7 +447,7 @@ export async function trimAndMerge(
         : undefined;
 
       // Play segment on canvas (real-time)
-      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx, getSubtitle, subtitleStyle);
+      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx, getSubtitle, subtitleStyle, transition);
 
       // Cleanup video
       if (audioSource) {
