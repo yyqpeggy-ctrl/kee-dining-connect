@@ -832,6 +832,35 @@ const SocialMediaContentCreator = () => {
     toast.success(isZh ? "已撤销封面编辑" : "Cover edit undone");
   };
 
+  const downloadCoverImage = async (taskId: string) => {
+    const task = editTasks.find(t => t.id === taskId);
+    if (!task?.coverImage) return;
+    try {
+      const res = await fetch(task.coverImage);
+      const blob = await res.blob();
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error("load failed")); img.src = URL.createObjectURL(blob); });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext("2d")!.drawImage(img, 0, 0);
+      URL.revokeObjectURL(img.src);
+      canvas.toBlob((pngBlob) => {
+        if (!pngBlob) return;
+        const url = URL.createObjectURL(pngBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `cover-${task.aiTitle || taskId}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(isZh ? "封面已下载" : "Cover downloaded");
+      }, "image/png", 1.0);
+    } catch (e: any) {
+      toast.error(isZh ? `下载失败: ${e.message}` : `Download failed: ${e.message}`);
+    }
+  };
+
 
   const generateAISubtitles = async () => {
     if (!selectedVideoStyle || !selectedVideoTemplate) {
@@ -2169,7 +2198,16 @@ const SocialMediaContentCreator = () => {
                                   </div>
                                   {/* Selected cover details - editable title & tags */}
                                   <div className="flex items-start gap-3">
-                                    <img src={task.coverImage} alt="selected cover" className="w-28 h-20 rounded-md object-cover border border-primary" />
+                                    <div className="relative shrink-0 group/cover">
+                                      <img src={task.coverImage} alt="selected cover" className="w-28 h-20 rounded-md object-cover border border-primary" />
+                                      <button
+                                        onClick={() => downloadCoverImage(task.id)}
+                                        className="absolute inset-0 bg-black/50 rounded-md opacity-0 group-hover/cover:opacity-100 transition-opacity flex items-center justify-center"
+                                        title={isZh ? "下载高清封面" : "Download HD cover"}
+                                      >
+                                        <Download className="w-5 h-5 text-white" />
+                                      </button>
+                                    </div>
                                     <div className="flex-1 min-w-0 space-y-1.5">
                                       <input
                                         type="text"
