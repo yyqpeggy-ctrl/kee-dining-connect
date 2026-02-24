@@ -10,7 +10,7 @@ import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle } from "@/lib/videoEditor";
+import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle, type SubtitleStyle } from "@/lib/videoEditor";
 
 // Default fallback subtitles when AI generation fails
 const defaultSubtitles: VideoSubtitle[] = [
@@ -22,6 +22,16 @@ const defaultSubtitles: VideoSubtitle[] = [
   { startPct: 70, endPct: 85, zh: "搭配主厨特制轻食小食", en: "Paired with chef's special bites" },
   { startPct: 85, endPct: 100, zh: "欢迎预约体验 · 期待您的光临", en: "Reserve now · We look forward to seeing you" },
 ];
+
+const defaultSubtitleStyle: SubtitleStyle = {
+  zhFontScale: 1.0,
+  enFontScale: 1.0,
+  zhColor: "#FFFFFF",
+  enColor: "#CCCCCC",
+  bgColor: "#000000",
+  bgOpacity: 0.65,
+  position: "bottom",
+};
 
 interface AISuggestion {
   tip: string;
@@ -228,6 +238,8 @@ const SocialMediaContentCreator = () => {
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [showWaveform, setShowWaveform] = useState(true);
   const [generatedSubtitles, setGeneratedSubtitles] = useState<VideoSubtitle[]>(defaultSubtitles);
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>({ ...defaultSubtitleStyle });
+  const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
 
   // Subtitle data for preview playback (synced to progress percentage)
   const subtitles = generatedSubtitles;
@@ -792,7 +804,7 @@ const SocialMediaContentCreator = () => {
         setEditTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, progress: pct } : t
         ));
-      }, burnSubtitles);
+      }, burnSubtitles, subtitleStyle);
       console.log("[VideoEditor] Output URL:", outputUrl);
 
       setEditTasks(prev => prev.map(t =>
@@ -2067,12 +2079,12 @@ const SocialMediaContentCreator = () => {
 
             {/* AI Subtitle Overlay - Bilingual */}
             {showSubtitles && currentSubtitle && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[85%]">
-                <div className="bg-black/70 backdrop-blur-sm rounded-lg px-5 py-2.5 border border-white/10 space-y-1">
-                  <p className="text-white text-sm font-medium text-center leading-relaxed tracking-wide">
+              <div className={`absolute ${subtitleStyle.position === 'top' ? 'top-6' : subtitleStyle.position === 'center' ? 'top-1/2 -translate-y-1/2' : 'bottom-6'} left-1/2 -translate-x-1/2 z-20 max-w-[85%]`}>
+                <div className="backdrop-blur-sm rounded-lg px-5 py-2.5 border border-white/10 space-y-1" style={{ backgroundColor: `${subtitleStyle.bgColor}${Math.round(subtitleStyle.bgOpacity * 255).toString(16).padStart(2, '0')}` }}>
+                  <p className="font-medium text-center leading-relaxed tracking-wide" style={{ color: subtitleStyle.zhColor, fontSize: `${0.875 * subtitleStyle.zhFontScale}rem` }}>
                     {currentSubtitle.zh}
                   </p>
-                  <p className="text-white/60 text-xs text-center leading-relaxed italic">
+                  <p className="text-center leading-relaxed italic" style={{ color: subtitleStyle.enColor, fontSize: `${0.75 * subtitleStyle.enFontScale}rem` }}>
                     {currentSubtitle.en}
                   </p>
                 </div>
@@ -2176,6 +2188,9 @@ const SocialMediaContentCreator = () => {
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSubtitles(!showSubtitles)} title={isZh ? "字幕" : "Subtitles"}>
                   <Subtitles className={`w-4 h-4 ${showSubtitles ? "text-primary" : ""}`} />
                 </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSubtitleSettings(!showSubtitleSettings)} title={isZh ? "字幕设置" : "Subtitle Settings"}>
+                  <Type className={`w-4 h-4 ${showSubtitleSettings ? "text-primary" : ""}`} />
+                </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowWaveform(!showWaveform)} title={isZh ? "音轨" : "Waveform"}>
                   <AudioLines className={`w-4 h-4 ${showWaveform ? "text-primary" : ""}`} />
                 </Button>
@@ -2189,6 +2204,64 @@ const SocialMediaContentCreator = () => {
                   <Download className="w-3 h-3" />{isZh ? "下载" : "Download"}
                 </Button>
               </div>
+
+              {/* Subtitle Style Settings Panel */}
+              {showSubtitleSettings && (
+                <div className="absolute bottom-full right-0 mb-2 w-72 bg-popover border border-border rounded-xl shadow-xl p-4 space-y-3 z-50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">{isZh ? "字幕样式" : "Subtitle Style"}</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => setSubtitleStyle({ ...defaultSubtitleStyle })}>
+                      <RotateCcw className="w-3 h-3 mr-1" />{isZh ? "重置" : "Reset"}
+                    </Button>
+                  </div>
+
+                  {/* Position */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">{isZh ? "位置" : "Position"}</label>
+                    <div className="flex gap-1">
+                      {(["top", "center", "bottom"] as const).map(pos => (
+                        <Button key={pos} variant={subtitleStyle.position === pos ? "default" : "outline"} size="sm" className="flex-1 h-7 text-[10px]" onClick={() => setSubtitleStyle(p => ({ ...p, position: pos }))}>
+                          {pos === "top" ? (isZh ? "顶部" : "Top") : pos === "center" ? (isZh ? "居中" : "Center") : (isZh ? "底部" : "Bottom")}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Chinese Font Size */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">{isZh ? "中文字号" : "CN Font Size"}: {Math.round(subtitleStyle.zhFontScale * 100)}%</label>
+                    <Slider value={[subtitleStyle.zhFontScale]} min={0.5} max={2.0} step={0.1} onValueChange={([v]) => setSubtitleStyle(p => ({ ...p, zhFontScale: v }))} />
+                  </div>
+
+                  {/* English Font Size */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">{isZh ? "英文字号" : "EN Font Size"}: {Math.round(subtitleStyle.enFontScale * 100)}%</label>
+                    <Slider value={[subtitleStyle.enFontScale]} min={0.5} max={2.0} step={0.1} onValueChange={([v]) => setSubtitleStyle(p => ({ ...p, enFontScale: v }))} />
+                  </div>
+
+                  {/* Colors */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">{isZh ? "中文颜色" : "CN Color"}</label>
+                      <input type="color" value={subtitleStyle.zhColor} onChange={e => setSubtitleStyle(p => ({ ...p, zhColor: e.target.value }))} className="w-full h-7 rounded border border-border cursor-pointer" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">{isZh ? "英文颜色" : "EN Color"}</label>
+                      <input type="color" value={subtitleStyle.enColor} onChange={e => setSubtitleStyle(p => ({ ...p, enColor: e.target.value }))} className="w-full h-7 rounded border border-border cursor-pointer" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-muted-foreground">{isZh ? "背景色" : "BG Color"}</label>
+                      <input type="color" value={subtitleStyle.bgColor} onChange={e => setSubtitleStyle(p => ({ ...p, bgColor: e.target.value }))} className="w-full h-7 rounded border border-border cursor-pointer" />
+                    </div>
+                  </div>
+
+                  {/* Background Opacity */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">{isZh ? "背景透明度" : "BG Opacity"}: {Math.round(subtitleStyle.bgOpacity * 100)}%</label>
+                    <Slider value={[subtitleStyle.bgOpacity]} min={0} max={1} step={0.05} onValueChange={([v]) => setSubtitleStyle(p => ({ ...p, bgOpacity: v }))} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
