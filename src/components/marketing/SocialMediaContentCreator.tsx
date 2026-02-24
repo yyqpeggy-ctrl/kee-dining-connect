@@ -460,18 +460,32 @@ const SocialMediaContentCreator = () => {
     }
   };
 
-  const downloadVideo = useCallback((url: string | undefined, filename?: string) => {
+  const downloadVideo = useCallback(async (url: string | undefined, filename?: string) => {
     if (!url) {
       toast.error(isZh ? "没有可下载的视频" : "No video available to download");
       return;
     }
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || `edited-video-${Date.now()}.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast.success(isZh ? "视频已开始下载" : "Video download started");
+    try {
+      // Fetch the blob to ensure we get the actual data (handles blob: URLs correctly)
+      const response = await fetch(url);
+      const blob = await response.blob();
+      if (blob.size < 1000) {
+        toast.error(isZh ? "视频文件为空，请重新剪辑" : "Video file is empty, please re-edit");
+        return;
+      }
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || `edited-video-${Date.now()}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      toast.success(isZh ? "视频已开始下载" : "Video download started");
+    } catch (e) {
+      console.error("Download error:", e);
+      toast.error(isZh ? "下载失败" : "Download failed");
+    }
   }, [isZh]);
 
   const undoEdit = () => {
