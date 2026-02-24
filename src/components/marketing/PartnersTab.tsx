@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/contexts/StoreContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Search, Star, Edit2, Trash2, Building2, Dumbbell, Users2, Store, Handshake } from "lucide-react";
+import { Plus, Search, Star, Edit2, Trash2, Building2, Dumbbell, Users2, Store, Handshake, Upload, FileText, Image, ExternalLink, X } from "lucide-react";
 
 const partnerTypes = [
   { value: "hotel", labelZh: "酒店", labelEn: "Hotel", icon: Building2 },
@@ -46,6 +46,9 @@ const PartnersTab = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [uploading, setUploading] = useState(false);
+  const [contractFile, setContractFile] = useState<{ url: string; type: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isHQ = currentStore.id === "hq";
 
@@ -60,9 +63,38 @@ const PartnersTab = () => {
     },
   });
 
+  const handleFileUpload = async (file: File) => {
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(isZh ? "仅支持PDF和图片格式" : "Only PDF and image formats supported");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(isZh ? "文件不能超过10MB" : "File must be under 10MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `partners/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("contracts").upload(path, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("contracts").getPublicUrl(path);
+      const fileType = file.type === "application/pdf" ? "pdf" : "image";
+      setContractFile({ url: publicUrl, type: fileType });
+      toast.success(isZh ? "上传成功" : "Uploaded successfully");
+    } catch (e) {
+      toast.error(isZh ? "上传失败" : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const upsert = useMutation({
     mutationFn: async (values: typeof form & { id?: string }) => {
-      const payload = {
+      const payload: any = {
         ...values,
         store_id: currentStore.id,
         store_name_zh: currentStore.name,
@@ -70,6 +102,10 @@ const PartnersTab = () => {
         cooperation_end: values.cooperation_end || null,
         commission_rate: Number(values.commission_rate) || 0,
       };
+      if (contractFile) {
+        payload.contract_url = contractFile.url;
+        payload.contract_file_type = contractFile.type;
+      }
       if (values.id) {
         const { error } = await supabase.from("partners").update(payload).eq("id", values.id);
         if (error) throw error;
@@ -84,6 +120,7 @@ const PartnersTab = () => {
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
+      setContractFile(null);
     },
     onError: () => toast.error(isZh ? "保存失败" : "Save failed"),
   });
@@ -106,8 +143,8 @@ const PartnersTab = () => {
   });
 
   const getTypeLabel = (type: string) => {
-    const t = partnerTypes.find((pt) => pt.value === type);
-    return t ? (isZh ? t.labelZh : t.labelEn) : type;
+    const found = partnerTypes.find((pt) => pt.value === type);
+    return found ? (isZh ? found.labelZh : found.labelEn) : type;
   };
 
   const getStatusBadge = (status: string) => {
@@ -125,6 +162,7 @@ const PartnersTab = () => {
       cooperation_content: p.cooperation_content || "", commission_rate: p.commission_rate || 0,
       status: p.status, rating: p.rating || 3, notes: p.notes || "",
     });
+    setContractFile(p.contract_url ? { url: p.contract_url, type: p.contract_file_type || "pdf" } : null);
     setDialogOpen(true);
   };
 
@@ -158,7 +196,7 @@ const PartnersTab = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={isZh ? "搜索合作伙伴..." : "Search partners..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm(emptyForm); } }}>
+        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditingId(null); setForm(emptyForm); setContractFile(null); } }}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="w-4 h-4 mr-1" />{isZh ? "新增伙伴" : "Add Partner"}</Button>
           </DialogTrigger>
@@ -202,8 +240,52 @@ const PartnersTab = () => {
               </div>
               <div><Label>{isZh ? "佣金比例 (%)" : "Commission Rate (%)"}</Label><Input type="number" value={form.commission_rate} onChange={(e) => setForm({ ...form, commission_rate: Number(e.target.value) })} /></div>
               <div><Label>{isZh ? "合作内容" : "Cooperation Details"}</Label><Textarea value={form.cooperation_content} onChange={(e) => setForm({ ...form, cooperation_content: e.target.value })} rows={2} /></div>
+
+              {/* Contract Upload */}
+              <div>
+                <Label>{isZh ? "合作协议/合同" : "Contract / Agreement"}</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+                {contractFile ? (
+                  <div className="mt-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50">
+                    {contractFile.type === "pdf" ? (
+                      <FileText className="w-5 h-5 text-destructive shrink-0" />
+                    ) : (
+                      <Image className="w-5 h-5 text-primary shrink-0" />
+                    )}
+                    <span className="text-sm truncate flex-1">{contractFile.type === "pdf" ? "PDF" : isZh ? "图片" : "Image"} {isZh ? "已上传" : "uploaded"}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => window.open(contractFile.url, "_blank")}>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setContractFile(null)}>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full mt-1"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? (isZh ? "上传中..." : "Uploading...") : (isZh ? "上传合同 (PDF/图片)" : "Upload Contract (PDF/Image)")}
+                  </Button>
+                )}
+              </div>
+
               <div><Label>{isZh ? "备注" : "Notes"}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
-              <Button className="w-full" disabled={!form.name} onClick={() => upsert.mutate(editingId ? { ...form, id: editingId } : form)}>
+              <Button className="w-full" disabled={!form.name || uploading} onClick={() => upsert.mutate(editingId ? { ...form, id: editingId } : form)}>
                 {isZh ? "保存" : "Save"}
               </Button>
             </div>
@@ -222,6 +304,7 @@ const PartnersTab = () => {
                 <TableHead>{isZh ? "联系人" : "Contact"}</TableHead>
                 <TableHead>{isZh ? "合作内容" : "Details"}</TableHead>
                 <TableHead>{isZh ? "佣金" : "Commission"}</TableHead>
+                <TableHead>{isZh ? "合同" : "Contract"}</TableHead>
                 <TableHead>{isZh ? "状态" : "Status"}</TableHead>
                 <TableHead>{isZh ? "评分" : "Rating"}</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
@@ -229,9 +312,9 @@ const PartnersTab = () => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{isZh ? "暂无合作伙伴" : "No partners yet"}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "暂无合作伙伴" : "No partners yet"}</TableCell></TableRow>
               ) : filtered.map((p: any) => (
                 <TableRow key={p.id}>
                   <TableCell>
@@ -244,6 +327,15 @@ const PartnersTab = () => {
                   </TableCell>
                   <TableCell><span className="text-sm line-clamp-1">{p.cooperation_content || "-"}</span></TableCell>
                   <TableCell>{p.commission_rate > 0 ? `${p.commission_rate}%` : "-"}</TableCell>
+                  <TableCell>
+                    {p.contract_url ? (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(p.contract_url, "_blank")}>
+                        {p.contract_file_type === "pdf" ? <FileText className="w-4 h-4 text-destructive" /> : <Image className="w-4 h-4 text-primary" />}
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getStatusBadge(p.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-0.5">
