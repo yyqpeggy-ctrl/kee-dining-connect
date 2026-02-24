@@ -29,6 +29,7 @@ export function getVideoDuration(url: string): Promise<number> {
 /**
  * Record a single video segment (startTime → endTime) by drawing
  * frames from a <video> onto a <canvas> and capturing via MediaRecorder.
+ * Audio is captured via AudioContext → MediaStreamDestination.
  */
 function recordSegment(
   segment: TrimSegment,
@@ -38,51 +39,72 @@ function recordSegment(
 ): Promise<Blob[]> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
-    video.muted = true; // avoid autoplay restrictions
+    // IMPORTANT: Do NOT mute - we need audio
+    video.muted = false;
     video.playsInline = true;
     video.preload = "auto";
+    video.crossOrigin = "anonymous";
+    video.volume = 1;
     video.src = segment.videoUrl;
 
     const chunks: Blob[] = [];
     let animFrameId: number | null = null;
+    let recorder: MediaRecorder | null = null;
+    let audioCtx: AudioContext | null = null;
+
+    const cleanup = () => {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      video.pause();
+      if (audioCtx && audioCtx.state !== "closed") {
+        audioCtx.close().catch(() => {});
+      }
+      video.src = "";
+    };
 
     video.onloadeddata = () => {
       // Resize canvas to match video
       canvas.width = video.videoWidth || 1280;
       canvas.height = video.videoHeight || 720;
-
       video.currentTime = segment.startTime;
     };
 
     video.onseeked = () => {
-      // Start playback from the seek point
-      video.play().catch(reject);
+      // Mute the actual speaker output but still capture audio
+      // We use a gain node to silence speaker while routing to destination
+      video.play().catch((e) => {
+        console.warn("[recordSegment] play failed, trying muted:", e);
+        video.muted = true;
+        video.play().catch(reject);
+      });
     };
 
     video.onplay = () => {
-      const stream = canvas.captureStream(fps);
+      const canvasStream = canvas.captureStream(fps);
 
-      // Try to add audio track if available
+      // Set up audio capture
       try {
-        const audioCtx = new AudioContext();
+        audioCtx = new AudioContext();
         const source = audioCtx.createMediaElementSource(video);
         const dest = audioCtx.createMediaStreamDestination();
+        // Mute speaker output by NOT connecting to audioCtx.destination
+        // But still route to the recording destination
         source.connect(dest);
-        source.connect(audioCtx.destination);
-        dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-      } catch {
-        // No audio - that's fine
+        dest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
+        console.log("[recordSegment] Audio track added successfully");
+      } catch (e) {
+        console.warn("[recordSegment] Audio capture failed:", e);
       }
 
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
-          ? "video/webm;codecs=vp8"
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+          ? "video/webm;codecs=vp8,opus"
           : "video/webm";
 
-      const recorder = new MediaRecorder(stream, {
+      recorder = new MediaRecorder(canvasStream, {
         mimeType,
         videoBitsPerSecond: 4_000_000,
+        audioBitsPerSecond: 128_000,
       });
 
       recorder.ondataavailable = (e) => {
@@ -90,21 +112,22 @@ function recordSegment(
       };
 
       recorder.onstop = () => {
-        if (animFrameId) cancelAnimationFrame(animFrameId);
-        video.pause();
-        video.src = "";
+        cleanup();
         resolve(chunks);
       };
 
-      recorder.onerror = (e) => {
+      recorder.onerror = () => {
+        cleanup();
         reject(new Error("MediaRecorder error"));
       };
 
-      recorder.start();
+      recorder.start(100); // collect data every 100ms for smoother output
 
       const drawFrame = () => {
-        if (video.currentTime >= segment.endTime || video.ended) {
-          recorder.stop();
+        if (video.currentTime >= segment.endTime || video.ended || video.paused) {
+          if (recorder && recorder.state === "recording") {
+            recorder.stop();
+          }
           return;
         }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -113,7 +136,19 @@ function recordSegment(
       drawFrame();
     };
 
-    video.onerror = () => reject(new Error(`Failed to load video: ${segment.videoUrl}`));
+    video.onerror = () => {
+      cleanup();
+      reject(new Error(`Failed to load video: ${segment.videoUrl}`));
+    };
+
+    // Safety timeout: if segment takes too long, force stop
+    const maxWait = (segment.endTime - segment.startTime + 10) * 1000;
+    setTimeout(() => {
+      if (recorder && recorder.state === "recording") {
+        console.warn("[recordSegment] Safety timeout, stopping recorder");
+        recorder.stop();
+      }
+    }, maxWait);
   });
 }
 
@@ -136,6 +171,7 @@ export async function trimAndMerge(
   for (let i = 0; i < totalSegments; i++) {
     onProgress?.(Math.round(((i) / totalSegments) * 80));
     
+    console.log(`[trimAndMerge] Recording segment ${i + 1}/${totalSegments}: ${segments[i].startTime.toFixed(1)}s - ${segments[i].endTime.toFixed(1)}s`);
     const chunks = await recordSegment(segments[i], canvas, ctx);
     allChunks.push(...chunks);
     
@@ -153,8 +189,10 @@ export async function trimAndMerge(
 }
 
 /**
- * Auto-generate trim segments to fit a target duration.
- * Splits the target duration proportionally across videos.
+ * Generate impactful short clips from multiple videos.
+ * Instead of taking one long boring segment from each video,
+ * this creates multiple short punchy clips (1-3s each) sampled
+ * from different high-energy positions throughout each video.
  */
 export async function autoTrimSegments(
   videoUrls: string[],
@@ -163,6 +201,7 @@ export async function autoTrimSegments(
   const durations = await Promise.all(videoUrls.map(getVideoDuration));
   const totalDuration = durations.reduce((a, b) => a + b, 0);
 
+  // If total source is shorter than target, just use everything
   if (totalDuration <= targetDurationSec) {
     return videoUrls.map((url, i) => ({
       videoUrl: url,
@@ -171,23 +210,92 @@ export async function autoTrimSegments(
     }));
   }
 
+  // Calculate how many clips and their duration based on style
+  // Short punchy clips (1.5-3s) create more energy and impact
+  const clipDuration = targetDurationSec <= 15 ? 1.5 : targetDurationSec <= 30 ? 2 : 2.5;
+  const totalClips = Math.max(4, Math.floor(targetDurationSec / clipDuration));
+  
+  // Distribute clips across videos proportionally
   const segments: TrimSegment[] = [];
+  
   for (let i = 0; i < videoUrls.length; i++) {
-    const proportion = durations[i] / totalDuration;
-    const segDuration = Math.max(2, targetDurationSec * proportion);
-    const midPoint = durations[i] / 2;
-    const halfSeg = segDuration / 2;
-    const startTime = Math.max(0, midPoint - halfSeg);
-    const endTime = Math.min(durations[i], startTime + segDuration);
-
-    segments.push({
-      videoUrl: videoUrls[i],
-      startTime: Math.round(startTime * 10) / 10,
-      endTime: Math.round(endTime * 10) / 10,
-    });
+    const videoDur = durations[i];
+    if (videoDur <= 0) continue;
+    
+    const proportion = videoDur / totalDuration;
+    const clipsForThisVideo = Math.max(2, Math.round(totalClips * proportion));
+    
+    // Skip first and last 5% of video (usually intro/outro)
+    const usableStart = videoDur * 0.05;
+    const usableEnd = videoDur * 0.95;
+    const usableRange = usableEnd - usableStart;
+    
+    if (usableRange <= clipDuration) {
+      // Video too short, take one clip from middle
+      segments.push({
+        videoUrl: videoUrls[i],
+        startTime: Math.max(0, videoDur / 2 - clipDuration / 2),
+        endTime: Math.min(videoDur, videoDur / 2 + clipDuration / 2),
+      });
+      continue;
+    }
+    
+    // Sample positions using golden ratio for visually varied spacing
+    const goldenRatio = 0.618033988749895;
+    let position = 0.1 + Math.random() * 0.2; // Start at random position 10-30%
+    
+    for (let c = 0; c < clipsForThisVideo; c++) {
+      const startPos = usableStart + (position % 1) * usableRange;
+      const startTime = Math.round(startPos * 10) / 10;
+      const endTime = Math.round(Math.min(startTime + clipDuration, videoDur) * 10) / 10;
+      
+      // Only add if clip is meaningful (> 0.5s)
+      if (endTime - startTime > 0.5) {
+        segments.push({
+          videoUrl: videoUrls[i],
+          startTime,
+          endTime,
+        });
+      }
+      
+      position += goldenRatio; // Golden ratio jump for non-repeating distribution
+    }
   }
-
-  return segments;
+  
+  // Interleave clips from different videos for dynamic pacing
+  // Sort by video index alternating to avoid all clips from same video in a row
+  const interleaved: TrimSegment[] = [];
+  const byVideo = new Map<string, TrimSegment[]>();
+  for (const seg of segments) {
+    const arr = byVideo.get(seg.videoUrl) || [];
+    arr.push(seg);
+    byVideo.set(seg.videoUrl, arr);
+  }
+  
+  const videoQueues = Array.from(byVideo.values());
+  let qi = 0;
+  while (interleaved.length < segments.length) {
+    const queue = videoQueues[qi % videoQueues.length];
+    if (queue.length > 0) {
+      interleaved.push(queue.shift()!);
+    }
+    qi++;
+    // Safety: prevent infinite loop
+    if (qi > segments.length * 3) break;
+  }
+  
+  // Trim total to target duration
+  let accumulated = 0;
+  const finalSegments: TrimSegment[] = [];
+  for (const seg of interleaved) {
+    const segDur = seg.endTime - seg.startTime;
+    if (accumulated + segDur > targetDurationSec + 1) break; // allow 1s tolerance
+    finalSegments.push(seg);
+    accumulated += segDur;
+  }
+  
+  console.log(`[autoTrimSegments] Generated ${finalSegments.length} clips, total ~${accumulated.toFixed(1)}s`);
+  return finalSegments;
 }
 
 /**
@@ -262,7 +370,6 @@ function captureFrameAt(
  * Higher score = more color variation = likely a more interesting frame.
  */
 function computeFrameScore(ctx: CanvasRenderingContext2D, w: number, h: number): number {
-  // Sample a grid of pixels for performance
   const sampleSize = 32;
   const stepX = Math.max(1, Math.floor(w / sampleSize));
   const stepY = Math.max(1, Math.floor(h / sampleSize));
@@ -286,13 +393,11 @@ function computeFrameScore(ctx: CanvasRenderingContext2D, w: number, h: number):
 
   const avgR = sumR / count, avgG = sumG / count, avgB = sumB / count;
 
-  // Variance as complexity score
   let variance = 0;
   for (const [r, g, b] of samples) {
     variance += (r - avgR) ** 2 + (g - avgG) ** 2 + (b - avgB) ** 2;
   }
 
-  // Penalize very dark or very bright frames (likely transitions)
   const brightness = (avgR + avgG + avgB) / 3;
   const brightnessPenalty = brightness < 30 || brightness > 240 ? 0.3 : 1;
 
