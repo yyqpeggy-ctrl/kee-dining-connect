@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useTranslation } from "react-i18next";
 import { useSocialMediaStats } from "@/hooks/useSocialMediaStats";
 import { Skeleton } from "@/components/ui/skeleton";
+import SocialMediaContentCreator from "./SocialMediaContentCreator";
 
 const platformIcons: Record<string, { icon: any; color: string; bgColor: string }> = {
   YouTube: { icon: Youtube, color: "text-red-500", bgColor: "bg-red-500/10" },
@@ -190,6 +191,8 @@ const SocialMediaTab = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <SocialMediaContentCreator />
     </div>
   );
 };
