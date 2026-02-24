@@ -10,7 +10,7 @@ import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle, type SubtitleStyle } from "@/lib/videoEditor";
+import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle, type SubtitleStyle, type TransitionType } from "@/lib/videoEditor";
 
 // Default fallback subtitles when AI generation fails
 const defaultSubtitles: VideoSubtitle[] = [
@@ -173,6 +173,7 @@ const SocialMediaContentCreator = () => {
   const [targetDuration, setTargetDuration] = useState(30); // target output duration in seconds
   const [ffmpegProgress, setFfmpegProgress] = useState(0);
   const [isFFmpegLoading, setIsFFmpegLoading] = useState(false);
+  const [selectedTransition, setSelectedTransition] = useState<TransitionType>("fade");
 
   const togglePlay = useCallback(() => {
     const vid = videoRef.current;
@@ -900,7 +901,7 @@ const SocialMediaContentCreator = () => {
         setEditTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, progress: pct } : t
         ));
-      }, burnSubtitles, subtitleStyle);
+      }, burnSubtitles, subtitleStyle, selectedTransition);
       console.log("[VideoEditor] Output URL:", outputUrl);
 
       setEditTasks(prev => prev.map(t =>
@@ -1530,6 +1531,45 @@ const SocialMediaContentCreator = () => {
                         >
                           <p className="font-semibold text-sm text-foreground">{s.name}</p>
                           <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{s.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Transition Effect Selection */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Film className="w-4 h-4 text-primary" />
+                      {isZh ? "转场效果" : "Transition Effect"}
+                    </CardTitle>
+                    <CardDescription>
+                      {isZh ? "选择片段之间的过渡方式，让剪辑更加流畅专业" : "Choose how clips transition for smooth, professional edits"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                      {([
+                        { id: "fade" as TransitionType, icon: "🌅", name: isZh ? "淡入淡出" : "Fade", desc: isZh ? "经典柔和过渡" : "Classic smooth" },
+                        { id: "dissolve" as TransitionType, icon: "✨", name: isZh ? "溶解" : "Dissolve", desc: isZh ? "像素渐变消融" : "Pixel dissolve" },
+                        { id: "wipe-left" as TransitionType, icon: "👈", name: isZh ? "左擦除" : "Wipe Left", desc: isZh ? "从右向左擦除" : "Right to left" },
+                        { id: "wipe-right" as TransitionType, icon: "👉", name: isZh ? "右擦除" : "Wipe Right", desc: isZh ? "从左向右擦除" : "Left to right" },
+                        { id: "wipe-up" as TransitionType, icon: "👆", name: isZh ? "上擦除" : "Wipe Up", desc: isZh ? "从下向上擦除" : "Bottom to top" },
+                        { id: "wipe-down" as TransitionType, icon: "👇", name: isZh ? "下擦除" : "Wipe Down", desc: isZh ? "从上向下擦除" : "Top to bottom" },
+                        { id: "slide-left" as TransitionType, icon: "⬅️", name: isZh ? "左滑入" : "Slide Left", desc: isZh ? "画面左滑切换" : "Slide left" },
+                        { id: "slide-right" as TransitionType, icon: "➡️", name: isZh ? "右滑入" : "Slide Right", desc: isZh ? "画面右滑切换" : "Slide right" },
+                        { id: "zoom" as TransitionType, icon: "🔍", name: isZh ? "缩放" : "Zoom", desc: isZh ? "从中心缩放展开" : "Zoom from center" },
+                        { id: "none" as TransitionType, icon: "⚡", name: isZh ? "硬切" : "Hard Cut", desc: isZh ? "无过渡直接切换" : "No transition" },
+                      ]).map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTransition(t.id)}
+                          className={`p-3 rounded-xl border-2 text-left transition-all hover:shadow-md ${selectedTransition === t.id ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40"}`}
+                        >
+                          <p className="text-lg leading-none mb-1">{t.icon}</p>
+                          <p className="font-semibold text-xs text-foreground">{t.name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{t.desc}</p>
                         </button>
                       ))}
                     </div>
