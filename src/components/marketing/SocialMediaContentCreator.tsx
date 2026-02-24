@@ -846,9 +846,36 @@ const SocialMediaContentCreator = () => {
   };
 
   const updateSubtitleTiming = (index: number, field: "startPct" | "endPct", value: number) => {
-    setGeneratedSubtitles(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+    setGeneratedSubtitles(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      // Auto-adjust neighbors to prevent overlap
+      if (field === "endPct" && index < updated.length - 1) {
+        // Push next subtitle's start to match this end (if overlapping)
+        if (updated[index + 1].startPct < value) {
+          updated[index + 1] = { ...updated[index + 1], startPct: value };
+        }
+      }
+      if (field === "startPct" && index > 0) {
+        // Pull previous subtitle's end to match this start (if overlapping)
+        if (updated[index - 1].endPct > value) {
+          updated[index - 1] = { ...updated[index - 1], endPct: value };
+        }
+      }
+      // Ensure startPct < endPct for current subtitle
+      if (updated[index].startPct >= updated[index].endPct) {
+        updated[index] = { ...updated[index], endPct: Math.min(updated[index].startPct + 5, 100) };
+      }
+      return updated;
+    });
     setSubtitlesConfirmed(false);
   };
+
+  // Check if any subtitles overlap
+  const hasSubtitleOverlap = generatedSubtitles.some((s, i) => {
+    if (i === 0) return false;
+    return s.startPct < generatedSubtitles[i - 1].endPct;
+  });
 
   // Generate segments for preview/editing
   const generateSegments = async () => {
@@ -1731,8 +1758,13 @@ const SocialMediaContentCreator = () => {
                       {showSubtitleEditor && (
                         <div className="space-y-2 border border-border rounded-lg p-3 bg-muted/20">
                           <p className="text-[10px] text-muted-foreground">
-                            {isZh ? "AI 建议的字幕方案，您可以修改文字内容、调整时间轴，确认后再开始剪辑" : "AI suggested subtitles. Edit text, adjust timing, then confirm before editing."}
+                            {isZh ? "AI 建议的字幕方案，您可以修改文字内容、调整时间轴（自动防重合），确认后再开始剪辑" : "AI suggested subtitles. Edit text, adjust timing (auto-prevents overlap), then confirm."}
                           </p>
+                          {hasSubtitleOverlap && (
+                            <p className="text-[10px] text-destructive font-medium">
+                              ⚠️ {isZh ? "部分字幕时间段有重合，已自动调整相邻字幕" : "Some subtitle timings overlap. Adjacent subtitles auto-adjusted."}
+                            </p>
+                          )}
                           {generatedSubtitles.map((sub, idx) => (
                             <div key={idx} className="flex items-start gap-2 p-2 rounded-md border border-border bg-background">
                               <div className="text-[10px] text-muted-foreground font-mono mt-2 shrink-0 w-16">
@@ -2021,20 +2053,53 @@ const SocialMediaContentCreator = () => {
                                       </button>
                                     ))}
                                   </div>
-                                  {/* Selected cover details */}
+                                  {/* Selected cover details - editable title & tags */}
                                   <div className="flex items-start gap-3">
                                     <img src={task.coverImage} alt="selected cover" className="w-28 h-20 rounded-md object-cover border border-primary" />
-                                    <div className="flex-1 min-w-0">
-                                      {task.aiTitle && <p className="text-sm font-medium text-foreground truncate">{task.aiTitle}</p>}
-                                      {task.aiTags && task.aiTags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {task.aiTags.map((tag, i) => (
-                                            <Badge key={i} variant="outline" className="text-[9px]">{tag}</Badge>
-                                          ))}
-                                        </div>
-                                      )}
-                                      <p className="text-[10px] text-muted-foreground mt-1">
-                                        {isZh ? "点击上方缩略图切换封面方案" : "Click thumbnails above to switch cover"}
+                                    <div className="flex-1 min-w-0 space-y-1.5">
+                                      <input
+                                        type="text"
+                                        value={task.aiTitle || ""}
+                                        onChange={e => setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, aiTitle: e.target.value } : t))}
+                                        placeholder={isZh ? "输入封面标题..." : "Enter cover title..."}
+                                        className="w-full text-sm font-medium px-2 py-1 rounded border border-border bg-background text-foreground focus:ring-1 focus:ring-primary/30 outline-none"
+                                      />
+                                      <div className="flex flex-wrap gap-1 items-center">
+                                        {(task.aiTags || []).map((tag, i) => (
+                                          <div key={i} className="flex items-center gap-0.5 bg-muted rounded px-1.5 py-0.5 border border-border">
+                                            <input
+                                              type="text"
+                                              value={tag}
+                                              onChange={e => {
+                                                const newTags = [...(task.aiTags || [])];
+                                                newTags[i] = e.target.value;
+                                                setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, aiTags: newTags } : t));
+                                              }}
+                                              className="w-16 text-[9px] bg-transparent outline-none text-foreground"
+                                            />
+                                            <button
+                                              onClick={() => {
+                                                const newTags = (task.aiTags || []).filter((_, idx) => idx !== i);
+                                                setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, aiTags: newTags } : t));
+                                              }}
+                                              className="text-muted-foreground hover:text-destructive"
+                                            >
+                                              <X className="w-2.5 h-2.5" />
+                                            </button>
+                                          </div>
+                                        ))}
+                                        <button
+                                          onClick={() => {
+                                            const newTags = [...(task.aiTags || []), isZh ? "新标签" : "new tag"];
+                                            setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, aiTags: newTags } : t));
+                                          }}
+                                          className="text-[9px] text-primary hover:underline"
+                                        >
+                                          + {isZh ? "标签" : "Tag"}
+                                        </button>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground">
+                                        {isZh ? "点击上方缩略图切换封面，可编辑标题和标签" : "Click thumbnails to switch cover. Edit title & tags above."}
                                       </p>
                                     </div>
                                   </div>
