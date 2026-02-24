@@ -14,7 +14,8 @@ import { toast } from "sonner";
 import {
   Database, Download, Upload, FileSpreadsheet, FileText, FileJson, File,
   Search, Plus, Trash2, Copy, Eye, Clock, CheckCircle2, AlertCircle,
-  FolderOpen, BookOpen, LayoutTemplate, ArrowDownToLine, ArrowUpFromLine
+  FolderOpen, BookOpen, LayoutTemplate, ArrowDownToLine, ArrowUpFromLine,
+  History, UploadCloud
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
@@ -54,6 +55,10 @@ interface KnowledgeDoc {
   file_size: number;
   created_at: string;
   updated_at: string;
+  document_group_id: string | null;
+  version: number;
+  is_latest: boolean;
+  version_note: string | null;
 }
 
 // ===== Template Definitions =====
@@ -244,14 +249,24 @@ const DataCenter = () => {
   const [uploadDescription, setUploadDescription] = useState("");
   const [uploadCategory, setUploadCategory] = useState("General");
   const knowledgeFileRef = useRef<HTMLInputElement>(null);
+  const newVersionFileRef = useRef<HTMLInputElement>(null);
+  const [versionHistoryDoc, setVersionHistoryDoc] = useState<KnowledgeDoc | null>(null);
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [versionHistory, setVersionHistory] = useState<KnowledgeDoc[]>([]);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [newVersionDialogOpen, setNewVersionDialogOpen] = useState(false);
+  const [newVersionNote, setNewVersionNote] = useState("");
+  const [newVersionTargetDoc, setNewVersionTargetDoc] = useState<KnowledgeDoc | null>(null);
+  const [isUploadingVersion, setIsUploadingVersion] = useState(false);
 
   // Fetch knowledge docs from DB
   const fetchKnowledgeDocs = useCallback(async () => {
     setIsLoadingDocs(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("knowledge_documents")
-        .select("*")
+        .select("*") as any)
+        .eq("is_latest", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setKnowledgeDocs((data || []) as unknown as KnowledgeDoc[]);
@@ -263,6 +278,28 @@ const DataCenter = () => {
   }, []);
 
   useEffect(() => { fetchKnowledgeDocs(); }, [fetchKnowledgeDocs]);
+
+  // Fetch version history for a document group
+  const fetchVersionHistory = async (doc: KnowledgeDoc) => {
+    if (!doc.document_group_id) return;
+    setIsLoadingVersions(true);
+    setVersionHistoryDoc(doc);
+    setVersionHistoryOpen(true);
+    try {
+      const { data, error } = await (supabase
+        .from("knowledge_documents")
+        .select("*") as any)
+        .eq("document_group_id", doc.document_group_id)
+        .order("version", { ascending: false });
+      if (error) throw error;
+      setVersionHistory((data || []) as unknown as KnowledgeDoc[]);
+    } catch (e: any) {
+      console.error("Fetch version history error:", e);
+      toast.error(isZh ? "加载版本历史失败" : "Failed to load version history");
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
 
   // Upload knowledge doc
   const handleUploadKnowledgeDoc = async (file: File) => {
@@ -328,7 +365,61 @@ const DataCenter = () => {
     }
   };
 
-  // Format file size
+  // Upload new version of a document
+  const handleUploadNewVersion = async (file: File) => {
+    if (!newVersionTargetDoc) return;
+    setIsUploadingVersion(true);
+    try {
+      const fileExt = file.name.split(".").pop() || "bin";
+      const filePath = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("knowledge-files")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("knowledge-files")
+        .getPublicUrl(filePath);
+
+      // Mark old version as not latest
+      await (supabase
+        .from("knowledge_documents")
+        .update({ is_latest: false } as any) as any)
+        .eq("document_group_id", newVersionTargetDoc.document_group_id)
+        .eq("is_latest", true);
+
+      // Insert new version
+      const { error: insertError } = await supabase
+        .from("knowledge_documents")
+        .insert({
+          title: newVersionTargetDoc.title,
+          description: newVersionTargetDoc.description,
+          category: newVersionTargetDoc.category,
+          file_url: urlData.publicUrl,
+          file_name: file.name,
+          file_type: fileExt.toUpperCase(),
+          file_size: file.size,
+          document_group_id: newVersionTargetDoc.document_group_id,
+          version: newVersionTargetDoc.version + 1,
+          is_latest: true,
+          version_note: newVersionNote.trim() || null,
+        } as any);
+      if (insertError) throw insertError;
+
+      toast.success(isZh ? `已上传 V${newVersionTargetDoc.version + 1}` : `Uploaded V${newVersionTargetDoc.version + 1}`);
+      setNewVersionDialogOpen(false);
+      setNewVersionNote("");
+      setNewVersionTargetDoc(null);
+      fetchKnowledgeDocs();
+    } catch (e: any) {
+      console.error("Upload version error:", e);
+      toast.error(isZh ? `上传失败: ${e.message}` : `Upload failed: ${e.message}`);
+    } finally {
+      setIsUploadingVersion(false);
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -813,7 +904,10 @@ const DataCenter = () => {
                               {getFormatIcon(doc.file_type.toLowerCase())}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-foreground text-sm truncate">{doc.title}</h3>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="font-medium text-foreground text-sm truncate">{doc.title}</h3>
+                                <Badge variant="secondary" className="text-xs shrink-0">V{doc.version}</Badge>
+                              </div>
                               {doc.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>}
                               <div className="flex items-center gap-2 mt-2">
                                 <Badge variant="outline" className="text-xs">{doc.category}</Badge>
@@ -828,10 +922,11 @@ const DataCenter = () => {
                                 <Download className="w-3 h-3 mr-1" />{isZh ? "下载" : "Download"}
                               </a>
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs flex-1" asChild>
-                              <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                                <Eye className="w-3 h-3 mr-1" />{isZh ? "预览" : "Preview"}
-                              </a>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => fetchVersionHistory(doc)}>
+                              <History className="w-3 h-3 mr-1" />{isZh ? "版本" : "Versions"}
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setNewVersionTargetDoc(doc); setNewVersionDialogOpen(true); }}>
+                              <UploadCloud className="w-3 h-3 mr-1" />{isZh ? "新版本" : "New Ver."}
                             </Button>
                             <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteKnowledgeDoc(doc)}>
                               <Trash2 className="w-3 h-3" />
@@ -966,6 +1061,87 @@ const DataCenter = () => {
                 />
                 <Button variant="outline" onClick={() => knowledgeFileRef.current?.click()} disabled={isUploadingDoc}>
                   {isUploadingDoc ? (isZh ? "上传中..." : "Uploading...") : (isZh ? "选择文件" : "Select File")}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== Version History Dialog ===== */}
+        <Dialog open={versionHistoryOpen} onOpenChange={setVersionHistoryOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{isZh ? "版本历史" : "Version History"} - {versionHistoryDoc?.title}</DialogTitle>
+              <DialogDescription>
+                {isZh ? "查看该文档的所有历史版本" : "View all versions of this document"}
+              </DialogDescription>
+            </DialogHeader>
+            {isLoadingVersions ? (
+              <div className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</div>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {versionHistory.map(v => (
+                  <div key={v.id} className={`flex items-center justify-between p-3 rounded-lg border ${v.is_latest ? "border-primary/30 bg-primary/5" : "border-border"}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
+                        {getFormatIcon(v.file_type.toLowerCase())}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium text-foreground">V{v.version}</span>
+                          {v.is_latest && <Badge variant="default" className="text-xs">{isZh ? "最新" : "Latest"}</Badge>}
+                        </div>
+                        {v.version_note && <p className="text-xs text-muted-foreground mt-0.5">{v.version_note}</p>}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-muted-foreground">{v.file_name}</span>
+                          <span className="text-xs text-muted-foreground">{formatFileSize(v.file_size)}</span>
+                          <span className="text-xs text-muted-foreground">{v.created_at.slice(0, 10)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                      <a href={v.file_url} target="_blank" rel="noopener noreferrer">
+                        <Download className="w-3 h-3 mr-1" />{isZh ? "下载" : "Download"}
+                      </a>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== Upload New Version Dialog ===== */}
+        <Dialog open={newVersionDialogOpen} onOpenChange={setNewVersionDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{isZh ? "上传新版本" : "Upload New Version"}</DialogTitle>
+              <DialogDescription>
+                {newVersionTargetDoc && (isZh
+                  ? `为「${newVersionTargetDoc.title}」上传新版本 (当前 V${newVersionTargetDoc.version})`
+                  : `Upload new version for "${newVersionTargetDoc.title}" (current V${newVersionTargetDoc.version})`
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground">{isZh ? "版本说明" : "Version Note"}</label>
+                <Textarea className="mt-1" value={newVersionNote} onChange={e => setNewVersionNote(e.target.value)} placeholder={isZh ? "可选：描述本次变更内容..." : "Optional: describe changes..."} rows={2} />
+              </div>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">{isZh ? "选择新版本文件" : "Select new version file"}</p>
+                <input
+                  ref={newVersionFileRef}
+                  type="file"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadNewVersion(file);
+                  }}
+                />
+                <Button variant="outline" onClick={() => newVersionFileRef.current?.click()} disabled={isUploadingVersion}>
+                  {isUploadingVersion ? (isZh ? "上传中..." : "Uploading...") : (isZh ? "选择文件" : "Select File")}
                 </Button>
               </div>
             </div>
