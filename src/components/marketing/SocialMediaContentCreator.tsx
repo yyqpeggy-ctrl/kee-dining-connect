@@ -4,9 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Image, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2 } from "lucide-react";
+import { Image, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface AISuggestion {
+  tip: string;
+  impact: string;
+  category: string;
+}
+
+interface AIVideoResult {
+  suggestions: AISuggestion[];
+  recommended_bgm: { name: string; artist?: string; style: string; match_score: number }[];
+  recommended_titles: string[];
+  recommended_tags: string[];
+  best_post_time: { day: string; time: string; reason: string };
+}
 
 interface UploadedVideo {
   id: string;
@@ -41,6 +56,33 @@ const SocialMediaContentCreator = () => {
   const [videoStep, setVideoStep] = useState<"upload" | "edit" | "preview">("upload");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AIVideoResult | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  const fetchAISuggestions = async () => {
+    const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
+    setIsLoadingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-video-suggest", {
+        body: {
+          videos: uploadedVideos.map(v => ({ name: v.name, duration: v.duration, size: v.size })),
+          template: template?.name || "15s Short",
+          platform: template?.platform || "TikTok",
+          instructions: editInstructions || "",
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiSuggestions(data);
+      toast.success(isZh ? "AI 建议已生成" : "AI suggestions generated");
+    } catch (e: any) {
+      console.error("AI suggest error:", e);
+      toast.error(isZh ? `AI 建议生成失败: ${e.message}` : `AI suggestion failed: ${e.message}`);
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -540,24 +582,111 @@ const SocialMediaContentCreator = () => {
               </Card>
             )}
 
-            {/* AI suggestions always visible */}
+            {/* AI suggestions - real or fallback */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">{isZh ? "AI 剪辑建议" : "AI Editing Suggestions"}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    {isZh ? "AI 剪辑建议" : "AI Editing Suggestions"}
+                    {aiSuggestions && <Badge variant="outline" className="text-[10px] text-primary border-primary/30">AI</Badge>}
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs h-7"
+                    onClick={fetchAISuggestions}
+                    disabled={isLoadingAI}
+                  >
+                    {isLoadingAI ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    {isZh ? "获取AI建议" : "Get AI Tips"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {[
-                    { tip: isZh ? "🎬 建议在前3秒加入吸睛画面（调酒特写/火焰效果），提升完播率" : "🎬 Add eye-catching visuals in first 3s (cocktail close-up/flame) to boost retention", impact: "+35%" },
-                    { tip: isZh ? "🎵 当前热门BGM「Espresso」匹配度92%，建议使用" : "🎵 Trending BGM 'Espresso' has 92% match rate, recommend using", impact: "+22%" },
-                    { tip: isZh ? "📝 添加字幕可提升静音播放场景下的互动率" : "📝 Adding subtitles improves engagement for muted playback", impact: "+18%" },
-                  ].map((tip, i) => (
-                    <div key={i} className="flex items-start justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                      <p className="text-sm text-foreground flex-1">{tip.tip}</p>
-                      <Badge className="ml-2 bg-green-500/10 text-green-600 border-green-500/20 shrink-0">{isZh ? `互动` : "Eng."} {tip.impact}</Badge>
+                {isLoadingAI ? (
+                  <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">{isZh ? "AI 正在分析并生成建议..." : "AI is analyzing and generating suggestions..."}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Suggestions */}
+                    <div className="space-y-2">
+                      {(aiSuggestions?.suggestions || [
+                        { tip: isZh ? "🎬 建议在前3秒加入吸睛画面（调酒特写/火焰效果），提升完播率" : "🎬 Add eye-catching visuals in first 3s (cocktail close-up/flame) to boost retention", impact: "+35%", category: "opening" },
+                        { tip: isZh ? "🎵 当前热门BGM「Espresso」匹配度92%，建议使用" : "🎵 Trending BGM 'Espresso' has 92% match rate, recommend using", impact: "+22%", category: "bgm" },
+                        { tip: isZh ? "📝 添加字幕可提升静音播放场景下的互动率" : "📝 Adding subtitles improves engagement for muted playback", impact: "+18%", category: "subtitle" },
+                      ]).map((tip, i) => (
+                        <div key={i} className="flex items-start justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <p className="text-sm text-foreground flex-1">{tip.tip}</p>
+                          <Badge className="ml-2 bg-green-500/10 text-green-600 border-green-500/20 shrink-0">{isZh ? "互动" : "Eng."} {tip.impact}</Badge>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+
+                    {/* BGM Recommendations */}
+                    {aiSuggestions?.recommended_bgm && aiSuggestions.recommended_bgm.length > 0 && (
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><Music2 className="w-3 h-3" />{isZh ? "推荐BGM" : "Recommended BGM"}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {aiSuggestions.recommended_bgm.map((bgm, i) => (
+                            <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/50">
+                              <Music2 className="w-3.5 h-3.5 text-primary" />
+                              <div>
+                                <p className="text-xs font-medium text-foreground">{bgm.name}{bgm.artist ? ` - ${bgm.artist}` : ""}</p>
+                                <p className="text-[10px] text-muted-foreground">{bgm.style} · {isZh ? "匹配度" : "Match"} {bgm.match_score}%</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recommended Titles */}
+                    {aiSuggestions?.recommended_titles && aiSuggestions.recommended_titles.length > 0 && (
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><Type className="w-3 h-3" />{isZh ? "推荐标题" : "Recommended Titles"}</p>
+                        <div className="space-y-1">
+                          {aiSuggestions.recommended_titles.map((title, i) => (
+                            <p key={i} className="text-sm text-foreground p-2 rounded bg-muted/30 cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => { navigator.clipboard.writeText(title); toast.success(isZh ? "已复制标题" : "Title copied"); }}>
+                              {title}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recommended Tags */}
+                    {aiSuggestions?.recommended_tags && aiSuggestions.recommended_tags.length > 0 && (
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><Hash className="w-3 h-3" />{isZh ? "推荐标签" : "Recommended Tags"}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {aiSuggestions.recommended_tags.map((tag, i) => (
+                            <Badge key={i} variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors" onClick={() => { navigator.clipboard.writeText(tag); toast.success(isZh ? "已复制" : "Copied"); }}>
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Best Post Time */}
+                    {aiSuggestions?.best_post_time && (
+                      <div className="pt-2 border-t border-border">
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                          <CalendarClock className="w-4 h-4 text-primary shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {isZh ? "最佳发布时间：" : "Best Post Time: "}{aiSuggestions.best_post_time.day} {aiSuggestions.best_post_time.time}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">{aiSuggestions.best_post_time.reason}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
