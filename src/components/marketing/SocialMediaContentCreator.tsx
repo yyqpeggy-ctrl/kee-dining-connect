@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download } from "lucide-react";
+import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,7 +73,9 @@ const SocialMediaContentCreator = () => {
   const [posterImageDesc, setPosterImageDesc] = useState<string>("");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [selectedHeadlineIdx, setSelectedHeadlineIdx] = useState<number>(0);
-
+  const [posterEditInstruction, setPosterEditInstruction] = useState("");
+  const [isEditingImage, setIsEditingImage] = useState(false);
+  const [editHistory, setEditHistory] = useState<string[]>([]);
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
     setIsLoadingAI(true);
@@ -142,6 +144,7 @@ const SocialMediaContentCreator = () => {
 
     setIsGeneratingImage(true);
     setGeneratedPosterImage(null);
+    setEditHistory([]);
     try {
       const { data, error } = await supabase.functions.invoke("ai-poster-image", {
         body: {
@@ -166,6 +169,47 @@ const SocialMediaContentCreator = () => {
     } finally {
       setIsGeneratingImage(false);
     }
+  };
+
+  const editPosterImage = async () => {
+    if (!generatedPosterImage) {
+      toast.error(isZh ? "请先生成海报图片" : "Please generate a poster image first");
+      return;
+    }
+    if (!posterEditInstruction.trim()) {
+      toast.error(isZh ? "请输入编辑指令" : "Please enter edit instructions");
+      return;
+    }
+    setIsEditingImage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-poster-edit", {
+        body: {
+          image_url: generatedPosterImage,
+          edit_instruction: posterEditInstruction.trim(),
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setEditHistory(prev => [...prev, generatedPosterImage!]);
+      setGeneratedPosterImage(data.image_url);
+      setPosterImageDesc(data.description || "");
+      setPosterEditInstruction("");
+      toast.success(isZh ? "海报已编辑完成！" : "Poster edited successfully!");
+    } catch (e: any) {
+      console.error("Poster edit error:", e);
+      toast.error(isZh ? `编辑失败: ${e.message}` : `Edit failed: ${e.message}`);
+    } finally {
+      setIsEditingImage(false);
+    }
+  };
+
+  const undoEdit = () => {
+    if (editHistory.length === 0) return;
+    const prev = editHistory[editHistory.length - 1];
+    setEditHistory(h => h.slice(0, -1));
+    setGeneratedPosterImage(prev);
+    toast.info(isZh ? "已撤销编辑" : "Edit undone");
   };
 
   const formatFileSize = (bytes: number) => {
@@ -515,12 +559,66 @@ const SocialMediaContentCreator = () => {
                               alt="AI Generated Poster"
                               className="w-full h-auto max-h-[600px] object-contain bg-muted/20"
                             />
+                            {editHistory.length > 0 && (
+                              <Badge className="absolute top-3 right-3 bg-primary/80 text-primary-foreground text-[10px]">
+                                {isZh ? `已编辑 ${editHistory.length} 次` : `${editHistory.length} edit(s)`}
+                              </Badge>
+                            )}
                           </div>
                           {posterImageDesc && (
                             <p className="text-xs text-muted-foreground leading-relaxed">{posterImageDesc}</p>
                           )}
+
+                          {/* AI Image Edit Section */}
+                          <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <Pencil className="w-4 h-4 text-primary" />
+                              <p className="text-sm font-semibold text-foreground">{isZh ? "AI 图片编辑" : "AI Image Edit"}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(isZh
+                                ? ["更换背景为深蓝色", "调整为暖色调", "添加霓虹灯效果", "增加派对元素", "添加文字水印", "换成极简风格"]
+                                : ["Change background to dark blue", "Warm color tone", "Add neon glow effect", "Add party elements", "Add text watermark", "Minimalist style"]
+                              ).map((suggestion, i) => (
+                                <Badge
+                                  key={i}
+                                  variant="outline"
+                                  className="text-[11px] cursor-pointer hover:bg-primary/10 hover:border-primary/40 transition-colors"
+                                  onClick={() => setPosterEditInstruction(suggestion)}
+                                >
+                                  {suggestion}
+                                </Badge>
+                              ))}
+                            </div>
+                            <textarea
+                              value={posterEditInstruction}
+                              onChange={(e) => setPosterEditInstruction(e.target.value)}
+                              placeholder={isZh ? "输入编辑指令，如：更换背景颜色、调整配色、添加装饰元素、修改风格..." : "Enter edit instructions: change background, adjust colors, add elements, modify style..."}
+                              className="w-full p-3 border border-border rounded-lg bg-background text-foreground text-sm resize-none h-20 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" className="gap-1.5" onClick={editPosterImage} disabled={isEditingImage || !posterEditInstruction.trim()}>
+                                {isEditingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                                {isEditingImage ? (isZh ? "编辑中..." : "Editing...") : (isZh ? "✨ 应用编辑" : "✨ Apply Edit")}
+                              </Button>
+                              {editHistory.length > 0 && (
+                                <Button size="sm" variant="outline" className="gap-1.5" onClick={undoEdit} disabled={isEditingImage}>
+                                  <Undo2 className="w-3.5 h-3.5" />
+                                  {isZh ? "撤销" : "Undo"}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {isEditingImage && (
+                            <div className="flex flex-col items-center justify-center py-8 gap-3">
+                              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                              <p className="text-sm text-muted-foreground">{isZh ? "AI 正在编辑海报..." : "AI is editing the poster..."}</p>
+                            </div>
+                          )}
+
                           <div className="flex items-center gap-2">
-                            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => generatePosterImage()} disabled={isGeneratingImage}>
+                            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => generatePosterImage()} disabled={isGeneratingImage || isEditingImage}>
                               <RefreshCw className="w-3.5 h-3.5" />
                               {isZh ? "重新生成" : "Regenerate"}
                             </Button>
