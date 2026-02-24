@@ -184,26 +184,17 @@ const SocialMediaContentCreator = () => {
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [showWaveform, setShowWaveform] = useState(true);
 
-  // AI-generated subtitle data synced to progress
-  const subtitlesZh = [
-    { start: 0, end: 12, text: "欢迎来到我们的餐厅" },
-    { start: 12, end: 25, text: "今天为您呈现招牌鸡尾酒" },
-    { start: 25, end: 40, text: "精选进口烈酒与新鲜水果" },
-    { start: 40, end: 55, text: "调酒师为您现场调制" },
-    { start: 55, end: 70, text: "品味非凡，尽在杯中" },
-    { start: 70, end: 85, text: "搭配主厨特制轻食小食" },
-    { start: 85, end: 100, text: "欢迎预约体验 · 期待您的光临" },
+  // AI-generated bilingual subtitle data synced to progress
+  const subtitles = [
+    { start: 0, end: 12, zh: "欢迎来到我们的餐厅", en: "Welcome to our restaurant" },
+    { start: 12, end: 25, zh: "今天为您呈现招牌鸡尾酒", en: "Presenting our signature cocktails" },
+    { start: 25, end: 40, zh: "精选进口烈酒与新鲜水果", en: "Premium imported spirits & fresh fruits" },
+    { start: 40, end: 55, zh: "调酒师为您现场调制", en: "Crafted live by our mixologist" },
+    { start: 55, end: 70, zh: "品味非凡，尽在杯中", en: "Exceptional taste in every sip" },
+    { start: 70, end: 85, zh: "搭配主厨特制轻食小食", en: "Paired with chef's special bites" },
+    { start: 85, end: 100, zh: "欢迎预约体验 · 期待您的光临", en: "Reserve now · We look forward to seeing you" },
   ];
-  const subtitlesEn = [
-    { start: 0, end: 12, text: "Welcome to our restaurant" },
-    { start: 12, end: 25, text: "Presenting our signature cocktails" },
-    { start: 25, end: 40, text: "Premium imported spirits & fresh fruits" },
-    { start: 40, end: 55, text: "Crafted live by our mixologist" },
-    { start: 55, end: 70, text: "Exceptional taste in every sip" },
-    { start: 70, end: 85, text: "Paired with chef's special bites" },
-    { start: 85, end: 100, text: "Reserve now · We look forward to seeing you" },
-  ];
-  const currentSubtitle = (isZh ? subtitlesZh : subtitlesEn).find(s => playProgress >= s.start && playProgress < s.end);
+  const currentSubtitle = subtitles.find(s => playProgress >= s.start && playProgress < s.end);
 
   // Simulated BGM waveform data (32 bars)
   const waveformBars = 32;
@@ -1519,12 +1510,15 @@ const SocialMediaContentCreator = () => {
               </div>
             )}
 
-            {/* AI Subtitle Overlay */}
+            {/* AI Subtitle Overlay - Bilingual */}
             {showSubtitles && currentSubtitle && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[80%]">
-                <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[85%]">
+                <div className="bg-black/70 backdrop-blur-sm rounded-lg px-5 py-2.5 border border-white/10 space-y-1">
                   <p className="text-white text-sm font-medium text-center leading-relaxed tracking-wide">
-                    {currentSubtitle.text}
+                    {currentSubtitle.zh}
+                  </p>
+                  <p className="text-white/60 text-xs text-center leading-relaxed italic">
+                    {currentSubtitle.en}
                   </p>
                 </div>
               </div>
