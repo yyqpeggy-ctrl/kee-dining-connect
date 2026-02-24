@@ -568,43 +568,55 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          document_group_id: string | null
           file_name: string
           file_size: number
           file_type: string
           file_url: string
           id: string
+          is_latest: boolean | null
           store_id: string
           title: string
           updated_at: string
           uploaded_by: string | null
+          version: number | null
+          version_note: string | null
         }
         Insert: {
           category?: string
           created_at?: string
           description?: string | null
+          document_group_id?: string | null
           file_name: string
           file_size?: number
           file_type: string
           file_url: string
           id?: string
+          is_latest?: boolean | null
           store_id?: string
           title: string
           updated_at?: string
           uploaded_by?: string | null
+          version?: number | null
+          version_note?: string | null
         }
         Update: {
           category?: string
           created_at?: string
           description?: string | null
+          document_group_id?: string | null
           file_name?: string
           file_size?: number
           file_type?: string
           file_url?: string
           id?: string
+          is_latest?: boolean | null
           store_id?: string
           title?: string
           updated_at?: string
           uploaded_by?: string | null
+          version?: number | null
+          version_note?: string | null
         }
         Relationships: []
       }
