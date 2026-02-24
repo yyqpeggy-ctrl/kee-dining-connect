@@ -674,18 +674,6 @@ const SocialMediaContentCreator = () => {
 
     const candidates: CoverCandidate[] = [];
 
-    // Candidate 1: Extract best frame from video
-    try {
-      const currentTask = editTasks.find(t => t.id === taskId);
-      const videoSrc = currentTask?.outputUrl || currentTask?.sourceUrl || uploadedVideos[0]?.url;
-      if (videoSrc) {
-        const frameUrl = await extractBestFrame(videoSrc, 6);
-        if (frameUrl) {
-          candidates.push({ id: "frame", imageUrl: frameUrl, label: isZh ? "视频精选帧" : "Best Frame", source: "frame" });
-        }
-      }
-    } catch (e) { console.warn("[Cover] Frame extraction failed:", e); }
-
     // Build logo instruction for AI covers
     const logoInstruction = logoInfo
       ? (isZh
@@ -701,7 +689,7 @@ const SocialMediaContentCreator = () => {
       : brandColors.length > 0 ? brandColors
       : ["#1a1a2e", "#16213e", "#0f3460", "#e94560"];
 
-    // Generate 2 AI cover candidates in parallel
+    // Generate 2 AI cover candidates in parallel (prioritize AI covers)
     const coverPromises = [
       {
         id: "ai-bold",
@@ -719,31 +707,50 @@ const SocialMediaContentCreator = () => {
       },
     ];
 
-    const aiResults = await Promise.allSettled(
-      coverPromises.map(async (cp) => {
-        const body: any = {
-          template_name: template?.name || "Short Video",
-          headline: aiTitle,
-          subtitle: brandName ? (isZh ? `${brandName} 出品` : `by ${brandName}`) : (isZh ? "精选短视频" : "Curated Short"),
-          body_copy: "",
-          style: selectedVideoStyle || "energetic",
-          color_palette: styleColors,
-          extra_instructions: cp.extraInst,
-          language: isZh ? "zh" : "en",
-        };
-        if (logoDataUrl) {
-          body.reference_images = [logoDataUrl];
-        }
-        const { data, error } = await supabase.functions.invoke("ai-poster-image", { body });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        return { id: cp.id, imageUrl: data.image_url, label: cp.label, source: "ai" as const };
-      })
-    );
+    // Run AI cover generation and frame extraction in parallel
+    const [aiResults, frameResult] = await Promise.all([
+      Promise.allSettled(
+        coverPromises.map(async (cp) => {
+          const body: any = {
+            template_name: template?.name || "Short Video",
+            headline: aiTitle,
+            subtitle: brandName ? (isZh ? `${brandName} 出品` : `by ${brandName}`) : (isZh ? "精选短视频" : "Curated Short"),
+            body_copy: "",
+            style: selectedVideoStyle || "energetic",
+            color_palette: styleColors,
+            extra_instructions: cp.extraInst,
+            language: isZh ? "zh" : "en",
+          };
+          if (logoDataUrl) {
+            body.reference_images = [logoDataUrl];
+          }
+          const { data, error } = await supabase.functions.invoke("ai-poster-image", { body });
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+          return { id: cp.id, imageUrl: data.image_url, label: cp.label, source: "ai" as const };
+        })
+      ),
+      // Frame extraction (best effort)
+      (async () => {
+        try {
+          const currentTask = editTasks.find(t => t.id === taskId);
+          const videoSrc = currentTask?.sourceUrl || uploadedVideos[0]?.url;
+          if (videoSrc) {
+            const frameUrl = await extractBestFrame(videoSrc, 6);
+            if (frameUrl) return { id: "frame", imageUrl: frameUrl, label: isZh ? "视频精选帧" : "Best Frame", source: "frame" as const };
+          }
+        } catch (e) { console.warn("[Cover] Frame extraction failed:", e); }
+        return null;
+      })(),
+    ]);
 
+    // Add AI covers first (they are the primary options)
     aiResults.forEach(r => {
       if (r.status === "fulfilled") candidates.push(r.value);
     });
+
+    // Add frame extraction as supplementary option
+    if (frameResult) candidates.push(frameResult);
 
     if (candidates.length > 0) {
       setEditTasks(prev => prev.map(t =>
