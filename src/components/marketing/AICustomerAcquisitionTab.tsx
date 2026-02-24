@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Target, Users, TrendingUp, Sparkles, UserPlus, Filter, BarChart3, Zap, RefreshCw, Copy, Send, Star, ArrowUpRight, Edit, Trash2, X, Globe, MapPin, Sliders } from "lucide-react";
+import ChannelAnalyticsChart from "./ChannelAnalyticsChart";
 import { useStore } from "@/contexts/StoreContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -261,6 +262,7 @@ const AICustomerAcquisitionTab = () => {
         <TabsList>
           <TabsTrigger value="overview" className="gap-1.5"><Brain className="w-3.5 h-3.5" />{isZh ? "AI 策略生成" : "AI Strategy"}</TabsTrigger>
           <TabsTrigger value="leads" className="gap-1.5"><Users className="w-3.5 h-3.5" />{isZh ? "线索管理" : "Lead Management"}</TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" />{isZh ? "渠道分析" : "Channel Analytics"}</TabsTrigger>
         </TabsList>
 
         {/* AI Strategy Generator */}
@@ -521,6 +523,11 @@ const AICustomerAcquisitionTab = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Channel Analytics */}
+        <TabsContent value="analytics" className="space-y-4">
+          <ChannelAnalyticsChart leads={leads} onlineSources={onlineSources} offlineSources={offlineSources} />
         </TabsContent>
       </Tabs>
 
