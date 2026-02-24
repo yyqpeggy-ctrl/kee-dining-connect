@@ -168,6 +168,10 @@ function playSegmentOnCanvas(
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;
 
+    const segStart = video.currentTime;
+    const segDuration = endTime - segStart;
+    const fadeDuration = Math.min(0.4, segDuration * 0.15); // 0.4s or 15% of clip
+
     let animFrameId: number | null = null;
 
     const drawFrame = () => {
@@ -177,7 +181,23 @@ function playSegmentOnCanvas(
         resolve();
         return;
       }
+
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Apply fade-in / fade-out for smooth transitions
+      const elapsed = video.currentTime - segStart;
+      const remaining = endTime - video.currentTime;
+      let fadeAlpha = 0;
+      if (elapsed < fadeDuration) {
+        fadeAlpha = 1 - (elapsed / fadeDuration); // fade in from black
+      } else if (remaining < fadeDuration) {
+        fadeAlpha = 1 - (remaining / fadeDuration); // fade out to black
+      }
+      if (fadeAlpha > 0.01) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
       // Overlay subtitles
       if (getSubtitle) {
         drawSubtitles(ctx, canvas.width, canvas.height, getSubtitle(), subtitleStyle);
@@ -188,7 +208,6 @@ function playSegmentOnCanvas(
     video.play().then(() => {
       drawFrame();
     }).catch(() => {
-      // If play fails, just resolve to skip this segment
       console.warn("[playSegmentOnCanvas] play() failed, skipping segment");
       resolve();
     });
@@ -366,79 +385,73 @@ export async function autoTrimSegments(
     }));
   }
 
-  // Calculate how many clips and their duration based on style
-  const clipDuration = targetDurationSec <= 15 ? 1.5 : targetDurationSec <= 30 ? 2 : 2.5;
-  const totalClips = Math.max(4, Math.floor(targetDurationSec / clipDuration));
+  // Use longer, smoother clips for a professional feel
+  // Clip duration: 4-6s for longer outputs, 3-4s for shorter ones
+  const clipDuration = targetDurationSec <= 15 ? 3 : targetDurationSec <= 30 ? 4 : 5;
+  // Fewer clips = less chaotic transitions
+  const totalClips = Math.max(3, Math.ceil(targetDurationSec / clipDuration));
 
-  const segments: TrimSegment[] = [];
+  // Distribute clips per video proportionally
+  const clipsPer: number[] = videoUrls.map((_, i) => {
+    const proportion = durations[i] / totalDuration;
+    return Math.max(1, Math.round(totalClips * proportion));
+  });
 
+  // For each video, pick sequential segments evenly spaced through the timeline
+  // This keeps chronological order within each video for narrative flow
+  const segmentsByVideo: TrimSegment[][] = [];
   for (let i = 0; i < videoUrls.length; i++) {
     const videoDur = durations[i];
-    if (videoDur <= 0) continue;
+    if (videoDur <= 0) { segmentsByVideo.push([]); continue; }
 
-    const proportion = videoDur / totalDuration;
-    const clipsForThisVideo = Math.max(2, Math.round(totalClips * proportion));
+    const numClips = clipsPer[i];
+    const segments: TrimSegment[] = [];
 
-    const usableStart = videoDur * 0.05;
-    const usableEnd = videoDur * 0.95;
-    const usableRange = usableEnd - usableStart;
+    // Skip first/last 5% to avoid black frames
+    const safeStart = videoDur * 0.05;
+    const safeEnd = videoDur * 0.95;
+    const safeRange = safeEnd - safeStart;
 
-    if (usableRange <= clipDuration) {
+    if (safeRange <= clipDuration) {
+      // Video too short, use the middle portion
       segments.push({
         videoUrl: videoUrls[i],
         startTime: Math.max(0, videoDur / 2 - clipDuration / 2),
         endTime: Math.min(videoDur, videoDur / 2 + clipDuration / 2),
       });
-      continue;
-    }
-
-    const goldenRatio = 0.618033988749895;
-    let position = 0.1 + Math.random() * 0.2;
-
-    for (let c = 0; c < clipsForThisVideo; c++) {
-      const startPos = usableStart + (position % 1) * usableRange;
-      const startTime = Math.round(startPos * 10) / 10;
-      const endTime = Math.round(Math.min(startTime + clipDuration, videoDur) * 10) / 10;
-
-      if (endTime - startTime > 0.5) {
-        segments.push({ videoUrl: videoUrls[i], startTime, endTime });
+    } else {
+      // Evenly space clip start points across the safe range
+      const spacing = (safeRange - clipDuration) / Math.max(1, numClips - 1);
+      for (let c = 0; c < numClips; c++) {
+        const startTime = Math.round((safeStart + c * spacing) * 10) / 10;
+        const endTime = Math.round(Math.min(startTime + clipDuration, safeEnd) * 10) / 10;
+        if (endTime - startTime >= 1) {
+          segments.push({ videoUrl: videoUrls[i], startTime, endTime });
+        }
       }
-
-      position += goldenRatio;
     }
+    segmentsByVideo.push(segments);
   }
 
-  // Interleave clips from different videos
-  const interleaved: TrimSegment[] = [];
-  const byVideo = new Map<string, TrimSegment[]>();
-  for (const seg of segments) {
-    const arr = byVideo.get(seg.videoUrl) || [];
-    arr.push(seg);
-    byVideo.set(seg.videoUrl, arr);
-  }
-
-  const videoQueues = Array.from(byVideo.values());
-  let qi = 0;
-  while (interleaved.length < segments.length) {
-    const queue = videoQueues[qi % videoQueues.length];
-    if (queue.length > 0) {
-      interleaved.push(queue.shift()!);
-    }
-    qi++;
-    if (qi > segments.length * 3) break;
-  }
-
-  // Trim total to target duration
-  let accumulated = 0;
+  // Structured interleave: alternate between videos in round-robin
+  // This creates a smooth A-B-A-B pattern instead of chaotic mixing
   const finalSegments: TrimSegment[] = [];
-  for (const seg of interleaved) {
-    const segDur = seg.endTime - seg.startTime;
-    if (accumulated + segDur > targetDurationSec + 1) break;
-    finalSegments.push(seg);
-    accumulated += segDur;
+  let accumulated = 0;
+  const maxRounds = Math.max(...segmentsByVideo.map(s => s.length));
+
+  for (let round = 0; round < maxRounds; round++) {
+    for (let vi = 0; vi < segmentsByVideo.length; vi++) {
+      if (round >= segmentsByVideo[vi].length) continue;
+      const seg = segmentsByVideo[vi][round];
+      const segDur = seg.endTime - seg.startTime;
+      if (accumulated + segDur > targetDurationSec + 2) break;
+      finalSegments.push(seg);
+      accumulated += segDur;
+    }
+    if (accumulated >= targetDurationSec) break;
   }
 
-  console.log(`[autoTrimSegments] Generated ${finalSegments.length} clips, total ~${accumulated.toFixed(1)}s`);
+  console.log(`[autoTrimSegments] Generated ${finalSegments.length} clips (${clipDuration}s each), total ~${accumulated.toFixed(1)}s`);
   return finalSegments;
 }
 
