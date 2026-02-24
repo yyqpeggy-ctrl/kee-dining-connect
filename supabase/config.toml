@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.ai-poster-edit]
 verify_jwt = false
+
+[functions.ai-topic-suggest]
+verify_jwt = false

@@ -41,6 +41,13 @@ interface UploadedVideo {
   thumbnail?: string;
 }
 
+interface AITopicResult {
+  topics: { topic: string; score: number; trend: string; platform: string; content_type: string }[];
+  recommended_tags: string[];
+  competitor_trends: { title: string; views: string; icon: string }[];
+  insights: { text: string; category: string }[];
+}
+
 interface EditTask {
   id: string;
   videoName: string;
@@ -76,6 +83,8 @@ const SocialMediaContentCreator = () => {
   const [posterEditInstruction, setPosterEditInstruction] = useState("");
   const [isEditingImage, setIsEditingImage] = useState(false);
   const [editHistory, setEditHistory] = useState<string[]>([]);
+  const [aiTopicResult, setAiTopicResult] = useState<AITopicResult | null>(null);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
     setIsLoadingAI(true);
@@ -201,6 +210,27 @@ const SocialMediaContentCreator = () => {
       toast.error(isZh ? `编辑失败: ${e.message}` : `Edit failed: ${e.message}`);
     } finally {
       setIsEditingImage(false);
+    }
+  };
+
+  const fetchAITopics = async () => {
+    setIsLoadingTopics(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-topic-suggest", {
+        body: {
+          store_name: "",
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiTopicResult(data);
+      toast.success(isZh ? "AI 推荐已更新" : "AI recommendations updated");
+    } catch (e: any) {
+      console.error("AI topic error:", e);
+      toast.error(isZh ? `推荐生成失败: ${e.message}` : `Recommendation failed: ${e.message}`);
+    } finally {
+      setIsLoadingTopics(false);
     }
   };
 
@@ -1042,34 +1072,67 @@ const SocialMediaContentCreator = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" />{isZh ? "AI 热门主题推荐" : "AI Trending Topics"}</CardTitle>
-                    <CardDescription>{isZh ? "基于行业趋势和历史数据，AI 推荐最可能引流的内容主题" : "AI recommends topics most likely to drive traffic based on trends"}</CardDescription>
+                    <CardDescription>{isZh ? "基于行业趋势和门店数据，AI 实时推荐最可能引流的内容主题" : "AI recommends trending topics based on industry data and store insights"}</CardDescription>
                   </div>
-                  <Button size="sm" variant="outline" className="gap-1"><Sparkles className="w-3 h-3" />{isZh ? "刷新推荐" : "Refresh"}</Button>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={fetchAITopics} disabled={isLoadingTopics}>
+                    {isLoadingTopics ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    {isZh ? "刷新推荐" : "Refresh"}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {aiTopics.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{t.topic}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <Badge variant="outline" className="text-[10px]">{t.platform}</Badge>
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-500" />{t.trend}</span>
+                {isLoadingTopics ? (
+                  <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">{isZh ? "AI 正在分析行业趋势..." : "AI is analyzing industry trends..."}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(aiTopicResult?.topics || aiTopics).map((t, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{t.topic}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <Badge variant="outline" className="text-[10px]">{t.platform}</Badge>
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-500" />{t.trend}</span>
+                            {"content_type" in t && <Badge variant="secondary" className="text-[10px]">{(t as any).content_type}</Badge>}
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="flex items-center gap-1">
+                            <span className="text-lg font-bold text-primary">{t.score}</span>
+                            <span className="text-[10px] text-muted-foreground">{isZh ? "分" : "pts"}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">{isZh ? "引流指数" : "Traffic Score"}</p>
                         </div>
                       </div>
-                      <div className="text-right ml-4">
-                        <div className="flex items-center gap-1">
-                          <span className="text-lg font-bold text-primary">{t.score}</span>
-                          <span className="text-[10px] text-muted-foreground">{isZh ? "分" : "pts"}</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">{isZh ? "引流指数" : "Traffic Score"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {/* AI Insights */}
+            {aiTopicResult?.insights && aiTopicResult.insights.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2"><Lightbulb className="w-4 h-4 text-primary" />{isZh ? "AI 洞察" : "AI Insights"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {aiTopicResult.insights.map((ins, i) => (
+                      <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-foreground">{ins.text}</p>
+                          <Badge variant="outline" className="text-[10px] mt-1">{ins.category}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
@@ -1078,11 +1141,11 @@ const SocialMediaContentCreator = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {(isZh
+                    {(aiTopicResult?.recommended_tags || (isZh
                       ? ["#周末微醺", "#鸡尾酒推荐", "#酒吧氛围", "#约会圣地", "#深夜食堂", "#调酒教程", "#限时优惠", "#新品上市", "#品酒会", "#城市夜生活"]
                       : ["#WeekendVibes", "#CocktailTime", "#BarLife", "#DateNight", "#LateNightBites", "#Mixology", "#FlashSale", "#NewMenu", "#WineTasting", "#NightLife"]
-                    ).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors">{tag}</Badge>
+                    )).map((tag) => (
+                      <Badge key={tag} variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors" onClick={() => { navigator.clipboard.writeText(tag); toast.success(isZh ? "已复制" : "Copied"); }}>{tag}</Badge>
                     ))}
                   </div>
                 </CardContent>
@@ -1093,11 +1156,11 @@ const SocialMediaContentCreator = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {[
+                    {(aiTopicResult?.competitor_trends || [
                       { title: isZh ? "「隐藏菜单」类内容爆火" : "'Secret Menu' content trending", views: "50K+", icon: "🔥" },
                       { title: isZh ? "「调酒过程」短视频高转化" : "'Mixology Process' shorts converting", views: "30K+", icon: "📈" },
                       { title: isZh ? "「顾客故事」图文高互动" : "'Customer Stories' high engagement", views: "20K+", icon: "💬" },
-                    ].map((c, i) => (
+                    ]).map((c, i) => (
                       <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                         <span className="text-sm text-foreground">{c.icon} {c.title}</span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{c.views}</span>
