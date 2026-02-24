@@ -31,6 +31,7 @@ const AppSidebar = () => {
       title: t("nav.operations"),
       items: [
         { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
+        { to: "/marketing", icon: Megaphone, label: t("nav.marketing") },
         { to: "/tables", icon: UtensilsCrossed, label: t("nav.tables") },
         { to: "/orders", icon: ClipboardList, label: t("nav.orders") },
         { to: "/kitchen", icon: CookingPot, label: t("nav.kitchen") },
@@ -51,7 +52,6 @@ const AppSidebar = () => {
         { to: "/hr", icon: Users, label: t("nav.hr") },
         { to: "/finance", icon: DollarSign, label: t("nav.finance") },
         { to: "/legal", icon: Scale, label: t("nav.legal") },
-        { to: "/marketing", icon: Megaphone, label: t("nav.marketing") },
         { to: "/customers", icon: PieChart, label: t("nav.customers") },
         { to: "/menu", icon: BookOpen, label: t("nav.menu") },
       ],
