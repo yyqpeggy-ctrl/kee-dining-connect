@@ -98,6 +98,13 @@ interface AITopicResult {
   insights: { text: string; category: string }[];
 }
 
+interface CoverCandidate {
+  id: string;
+  imageUrl: string;
+  label: string;
+  source: "frame" | "ai";
+}
+
 interface EditTask {
   id: string;
   videoName: string;
@@ -110,6 +117,8 @@ interface EditTask {
   instructions: string;
   coverImage?: string;
   coverStatus?: "generating" | "done" | "error";
+  coverCandidates?: CoverCandidate[];
+  selectedCoverId?: string;
   aiTitle?: string;
   aiTags?: string[];
 }
@@ -651,83 +660,121 @@ const SocialMediaContentCreator = () => {
   };
 
   const generateVideoCover = async (taskId: string) => {
+    const style = videoStyles.find(s => s.id === selectedVideoStyle);
+    const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
+    const aiTitle = aiSuggestions?.recommended_titles?.[0] || (isZh ? "AI 精选短视频" : "AI Curated Short");
+    const aiTags = aiSuggestions?.recommended_tags?.slice(0, 5) || [];
+
+    // Collect brand/logo info from uploaded images
+    const brandImages = [...uploadedImages, ...posterRefImages].filter(img => img.analysis?.has_logo);
+    const logoInfo = brandImages[0]?.analysis;
+    const brandColors = logoInfo?.brand_colors || [];
+    const brandName = logoInfo?.brand_name || "";
+    const logoDataUrl = brandImages[0]?.dataUrl;
+
+    const candidates: CoverCandidate[] = [];
+
+    // Candidate 1: Extract best frame from video
     try {
-      // Find the task to get its outputUrl
-      const task = editTasks.find(t => t.id === taskId) || 
-        // Task might have just been updated, check latest
-        undefined;
-      
-      // Try to extract a real frame from the output video first
-      let coverDataUrl = "";
       const currentTask = editTasks.find(t => t.id === taskId);
       const videoSrc = currentTask?.outputUrl || currentTask?.sourceUrl || uploadedVideos[0]?.url;
-      
       if (videoSrc) {
-        try {
-          console.log("[Cover] Extracting best frame from video...");
-          coverDataUrl = await extractBestFrame(videoSrc, 6);
-          console.log("[Cover] Frame extracted successfully");
-        } catch (frameErr) {
-          console.warn("[Cover] Frame extraction failed, falling back to AI:", frameErr);
+        const frameUrl = await extractBestFrame(videoSrc, 6);
+        if (frameUrl) {
+          candidates.push({ id: "frame", imageUrl: frameUrl, label: isZh ? "视频精选帧" : "Best Frame", source: "frame" });
         }
       }
+    } catch (e) { console.warn("[Cover] Frame extraction failed:", e); }
 
-      // If frame extraction worked, use it directly as cover
-      if (coverDataUrl) {
-        const aiTitle = aiSuggestions?.recommended_titles?.[0] || (isZh ? "AI 精选短视频" : "AI Curated Short");
-        const aiTags = aiSuggestions?.recommended_tags?.slice(0, 5) || [];
+    // Build logo instruction for AI covers
+    const logoInstruction = logoInfo
+      ? (isZh
+        ? `必须在封面中融入品牌LOGO元素。品牌名称：${brandName || "未知"}，LOGO形状：${logoInfo.logo_info?.shape || ""}，品牌色：${brandColors.join(", ")}。封面整体配色应与品牌色协调。`
+        : `Must include brand LOGO elements. Brand: ${brandName || "unknown"}, logo shape: ${logoInfo.logo_info?.shape || ""}, brand colors: ${brandColors.join(", ")}. Cover colors should harmonize with brand.`)
+      : (isZh
+        ? "在封面角落添加一个简约的品牌标识占位区域，使用与视频风格匹配的设计元素。"
+        : "Add a minimalist brand mark placeholder in a corner, using design elements matching the video style.");
 
-        setEditTasks(prev => prev.map(t =>
-          t.id === taskId
-            ? { ...t, coverImage: coverDataUrl, coverStatus: "done" as const, aiTitle, aiTags }
-            : t
-        ));
-        toast.success(isZh ? "🎨 已从视频中自动提取最佳帧作为封面！" : "🎨 Best frame extracted as cover!");
-        return;
-      }
+    const styleColors = selectedVideoStyle === "cyberpunk" ? ["#00f0ff", "#ff00ff", "#0a0a2e", "#1a1a4e"]
+      : selectedVideoStyle === "south_american" ? ["#ff6b35", "#f7c948", "#25a18e", "#ff1654"]
+      : selectedVideoStyle === "chill_groove" ? ["#f4a261", "#e9c46a", "#2a9d8f", "#264653"]
+      : brandColors.length > 0 ? brandColors
+      : ["#1a1a2e", "#16213e", "#0f3460", "#e94560"];
 
-      // Fallback: use AI to generate cover
-      const style = videoStyles.find(s => s.id === selectedVideoStyle);
-      const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
-      const { data, error } = await supabase.functions.invoke("ai-poster-image", {
-        body: {
+    // Generate 2 AI cover candidates in parallel
+    const coverPromises = [
+      {
+        id: "ai-bold",
+        label: isZh ? "AI 大胆风格" : "AI Bold Style",
+        extraInst: isZh
+          ? `大胆醒目的封面设计，强烈的视觉冲击力。${logoInstruction} 风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}。`
+          : `Bold, eye-catching cover with strong visual impact. ${logoInstruction} Style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}.`,
+      },
+      {
+        id: "ai-elegant",
+        label: isZh ? "AI 精致风格" : "AI Elegant Style",
+        extraInst: isZh
+          ? `精致优雅的封面设计，注重排版和留白美感。${logoInstruction} 风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}。`
+          : `Elegant, refined cover with focus on typography and whitespace. ${logoInstruction} Style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}.`,
+      },
+    ];
+
+    const aiResults = await Promise.allSettled(
+      coverPromises.map(async (cp) => {
+        const body: any = {
           template_name: template?.name || "Short Video",
-          headline: isZh
-            ? `${style?.name || "精彩"} · 营销短视频封面`
-            : `${style?.name || "Featured"} · Marketing Video Cover`,
-          subtitle: isZh ? "自动生成的视频封面" : "AI-generated video cover",
+          headline: aiTitle,
+          subtitle: brandName ? (isZh ? `${brandName} 出品` : `by ${brandName}`) : (isZh ? "精选短视频" : "Curated Short"),
           body_copy: "",
           style: selectedVideoStyle || "energetic",
-          color_palette: selectedVideoStyle === "cyberpunk" ? ["#00f0ff", "#ff00ff", "#0a0a2e", "#1a1a4e"]
-            : selectedVideoStyle === "south_american" ? ["#ff6b35", "#f7c948", "#25a18e", "#ff1654"]
-            : selectedVideoStyle === "chill_groove" ? ["#f4a261", "#e9c46a", "#2a9d8f", "#264653"]
-            : ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
-          extra_instructions: isZh
-            ? `这是视频封面图，风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}，需要有视觉冲击力。`
-            : `Video cover, style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}, needs visual impact.`,
+          color_palette: styleColors,
+          extra_instructions: cp.extraInst,
           language: isZh ? "zh" : "en",
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+        };
+        if (logoDataUrl) {
+          body.reference_images = [logoDataUrl];
+        }
+        const { data, error } = await supabase.functions.invoke("ai-poster-image", { body });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        return { id: cp.id, imageUrl: data.image_url, label: cp.label, source: "ai" as const };
+      })
+    );
 
-      const aiTitle = aiSuggestions?.recommended_titles?.[0] || (isZh ? "AI 精选短视频" : "AI Curated Short");
-      const aiTags = aiSuggestions?.recommended_tags?.slice(0, 5) || [];
+    aiResults.forEach(r => {
+      if (r.status === "fulfilled") candidates.push(r.value);
+    });
 
+    if (candidates.length > 0) {
       setEditTasks(prev => prev.map(t =>
         t.id === taskId
-          ? { ...t, coverImage: data.image_url, coverStatus: "done" as const, aiTitle, aiTags }
+          ? {
+              ...t,
+              coverCandidates: candidates,
+              coverImage: candidates[0].imageUrl,
+              selectedCoverId: candidates[0].id,
+              coverStatus: "done" as const,
+              aiTitle,
+              aiTags,
+            }
           : t
       ));
-      toast.success(isZh ? "🎨 视频封面已自动生成！" : "🎨 Video cover auto-generated!");
-    } catch (e: any) {
-      console.error("Cover generation error:", e);
+      toast.success(isZh ? `🎨 已生成 ${candidates.length} 个封面方案供选择！` : `🎨 Generated ${candidates.length} cover options!`);
+    } else {
       setEditTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, coverStatus: "error" as const } : t
+        t.id === taskId ? { ...t, coverStatus: "error" as const, aiTitle, aiTags } : t
       ));
       toast.error(isZh ? "封面生成失败" : "Cover generation failed");
     }
   };
+
+  const selectCover = (taskId: string, candidate: CoverCandidate) => {
+    setEditTasks(prev => prev.map(t =>
+      t.id === taskId ? { ...t, coverImage: candidate.imageUrl, selectedCoverId: candidate.id } : t
+    ));
+    toast.success(isZh ? `已选择封面：${candidate.label}` : `Cover selected: ${candidate.label}`);
+  };
+
 
   const generateAISubtitles = async () => {
     if (!selectedVideoStyle || !selectedVideoTemplate) {
@@ -1688,32 +1735,59 @@ const SocialMediaContentCreator = () => {
                           {task.instructions && (
                             <p className="text-[11px] text-muted-foreground mt-2 truncate">{isZh ? "要求：" : "Instructions: "}{task.instructions}</p>
                           )}
-                          {/* AI Cover */}
+                          {/* AI Cover Candidates */}
                           {task.status === "done" && (
                             <div className="mt-3 p-3 rounded-lg border border-border bg-muted/20">
                               <p className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                                <ImagePlus className="w-3 h-3" />{isZh ? "AI 自动封面" : "AI Auto Cover"}
+                                <ImagePlus className="w-3 h-3" />{isZh ? "AI 封面方案（含LOGO）" : "AI Cover Options (with LOGO)"}
                                 {task.coverStatus === "generating" && <Loader2 className="w-3 h-3 animate-spin ml-1" />}
                                 {task.coverStatus === "done" && <Check className="w-3 h-3 text-green-500 ml-1" />}
+                                {task.coverStatus === "done" && task.coverCandidates && task.coverCandidates.length > 1 && (
+                                  <span className="text-[10px] text-muted-foreground ml-1">
+                                    {isZh ? `${task.coverCandidates.length} 个方案` : `${task.coverCandidates.length} options`}
+                                  </span>
+                                )}
                               </p>
-                              {task.coverImage ? (
-                                <div className="flex items-start gap-3">
-                                  <img src={task.coverImage} alt="cover" className="w-24 h-16 rounded-md object-cover border border-border" />
-                                  <div className="flex-1 min-w-0">
-                                    {task.aiTitle && <p className="text-sm font-medium text-foreground truncate">{task.aiTitle}</p>}
-                                    {task.aiTags && task.aiTags.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        {task.aiTags.map((tag, i) => (
-                                          <Badge key={i} variant="outline" className="text-[9px]">{tag}</Badge>
-                                        ))}
-                                      </div>
-                                    )}
+                              {task.coverCandidates && task.coverCandidates.length > 0 ? (
+                                <div className="space-y-2">
+                                  {/* Candidate grid */}
+                                  <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {task.coverCandidates.map(c => (
+                                      <button
+                                        key={c.id}
+                                        onClick={() => selectCover(task.id, c)}
+                                        className={`shrink-0 rounded-lg border-2 overflow-hidden transition-all ${task.selectedCoverId === c.id ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"}`}
+                                      >
+                                        <img src={c.imageUrl} alt={c.label} className="w-24 h-16 object-cover" />
+                                        <div className="px-1.5 py-1 bg-background">
+                                          <p className="text-[9px] text-muted-foreground truncate">{c.label}</p>
+                                          {c.source === "ai" && <Badge variant="outline" className="text-[8px] h-3.5 px-1">AI</Badge>}
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* Selected cover details */}
+                                  <div className="flex items-start gap-3">
+                                    <img src={task.coverImage} alt="selected cover" className="w-28 h-20 rounded-md object-cover border border-primary" />
+                                    <div className="flex-1 min-w-0">
+                                      {task.aiTitle && <p className="text-sm font-medium text-foreground truncate">{task.aiTitle}</p>}
+                                      {task.aiTags && task.aiTags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {task.aiTags.map((tag, i) => (
+                                            <Badge key={i} variant="outline" className="text-[9px]">{tag}</Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <p className="text-[10px] text-muted-foreground mt-1">
+                                        {isZh ? "点击上方缩略图切换封面方案" : "Click thumbnails above to switch cover"}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
                               ) : task.coverStatus === "generating" ? (
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                   <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span className="text-xs">{isZh ? "AI 正在生成封面、标题、标签..." : "AI generating cover, title, tags..."}</span>
+                                  <span className="text-xs">{isZh ? "AI 正在生成多个封面方案（含LOGO）..." : "AI generating cover options (with LOGO)..."}</span>
                                 </div>
                               ) : task.coverStatus === "error" ? (
                                 <div className="flex items-center gap-2">
