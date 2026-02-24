@@ -23,6 +23,14 @@ interface AIVideoResult {
   best_post_time: { day: string; time: string; reason: string };
 }
 
+interface AIPosterResult {
+  headlines: { main_title: string; subtitle: string; body_copy: string; style: string }[];
+  design_tips: { tip: string; category: string }[];
+  platform_adaptations: { platform: string; size: string; copy_tip: string }[];
+  recommended_tags: string[];
+  color_palette: string[];
+}
+
 interface UploadedVideo {
   id: string;
   file: File;
@@ -58,6 +66,9 @@ const SocialMediaContentCreator = () => {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AIVideoResult | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [posterResult, setPosterResult] = useState<AIPosterResult | null>(null);
+  const [isLoadingPoster, setIsLoadingPoster] = useState(false);
+  const [posterInstructions, setPosterInstructions] = useState("");
 
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
@@ -81,6 +92,37 @@ const SocialMediaContentCreator = () => {
       toast.error(isZh ? `AI 建议生成失败: ${e.message}` : `AI suggestion failed: ${e.message}`);
     } finally {
       setIsLoadingAI(false);
+    }
+  };
+
+  const fetchPosterSuggestions = async () => {
+    if (!selectedTemplate) {
+      toast.error(isZh ? "请先选择海报模板" : "Please select a poster template");
+      return;
+    }
+    const template = posterTemplates.find(t => t.id === selectedTemplate);
+    if (!template) return;
+    setIsLoadingPoster(true);
+    setPosterResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-poster-suggest", {
+        body: {
+          template_id: template.id,
+          template_name: template.name,
+          template_desc: template.desc,
+          extra_instructions: posterInstructions || "",
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPosterResult(data);
+      toast.success(isZh ? "AI 文案已生成" : "AI copy generated");
+    } catch (e: any) {
+      console.error("Poster AI error:", e);
+      toast.error(isZh ? `生成失败: ${e.message}` : `Generation failed: ${e.message}`);
+    } finally {
+      setIsLoadingPoster(false);
     }
   };
 
@@ -286,14 +328,112 @@ const SocialMediaContentCreator = () => {
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-3 mt-4">
-                  <Button className="gap-1.5" disabled={!selectedTemplate}>
-                    <Sparkles className="w-3.5 h-3.5" />{isZh ? "AI 生成海报" : "Generate Poster"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground">{isZh ? "将自动适配微信、小红书、Instagram 等平台尺寸" : "Auto-adapts to WeChat, Xiaohongshu, Instagram sizes"}</p>
+                <div className="mt-4 space-y-3">
+                  <textarea
+                    value={posterInstructions}
+                    onChange={(e) => setPosterInstructions(e.target.value)}
+                    placeholder={isZh ? "可选：输入额外要求，如'突出周年庆'、'主打鸡尾酒系列'..." : "Optional: extra instructions like 'highlight anniversary', 'feature cocktail series'..."}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground text-sm resize-none h-20 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button className="gap-1.5" disabled={!selectedTemplate || isLoadingPoster} onClick={fetchPosterSuggestions}>
+                      {isLoadingPoster ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      {isLoadingPoster ? (isZh ? "AI 生成中..." : "Generating...") : (isZh ? "AI 生成文案" : "Generate Copy")}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">{isZh ? "AI 将生成标题、正文、设计建议和多平台适配文案" : "AI generates headlines, body copy, design tips & platform adaptations"}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI Results */}
+            {posterResult && (
+              <div className="space-y-4">
+                {/* Headlines */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2"><Type className="w-4 h-4 text-primary" />{isZh ? "AI 生成标题与文案" : "AI Generated Headlines & Copy"}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {posterResult.headlines.map((h, i) => (
+                      <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className="text-[10px]">{h.style}</Badge>
+                          <span className="text-[10px] text-muted-foreground">#{i + 1}</span>
+                        </div>
+                        <p className="text-lg font-bold text-foreground">{h.main_title}</p>
+                        <p className="text-sm text-muted-foreground font-medium">{h.subtitle}</p>
+                        <p className="text-sm text-foreground/80 leading-relaxed mt-2">{h.body_copy}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Design Tips + Color Palette */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2"><Palette className="w-4 h-4 text-primary" />{isZh ? "设计建议" : "Design Tips"}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {posterResult.design_tips.map((d, i) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
+                          <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">{d.category}</Badge>
+                          <p className="text-sm text-foreground">{d.tip}</p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2"><Target className="w-4 h-4 text-primary" />{isZh ? "推荐配色 & 标签" : "Color Palette & Tags"}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">{isZh ? "推荐配色方案" : "Recommended Colors"}</p>
+                        <div className="flex gap-2">
+                          {posterResult.color_palette.map((color, i) => (
+                            <div key={i} className="flex flex-col items-center gap-1">
+                              <div className="w-10 h-10 rounded-lg border border-border shadow-sm" style={{ backgroundColor: color }} />
+                              <span className="text-[10px] text-muted-foreground font-mono">{color}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">{isZh ? "推荐标签" : "Recommended Tags"}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {posterResult.recommended_tags.map((tag, i) => (
+                            <Badge key={i} variant="outline" className="text-[11px]">{tag}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Platform Adaptations */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2"><Send className="w-4 h-4 text-primary" />{isZh ? "各平台适配建议" : "Platform Adaptations"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {posterResult.platform_adaptations.map((p, i) => (
+                        <div key={i} className="p-3 rounded-lg border border-border bg-muted/20">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="font-semibold text-sm text-foreground">{p.platform}</p>
+                            <Badge variant="secondary" className="text-[10px]">{p.size}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{p.copy_tip}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
