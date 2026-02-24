@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,41 +9,41 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Video, Eye, Heart, Share2, Edit, Trash2, TrendingUp, Play } from "lucide-react";
+import { Plus, Search, Eye, Heart, Share2, Edit, Trash2, Play, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useStore } from "@/contexts/StoreContext";
 
 interface VideoItem {
   id: string;
   title: string;
   category: string;
-  publishDate: string;
+  publish_date: string | null;
   duration: string;
   views: number;
   likes: number;
   shares: number;
   status: string;
-  coverUrl: string;
+  cover_url: string;
   notes: string;
+  store_id: string;
+  store_name_zh: string;
+  store_name_en: string;
 }
 
 const VideoChannelTab = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language === "zh";
+  const { currentStore, isHQ } = useStore();
 
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [videos, setVideos] = useState<VideoItem[]>([
-    { id: "1", title: isZh ? "周末红酒品鉴会精彩回顾" : "Weekend Wine Tasting Highlights", category: "event", publishDate: "2025-02-20", duration: "2:35", views: 12800, likes: 456, shares: 89, status: "published", coverUrl: "", notes: "" },
-    { id: "2", title: isZh ? "主厨推荐｜春季限定菜单" : "Chef's Pick: Spring Menu", category: "menu", publishDate: "2025-02-18", duration: "1:48", views: 8900, likes: 312, shares: 67, status: "published", coverUrl: "", notes: "" },
-    { id: "3", title: isZh ? "餐厅幕后｜我们的食材从哪来" : "Behind the Scenes: Our Ingredients", category: "brand", publishDate: "2025-02-15", duration: "3:12", views: 15200, likes: 623, shares: 134, status: "published", coverUrl: "", notes: "" },
-    { id: "4", title: isZh ? "情人节特别活动回顾" : "Valentine's Day Event Recap", category: "event", publishDate: "2025-02-14", duration: "4:05", views: 22100, likes: 891, shares: 215, status: "published", coverUrl: "", notes: "" },
-    { id: "5", title: isZh ? "调酒教程｜经典马提尼" : "Cocktail Tutorial: Classic Martini", category: "tutorial", publishDate: "", duration: "2:20", views: 0, likes: 0, shares: 0, status: "draft", coverUrl: "", notes: isZh ? "待审核" : "Pending review" },
-  ]);
-
-  const [form, setForm] = useState({ title: "", category: "event", publishDate: "", duration: "", views: 0, likes: 0, shares: 0, status: "draft", coverUrl: "", notes: "" });
+  const [form, setForm] = useState({ title: "", category: "event", publish_date: "", duration: "", views: 0, likes: 0, shares: 0, status: "draft", cover_url: "", notes: "" });
 
   const categories = [
     { value: "event", label: isZh ? "活动回顾" : "Event Recap" },
@@ -59,6 +59,23 @@ const VideoChannelTab = () => {
     archived: "bg-muted text-muted-foreground",
   };
 
+  const fetchVideos = async () => {
+    setLoading(true);
+    let query = supabase.from("video_channels").select("*").order("created_at", { ascending: false });
+    if (!isHQ) {
+      query = query.eq("store_id", currentStore.id);
+    }
+    const { data, error } = await query;
+    if (error) {
+      toast.error(isZh ? "加载失败" : "Failed to load");
+    } else {
+      setVideos(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchVideos(); }, [currentStore.id]);
+
   const filtered = videos.filter((v) => {
     const matchSearch = v.title.toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === "all" || v.category === catFilter;
@@ -70,22 +87,52 @@ const VideoChannelTab = () => {
   const totalShares = videos.reduce((s, v) => s + v.shares, 0);
   const publishedCount = videos.filter((v) => v.status === "published").length;
 
-  const resetForm = () => setForm({ title: "", category: "event", publishDate: "", duration: "", views: 0, likes: 0, shares: 0, status: "draft", coverUrl: "", notes: "" });
+  const resetForm = () => setForm({ title: "", category: "event", publish_date: "", duration: "", views: 0, likes: 0, shares: 0, status: "draft", cover_url: "", notes: "" });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title) { toast.error(isZh ? "请填写视频标题" : "Please enter video title"); return; }
+
+    const payload = {
+      title: form.title,
+      category: form.category,
+      publish_date: form.publish_date || null,
+      duration: form.duration,
+      views: form.views,
+      likes: form.likes,
+      shares: form.shares,
+      status: form.status,
+      cover_url: form.cover_url,
+      notes: form.notes,
+      store_id: currentStore.id,
+      store_name_zh: currentStore.name,
+      store_name_en: currentStore.nameEn,
+    };
+
     if (editingVideo) {
-      setVideos((prev) => prev.map((v) => v.id === editingVideo.id ? { ...v, ...form } : v));
+      const { error } = await supabase.from("video_channels").update(payload).eq("id", editingVideo.id);
+      if (error) { toast.error(isZh ? "更新失败" : "Update failed"); return; }
       toast.success(isZh ? "视频信息已更新" : "Video updated");
     } else {
-      setVideos((prev) => [...prev, { ...form, id: crypto.randomUUID() }]);
+      const { error } = await supabase.from("video_channels").insert(payload);
+      if (error) { toast.error(isZh ? "添加失败" : "Add failed"); return; }
       toast.success(isZh ? "视频已添加" : "Video added");
     }
     setDialogOpen(false); setEditingVideo(null); resetForm();
+    fetchVideos();
   };
 
-  const handleEdit = (v: VideoItem) => { setEditingVideo(v); setForm({ title: v.title, category: v.category, publishDate: v.publishDate, duration: v.duration, views: v.views, likes: v.likes, shares: v.shares, status: v.status, coverUrl: v.coverUrl, notes: v.notes }); setDialogOpen(true); };
-  const handleDelete = (id: string) => { setVideos((prev) => prev.filter((v) => v.id !== id)); toast.success(isZh ? "已删除" : "Deleted"); };
+  const handleEdit = (v: VideoItem) => {
+    setEditingVideo(v);
+    setForm({ title: v.title, category: v.category, publish_date: v.publish_date || "", duration: v.duration || "", views: v.views, likes: v.likes, shares: v.shares, status: v.status, cover_url: v.cover_url || "", notes: v.notes || "" });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("video_channels").delete().eq("id", id);
+    if (error) { toast.error(isZh ? "删除失败" : "Delete failed"); return; }
+    toast.success(isZh ? "已删除" : "Deleted");
+    fetchVideos();
+  };
 
   return (
     <div className="space-y-4">
@@ -119,7 +166,7 @@ const VideoChannelTab = () => {
                 <div><Label>{isZh ? "时长" : "Duration"}</Label><Input placeholder="2:35" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>{isZh ? "发布日期" : "Publish Date"}</Label><Input type="date" value={form.publishDate} onChange={(e) => setForm({ ...form, publishDate: e.target.value })} /></div>
+                <div><Label>{isZh ? "发布日期" : "Publish Date"}</Label><Input type="date" value={form.publish_date} onChange={(e) => setForm({ ...form, publish_date: e.target.value })} /></div>
                 <div><Label>{isZh ? "状态" : "Status"}</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="published">{isZh ? "已发布" : "Published"}</SelectItem><SelectItem value="draft">{isZh ? "草稿" : "Draft"}</SelectItem><SelectItem value="archived">{isZh ? "已归档" : "Archived"}</SelectItem></SelectContent></Select></div>
               </div>
               <div><Label>{isZh ? "备注" : "Notes"}</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
@@ -131,41 +178,47 @@ const VideoChannelTab = () => {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{isZh ? "视频标题" : "Title"}</TableHead>
-                <TableHead>{isZh ? "分类" : "Category"}</TableHead>
-                <TableHead>{isZh ? "时长" : "Duration"}</TableHead>
-                <TableHead>{isZh ? "播放量" : "Views"}</TableHead>
-                <TableHead>{isZh ? "点赞" : "Likes"}</TableHead>
-                <TableHead>{isZh ? "转发" : "Shares"}</TableHead>
-                <TableHead>{isZh ? "状态" : "Status"}</TableHead>
-                <TableHead>{isZh ? "操作" : "Actions"}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{isZh ? "暂无数据" : "No videos found"}</TableCell></TableRow>
-              ) : filtered.map((v) => (
-                <TableRow key={v.id}>
-                  <TableCell className="font-medium max-w-[240px] truncate">{v.title}</TableCell>
-                  <TableCell><Badge variant="outline">{categories.find((c) => c.value === v.category)?.label}</Badge></TableCell>
-                  <TableCell>{v.duration}</TableCell>
-                  <TableCell>{v.views.toLocaleString()}</TableCell>
-                  <TableCell>{v.likes.toLocaleString()}</TableCell>
-                  <TableCell>{v.shares.toLocaleString()}</TableCell>
-                  <TableCell><Badge className={statusColors[v.status]}>{v.status === "published" ? (isZh ? "已发布" : "Published") : v.status === "draft" ? (isZh ? "草稿" : "Draft") : (isZh ? "已归档" : "Archived")}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(v)}><Edit className="w-3.5 h-3.5" /></Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDelete(v.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{isZh ? "视频标题" : "Title"}</TableHead>
+                  <TableHead>{isZh ? "分类" : "Category"}</TableHead>
+                  <TableHead>{isZh ? "时长" : "Duration"}</TableHead>
+                  <TableHead>{isZh ? "播放量" : "Views"}</TableHead>
+                  <TableHead>{isZh ? "点赞" : "Likes"}</TableHead>
+                  <TableHead>{isZh ? "转发" : "Shares"}</TableHead>
+                  {isHQ && <TableHead>{isZh ? "门店" : "Store"}</TableHead>}
+                  <TableHead>{isZh ? "状态" : "Status"}</TableHead>
+                  <TableHead>{isZh ? "操作" : "Actions"}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow><TableCell colSpan={isHQ ? 9 : 8} className="text-center py-8 text-muted-foreground">{isZh ? "暂无数据" : "No videos found"}</TableCell></TableRow>
+                ) : filtered.map((v) => (
+                  <TableRow key={v.id}>
+                    <TableCell className="font-medium max-w-[240px] truncate">{v.title}</TableCell>
+                    <TableCell><Badge variant="outline">{categories.find((c) => c.value === v.category)?.label}</Badge></TableCell>
+                    <TableCell>{v.duration}</TableCell>
+                    <TableCell>{v.views.toLocaleString()}</TableCell>
+                    <TableCell>{v.likes.toLocaleString()}</TableCell>
+                    <TableCell>{v.shares.toLocaleString()}</TableCell>
+                    {isHQ && <TableCell><Badge variant="secondary">{isZh ? v.store_name_zh : v.store_name_en}</Badge></TableCell>}
+                    <TableCell><Badge className={statusColors[v.status]}>{v.status === "published" ? (isZh ? "已发布" : "Published") : v.status === "draft" ? (isZh ? "草稿" : "Draft") : (isZh ? "已归档" : "Archived")}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEdit(v)}><Edit className="w-3.5 h-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDelete(v.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

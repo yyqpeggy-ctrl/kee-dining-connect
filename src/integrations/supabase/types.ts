@@ -1336,6 +1336,126 @@ export type Database = {
         }
         Relationships: []
       }
+      video_channels: {
+        Row: {
+          category: string
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          duration: string | null
+          id: string
+          likes: number
+          notes: string | null
+          publish_date: string | null
+          shares: number
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          title: string
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration?: string | null
+          id?: string
+          likes?: number
+          notes?: string | null
+          publish_date?: string | null
+          shares?: number
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          title: string
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration?: string | null
+          id?: string
+          likes?: number
+          notes?: string | null
+          publish_date?: string | null
+          shares?: number
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          title?: string
+          updated_at?: string
+          views?: number
+        }
+        Relationships: []
+      }
+      wechat_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_date: string | null
+          id: string
+          member_count: number
+          name: string
+          notes: string | null
+          owner: string
+          qr_code_url: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          type: string
+          updated_at: string
+          weekly_messages: number
+          weekly_new_members: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_date?: string | null
+          id?: string
+          member_count?: number
+          name: string
+          notes?: string | null
+          owner?: string
+          qr_code_url?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          type?: string
+          updated_at?: string
+          weekly_messages?: number
+          weekly_new_members?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_date?: string | null
+          id?: string
+          member_count?: number
+          name?: string
+          notes?: string | null
+          owner?: string
+          qr_code_url?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          type?: string
+          updated_at?: string
+          weekly_messages?: number
+          weekly_new_members?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
