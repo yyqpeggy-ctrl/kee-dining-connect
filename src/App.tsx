@@ -22,6 +22,7 @@ import Procurement from "./pages/Procurement";
 import Marketing from "./pages/Marketing";
 // CustomerAnalysis moved into Marketing as a tab
 import Menu from "./pages/Menu";
+import DataCenter from "./pages/DataCenter";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
               <Route path="/customers" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
               <Route path="/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
+              <Route path="/data-center" element={<ProtectedRoute><DataCenter /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
