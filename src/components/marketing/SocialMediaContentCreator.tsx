@@ -1,15 +1,172 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Image, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Image, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
+interface UploadedVideo {
+  id: string;
+  file: File;
+  name: string;
+  size: string;
+  duration: string;
+  url: string;
+  thumbnail?: string;
+}
+
+interface EditTask {
+  id: string;
+  videoName: string;
+  template: string;
+  platform: string;
+  status: "queued" | "processing" | "done" | "error";
+  progress: number;
+  outputUrl?: string;
+  instructions: string;
+}
 
 const SocialMediaContentCreator = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language === "zh";
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [uploadedVideos, setUploadedVideos] = useState<UploadedVideo[]>([]);
+  const [selectedVideoTemplate, setSelectedVideoTemplate] = useState<string | null>(null);
+  const [editTasks, setEditTasks] = useState<EditTask[]>([]);
+  const [editInstructions, setEditInstructions] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [videoStep, setVideoStep] = useState<"upload" | "edit" | "preview">("upload");
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploading(true);
+
+    const newVideos: UploadedVideo[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("video/")) {
+        toast.error(isZh ? `${file.name} 不是视频文件` : `${file.name} is not a video file`);
+        continue;
+      }
+      if (file.size > 500 * 1024 * 1024) {
+        toast.error(isZh ? `${file.name} 超过500MB限制` : `${file.name} exceeds 500MB limit`);
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      newVideos.push({
+        id: crypto.randomUUID(),
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+        duration: "--:--",
+        url,
+      });
+    }
+
+    // Get video durations
+    for (const v of newVideos) {
+      try {
+        const videoEl = document.createElement("video");
+        videoEl.preload = "metadata";
+        videoEl.src = v.url;
+        await new Promise<void>((resolve) => {
+          videoEl.onloadedmetadata = () => {
+            const mins = Math.floor(videoEl.duration / 60);
+            const secs = Math.floor(videoEl.duration % 60);
+            v.duration = `${mins}:${secs.toString().padStart(2, "0")}`;
+            resolve();
+          };
+          videoEl.onerror = () => resolve();
+        });
+      } catch { /* ignore */ }
+    }
+
+    setUploadedVideos(prev => [...prev, ...newVideos]);
+    setIsUploading(false);
+    if (newVideos.length > 0) {
+      toast.success(isZh ? `已导入 ${newVideos.length} 个视频` : `Imported ${newVideos.length} video(s)`);
+    }
+    if (e.target) e.target.value = "";
+  };
+
+  const removeVideo = (id: string) => {
+    setUploadedVideos(prev => {
+      const v = prev.find(x => x.id === id);
+      if (v) URL.revokeObjectURL(v.url);
+      return prev.filter(x => x.id !== id);
+    });
+  };
+
+  const startAIEdit = () => {
+    if (uploadedVideos.length === 0) {
+      toast.error(isZh ? "请先上传视频素材" : "Please upload videos first");
+      return;
+    }
+    if (!selectedVideoTemplate) {
+      toast.error(isZh ? "请选择剪辑模板" : "Please select a template");
+      return;
+    }
+
+    const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
+    const newTasks: EditTask[] = uploadedVideos.map(v => ({
+      id: crypto.randomUUID(),
+      videoName: v.name,
+      template: template?.name || "",
+      platform: template?.platform || "",
+      status: "queued" as const,
+      progress: 0,
+      instructions: editInstructions,
+    }));
+
+    setEditTasks(prev => [...prev, ...newTasks]);
+    setVideoStep("edit");
+
+    // Simulate AI processing
+    newTasks.forEach((task, idx) => {
+      setTimeout(() => {
+        setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: "processing", progress: 0 } : t));
+        const interval = setInterval(() => {
+          setEditTasks(prev => prev.map(t => {
+            if (t.id !== task.id) return t;
+            const newProgress = Math.min(t.progress + Math.random() * 15, 100);
+            if (newProgress >= 100) {
+              clearInterval(interval);
+              return { ...t, status: "done", progress: 100 };
+            }
+            return { ...t, progress: Math.round(newProgress) };
+          }));
+        }, 800);
+      }, idx * 2000);
+    });
+
+    toast.info(isZh ? "AI 正在剪辑视频..." : "AI is editing videos...");
+  };
+
+  const handlePublish = (taskId: string) => {
+    if (selectedPlatforms.length === 0) {
+      toast.error(isZh ? "请选择发布平台" : "Select platforms to publish");
+      return;
+    }
+    toast.success(isZh
+      ? `视频已提交发布到 ${selectedPlatforms.join(", ")}`
+      : `Video submitted to ${selectedPlatforms.join(", ")}`
+    );
+    setEditTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
+  const togglePlatform = (p: string) => {
+    setSelectedPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+  };
 
   const posterTemplates = [
     { id: "promo", name: isZh ? "促销海报" : "Promo Poster", desc: isZh ? "节日活动、限时优惠" : "Holiday deals, flash sales", color: "bg-red-500/10 text-red-500", icon: Target },
@@ -117,33 +274,273 @@ const SocialMediaContentCreator = () => {
         {/* Video Edit */}
         <TabsContent value="video">
           <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2"><Film className="w-4 h-4 text-primary" />{isZh ? "AI 视频模板" : "AI Video Templates"}</CardTitle>
-                <CardDescription>{isZh ? "上传素材，AI 自动剪辑生成适合各平台的短视频" : "Upload footage, AI auto-edits videos for each platform"}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {videoTemplates.map((v) => (
-                    <div key={v.id} className="p-4 rounded-xl border border-border hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
-                      <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center mb-3">
-                        <Video className="w-8 h-8 text-muted-foreground/50" />
-                      </div>
-                      <p className="font-semibold text-sm text-foreground">{v.name}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-[11px] text-muted-foreground">{v.platform}</p>
-                        <Badge variant="outline" className="text-[10px]">{v.ratio}</Badge>
-                      </div>
-                    </div>
-                  ))}
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              {[
+                { key: "upload", label: isZh ? "① 导入素材" : "① Import" },
+                { key: "edit", label: isZh ? "② AI剪辑" : "② AI Edit" },
+                { key: "preview", label: isZh ? "③ 预览发布" : "③ Publish" },
+              ].map((step, i) => (
+                <div key={step.key} className="flex items-center gap-2">
+                  {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                  <button
+                    onClick={() => setVideoStep(step.key as any)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${videoStep === step.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {step.label}
+                  </button>
                 </div>
-                <div className="flex items-center gap-3 mt-4">
-                  <Button variant="outline" className="gap-1.5"><Video className="w-3.5 h-3.5" />{isZh ? "上传素材" : "Upload Footage"}</Button>
-                  <Button className="gap-1.5"><Sparkles className="w-3.5 h-3.5" />{isZh ? "AI 智能剪辑" : "AI Auto-Edit"}</Button>
-                </div>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
 
+            {/* Step 1: Upload */}
+            {videoStep === "upload" && (
+              <>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2"><Upload className="w-4 h-4 text-primary" />{isZh ? "导入视频素材" : "Import Video Footage"}</CardTitle>
+                    <CardDescription>{isZh ? "支持 MP4、MOV、AVI 格式，单个文件最大 500MB" : "Supports MP4, MOV, AVI formats, max 500MB per file"}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden" onChange={handleVideoUpload} />
+                    <div
+                      onClick={() => videoInputRef.current?.click()}
+                      className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center cursor-pointer transition-colors hover:bg-primary/5"
+                    >
+                      {isUploading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                          <p className="text-sm text-muted-foreground">{isZh ? "正在导入..." : "Importing..."}</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <FileVideo className="w-10 h-10 text-muted-foreground/50" />
+                          <p className="text-sm font-medium text-foreground">{isZh ? "点击或拖拽视频文件到此处" : "Click or drag video files here"}</p>
+                          <p className="text-xs text-muted-foreground">{isZh ? "支持批量导入多个视频" : "Supports batch import"}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {uploadedVideos.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">{isZh ? `已导入 ${uploadedVideos.length} 个素材` : `${uploadedVideos.length} file(s) imported`}</p>
+                        {uploadedVideos.map(v => (
+                          <div key={v.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
+                            <div className="flex items-center gap-3">
+                              <div className="w-16 h-10 rounded bg-muted flex items-center justify-center overflow-hidden">
+                                <video src={v.url} className="w-full h-full object-cover" muted />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{v.name}</p>
+                                <p className="text-[11px] text-muted-foreground">{v.size} · {v.duration}</p>
+                              </div>
+                            </div>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeVideo(v.id)}>
+                              <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Template selection */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2"><Film className="w-4 h-4 text-primary" />{isZh ? "选择剪辑模板" : "Select Edit Template"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {videoTemplates.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVideoTemplate(v.id)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all hover:shadow-md ${selectedVideoTemplate === v.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
+                        >
+                          <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center mb-3">
+                            <Video className="w-8 h-8 text-muted-foreground/50" />
+                          </div>
+                          <p className="font-semibold text-sm text-foreground">{v.name}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-[11px] text-muted-foreground">{v.platform}</p>
+                            <Badge variant="outline" className="text-[10px]">{v.ratio}</Badge>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Edit instructions */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="w-4 h-4" />{isZh ? "剪辑要求（可选）" : "Edit Instructions (Optional)"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <textarea
+                      className="w-full min-h-[80px] p-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                      placeholder={isZh ? "例如：保留调酒过程的特写镜头，加入节奏感强的BGM，前3秒要有吸睛画面..." : "e.g., Keep cocktail close-ups, add upbeat BGM, eye-catching first 3 seconds..."}
+                      value={editInstructions}
+                      onChange={(e) => setEditInstructions(e.target.value)}
+                    />
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      {(isZh
+                        ? ["加字幕", "加BGM", "慢动作特写", "快剪节奏", "品牌水印", "片尾CTA"]
+                        : ["Add Subtitles", "Add BGM", "Slow-mo Close-up", "Fast Cuts", "Brand Watermark", "End CTA"]
+                      ).map(tag => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors"
+                          onClick={() => setEditInstructions(prev => prev ? `${prev}，${tag}` : tag)}
+                        >
+                          + {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      <Button className="gap-1.5" onClick={startAIEdit} disabled={uploadedVideos.length === 0 || !selectedVideoTemplate}>
+                        <Sparkles className="w-3.5 h-3.5" />{isZh ? "开始 AI 智能剪辑" : "Start AI Edit"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Step 2: AI Editing Progress */}
+            {videoStep === "edit" && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><Scissors className="w-4 h-4 text-primary" />{isZh ? "AI 剪辑进度" : "AI Editing Progress"}</CardTitle>
+                  <CardDescription>{isZh ? "AI 正在根据您的要求智能剪辑视频" : "AI is editing your videos based on instructions"}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {editTasks.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Scissors className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">{isZh ? "暂无剪辑任务，请先导入视频" : "No edit tasks. Import videos first."}</p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => setVideoStep("upload")}>{isZh ? "返回导入" : "Go to Import"}</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {editTasks.map(task => (
+                        <div key={task.id} className="p-4 rounded-lg border border-border">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{task.videoName}</p>
+                              <p className="text-[11px] text-muted-foreground">{task.template} · {task.platform}</p>
+                            </div>
+                            <div>
+                              {task.status === "queued" && <Badge variant="secondary" className="text-[10px]">{isZh ? "排队中" : "Queued"}</Badge>}
+                              {task.status === "processing" && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">{isZh ? "剪辑中" : "Processing"}</Badge>}
+                              {task.status === "done" && <Badge className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20">{isZh ? "已完成" : "Done"}</Badge>}
+                              {task.status === "error" && <Badge variant="destructive" className="text-[10px]">{isZh ? "失败" : "Error"}</Badge>}
+                            </div>
+                          </div>
+                          {(task.status === "processing" || task.status === "done") && (
+                            <Progress value={task.progress} className="h-2" />
+                          )}
+                          {task.instructions && (
+                            <p className="text-[11px] text-muted-foreground mt-2 truncate">{isZh ? "要求：" : "Instructions: "}{task.instructions}</p>
+                          )}
+                          {task.status === "done" && (
+                            <div className="flex items-center gap-2 mt-3">
+                              <Button size="sm" variant="outline" className="gap-1 text-xs h-7">
+                                <Play className="w-3 h-3" />{isZh ? "预览" : "Preview"}
+                              </Button>
+                              <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => {
+                                setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: "queued", progress: 0 } : t));
+                                setTimeout(() => {
+                                  setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: "processing" } : t));
+                                  const interval = setInterval(() => {
+                                    setEditTasks(prev => prev.map(t => {
+                                      if (t.id !== task.id) return t;
+                                      const np = Math.min(t.progress + Math.random() * 15, 100);
+                                      if (np >= 100) { clearInterval(interval); return { ...t, status: "done", progress: 100 }; }
+                                      return { ...t, progress: Math.round(np) };
+                                    }));
+                                  }, 800);
+                                }, 500);
+                              }}>
+                                <RotateCcw className="w-3 h-3" />{isZh ? "重新剪辑" : "Re-edit"}
+                              </Button>
+                              <Button size="sm" className="gap-1 text-xs h-7" onClick={() => setVideoStep("preview")}>
+                                <Send className="w-3 h-3" />{isZh ? "去发布" : "Publish"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 3: Preview & Publish */}
+            {videoStep === "preview" && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><Send className="w-4 h-4 text-primary" />{isZh ? "预览与发布" : "Preview & Publish"}</CardTitle>
+                  <CardDescription>{isZh ? "选择发布平台，一键分发到多个社交媒体" : "Select platforms and distribute to multiple channels"}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {editTasks.filter(t => t.status === "done").length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="text-sm">{isZh ? "暂无已完成的视频，请先完成剪辑" : "No completed videos. Finish editing first."}</p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => setVideoStep("edit")}>{isZh ? "返回剪辑" : "Go to Edit"}</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {editTasks.filter(t => t.status === "done").map(task => (
+                        <div key={task.id} className="p-4 rounded-lg border border-border">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-24 h-14 rounded-lg bg-muted flex items-center justify-center">
+                              <Play className="w-6 h-6 text-muted-foreground/50" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{task.videoName}</p>
+                              <p className="text-[11px] text-muted-foreground">{task.template} · {task.platform}</p>
+                            </div>
+                          </div>
+
+                          <p className="text-xs font-medium text-muted-foreground mb-2">{isZh ? "选择发布平台" : "Select Platforms"}</p>
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {(isZh
+                              ? ["抖音/TikTok", "小红书", "Instagram", "YouTube", "微信视频号", "B站"]
+                              : ["TikTok", "Xiaohongshu", "Instagram", "YouTube", "WeChat Video", "Bilibili"]
+                            ).map(p => (
+                              <Badge
+                                key={p}
+                                variant={selectedPlatforms.includes(p) ? "default" : "outline"}
+                                className="cursor-pointer transition-colors"
+                                onClick={() => togglePlatform(p)}
+                              >
+                                {selectedPlatforms.includes(p) && <Check className="w-3 h-3 mr-1" />}
+                                {p}
+                              </Badge>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button className="gap-1.5" onClick={() => handlePublish(task.id)}>
+                              <Send className="w-3.5 h-3.5" />{isZh ? "立即发布" : "Publish Now"}
+                            </Button>
+                            <Button variant="outline" className="gap-1.5">
+                              <CalendarClock className="w-3.5 h-3.5" />{isZh ? "定时发布" : "Schedule"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* AI suggestions always visible */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">{isZh ? "AI 剪辑建议" : "AI Editing Suggestions"}</CardTitle>
