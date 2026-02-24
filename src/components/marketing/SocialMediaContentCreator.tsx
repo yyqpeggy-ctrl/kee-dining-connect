@@ -106,6 +106,7 @@ const SocialMediaContentCreator = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSeeking = useRef(false);
@@ -1600,6 +1601,26 @@ const SocialMediaContentCreator = () => {
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSkip(5)}>
                   <SkipForward className="w-4 h-4" />
                 </Button>
+              </div>
+
+              {/* Speed control */}
+              <div className="flex items-center gap-0.5 bg-muted/50 rounded-md px-1 py-0.5">
+                {[0.5, 1, 1.5, 2].map(rate => (
+                  <button
+                    key={rate}
+                    onClick={() => {
+                      setPlaybackRate(rate);
+                      if (videoRef.current) videoRef.current.playbackRate = rate;
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
+                      playbackRate === rate
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {rate}x
+                  </button>
+                ))}
               </div>
 
               <div className="flex items-center gap-1">
