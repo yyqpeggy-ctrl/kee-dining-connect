@@ -44,8 +44,8 @@ const AICustomerAcquisitionTab = () => {
   const [filterScoreMax, setFilterScoreMax] = useState(100);
 
   const onlineSources = isZh
-    ? ["小红书", "大众点评", "微信群", "企业微信", "抖音", "微博", "LinkedIn"]
-    : ["Xiaohongshu", "Dianping", "WeChat Group", "WeCom", "Douyin", "Weibo", "LinkedIn"];
+    ? ["小红书", "大众点评", "微信群", "企业微信", "抖音", "微博", "LinkedIn", "地图线索"]
+    : ["Xiaohongshu", "Dianping", "WeChat Group", "WeCom", "Douyin", "Weibo", "LinkedIn", "Map Leads"];
   const offlineSources = isZh
     ? ["线下活动", "门店到访", "朋友推荐", "传单", "电话咨询"]
     : ["Offline Event", "Walk-in", "Referral", "Flyer", "Phone Inquiry"];
