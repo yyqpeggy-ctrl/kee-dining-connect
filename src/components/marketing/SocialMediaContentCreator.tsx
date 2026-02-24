@@ -43,6 +43,15 @@ interface UploadedVideo {
   thumbnail?: string;
 }
 
+interface UploadedImage {
+  id: string;
+  file: File;
+  name: string;
+  size: string;
+  url: string;
+  dataUrl?: string; // base64 for AI usage
+}
+
 interface AIScheduleResult {
   schedule: { time: string; platform: string; content_type: string; topic: string; estimated_engagement: string; status: string }[];
   platform_analysis: { platform: string; best_time: string; reason: string; engagement_boost: string }[];
@@ -89,6 +98,8 @@ const SocialMediaContentCreator = () => {
   const [videoStep, setVideoStep] = useState<"upload" | "edit" | "preview">("upload");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<AIVideoResult | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [posterResult, setPosterResult] = useState<AIPosterResult | null>(null);
@@ -479,6 +490,53 @@ const SocialMediaContentCreator = () => {
     });
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newImages: UploadedImage[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(isZh ? `${file.name} 不是图片文件` : `${file.name} is not an image`);
+        continue;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(isZh ? `${file.name} 超过20MB限制` : `${file.name} exceeds 20MB limit`);
+        continue;
+      }
+      const url = URL.createObjectURL(file);
+      // Convert to base64 for AI usage
+      let dataUrl: string | undefined;
+      try {
+        const reader = new FileReader();
+        dataUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      } catch { /* ignore */ }
+      newImages.push({
+        id: crypto.randomUUID(),
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+        url,
+        dataUrl,
+      });
+    }
+    setUploadedImages(prev => [...prev, ...newImages]);
+    if (newImages.length > 0) {
+      toast.success(isZh ? `已导入 ${newImages.length} 张图片` : `Imported ${newImages.length} image(s)`);
+    }
+    if (e.target) e.target.value = "";
+  };
+
+  const removeImage = (id: string) => {
+    setUploadedImages(prev => {
+      const img = prev.find(x => x.id === id);
+      if (img) URL.revokeObjectURL(img.url);
+      return prev.filter(x => x.id !== id);
+    });
+  };
+
   const generateVideoCover = async (taskId: string) => {
     try {
       const style = videoStyles.find(s => s.id === selectedVideoStyle);
@@ -497,8 +555,9 @@ const SocialMediaContentCreator = () => {
             : selectedVideoStyle === "chill_groove" ? ["#f4a261", "#e9c46a", "#2a9d8f", "#264653"]
             : ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
           extra_instructions: isZh
-            ? `这是视频封面图，风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}，需要有视觉冲击力和营销吸引力`
-            : `This is a video cover image, style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}, needs visual impact and marketing appeal`,
+            ? `这是视频封面图，风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}，需要有视觉冲击力和营销吸引力。${uploadedImages.length > 0 ? `用户提供了${uploadedImages.length}张参考图片（含LOGO/品牌素材），请提取其中的品牌元素、配色和LOGO融入封面设计。` : ""}`
+            : `This is a video cover image, style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}, needs visual impact and marketing appeal. ${uploadedImages.length > 0 ? `User provided ${uploadedImages.length} reference image(s) (logo/brand assets). Extract brand elements, colors and logo to integrate into cover design.` : ""}`,
+          reference_images: uploadedImages.slice(0, 2).map(img => img.dataUrl).filter(Boolean),
           language: isZh ? "zh" : "en",
         },
       });
@@ -1004,6 +1063,43 @@ const SocialMediaContentCreator = () => {
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeVideo(v.id)}>
                               <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                             </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Image Upload for Logo/Cover */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2"><ImagePlus className="w-4 h-4 text-primary" />{isZh ? "导入图片素材（可选）" : "Import Images (Optional)"}</CardTitle>
+                    <CardDescription>{isZh ? "导入LOGO、品牌图片等，AI将自动提取并融入封面设计" : "Import logo, brand images — AI will extract and integrate into cover design"}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+                    <div
+                      onClick={() => imageInputRef.current?.click()}
+                      className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-5 text-center cursor-pointer transition-colors hover:bg-primary/5"
+                    >
+                      <div className="flex flex-col items-center gap-1.5">
+                        <Image className="w-8 h-8 text-muted-foreground/50" />
+                        <p className="text-sm font-medium text-foreground">{isZh ? "点击导入 JPG / PNG / WEBP 图片" : "Click to import JPG / PNG / WEBP images"}</p>
+                        <p className="text-[11px] text-muted-foreground">{isZh ? "LOGO、产品图、品牌素材等，AI 自动提取用于封面" : "Logo, product photos, brand assets — AI extracts for cover"}</p>
+                      </div>
+                    </div>
+
+                    {uploadedImages.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {uploadedImages.map(img => (
+                          <div key={img.id} className="relative group">
+                            <img src={img.url} alt={img.name} className="w-20 h-20 rounded-lg object-cover border border-border" />
+                            <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-white hover:text-white" onClick={() => removeImage(img.id)}>
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                            <p className="text-[9px] text-muted-foreground mt-0.5 truncate w-20 text-center">{img.name}</p>
                           </div>
                         ))}
                       </div>

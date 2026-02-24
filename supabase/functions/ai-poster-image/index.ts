@@ -16,7 +16,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { template_name, headline, subtitle, body_copy, style, color_palette, extra_instructions, language } = await req.json();
+    const { template_name, headline, subtitle, body_copy, style, color_palette, extra_instructions, language, reference_images } = await req.json();
 
     const isZh = language === "zh";
 
@@ -29,13 +29,15 @@ serve(async (req) => {
 设计风格：${style}
 推荐配色：${(color_palette || []).join(", ")}
 额外要求：${extra_instructions || "无"}
+${reference_images?.length ? "用户提供了参考图片（可能包含LOGO、品牌元素），请提取其中的品牌标识、配色风格融入海报设计。" : ""}
 
 要求：
 - 生成一张高质量的营销海报图片，1:1或9:16竖版
 - 风格要专业、高端，适合社交媒体发布
 - 文字要清晰可读
 - 配色要和推荐配色一致
-- 不要在图片中包含太多文字，保持简洁大气`
+- 不要在图片中包含太多文字，保持简洁大气
+- 如果有参考图中的LOGO，请将其融入设计`
       : `Generate a marketing poster visual for a bar/restaurant.
 Poster type: ${template_name}
 Main headline: ${headline}
@@ -44,13 +46,28 @@ Body summary: ${body_copy}
 Design style: ${style}
 Color palette: ${(color_palette || []).join(", ")}
 Extra instructions: ${extra_instructions || "None"}
+${reference_images?.length ? "User provided reference images (may contain logo, brand elements). Extract brand identity and color scheme to integrate into poster design." : ""}
 
 Requirements:
 - Generate a high-quality marketing poster image, portrait 9:16 or square 1:1
 - Professional, premium style suitable for social media
 - Text should be clear and readable
 - Colors should match the recommended palette
-- Keep text minimal and elegant`;
+- Keep text minimal and elegant
+- If reference images contain a logo, integrate it into the design`;
+
+    // Build message content with optional reference images
+    const messageContent: any[] = [{ type: "text", text: prompt }];
+    if (reference_images && reference_images.length > 0) {
+      for (const imgUrl of reference_images) {
+        if (imgUrl) {
+          messageContent.push({
+            type: "image_url",
+            image_url: { url: imgUrl },
+          });
+        }
+      }
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -60,7 +77,7 @@ Requirements:
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: messageContent }],
         modalities: ["image", "text"],
       }),
     });
