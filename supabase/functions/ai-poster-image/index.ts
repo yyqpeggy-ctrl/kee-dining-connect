@@ -69,65 +69,77 @@ Requirements:
       }
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: messageContent }],
-        modalities: ["image", "text"],
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: isZh ? "请求过于频繁，请稍后再试" : "Rate limited, please try again later" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: isZh ? "AI 额度不足，请充值" : "AI credits exhausted, please top up" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const data = await response.json();
-    const message = data.choices?.[0]?.message;
-    const images = message?.images || [];
-    const textContent = message?.content || "";
-
-    console.log("AI response keys:", JSON.stringify(Object.keys(data)));
-    console.log("Message keys:", message ? JSON.stringify(Object.keys(message)) : "no message");
-    console.log("Images count:", images.length);
-
-    // Also check for inline base64 images in content if images array is empty
+    const MAX_RETRIES = 3;
     let imageUrl = "";
-    if (images.length > 0) {
-      imageUrl = images[0].image_url?.url || "";
-    }
+    let textContent = "";
 
-    // Check content array for image parts
-    if (!imageUrl && Array.isArray(message?.content)) {
-      const imgPart = message.content.find((p: any) => p.type === "image_url");
-      if (imgPart) {
-        imageUrl = imgPart.image_url?.url || "";
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      console.log(`Attempt ${attempt + 1}/${MAX_RETRIES}`);
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [{ role: "user", content: messageContent }],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: isZh ? "请求过于频繁，请稍后再试" : "Rate limited, please try again later" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: isZh ? "AI 额度不足，请充值" : "AI credits exhausted, please top up" }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const errText = await response.text();
+        console.error("AI gateway error:", response.status, errText);
+        return new Response(
+          JSON.stringify({ error: "AI gateway error" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const data = await response.json();
+      const message = data.choices?.[0]?.message;
+      const images = message?.images || [];
+      textContent = message?.content || "";
+
+      console.log(`Attempt ${attempt + 1} - Images count:`, images.length);
+
+      if (images.length > 0) {
+        imageUrl = images[0].image_url?.url || "";
+      }
+
+      // Check content array for image parts
+      if (!imageUrl && Array.isArray(message?.content)) {
+        const imgPart = message.content.find((p: any) => p.type === "image_url");
+        if (imgPart) {
+          imageUrl = imgPart.image_url?.url || "";
+        }
+      }
+
+      if (imageUrl) break;
+
+      console.warn(`Attempt ${attempt + 1} returned no image, retrying...`);
+      // Small delay before retry
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
     if (!imageUrl) {
-      console.error("No image in response. Full response:", JSON.stringify(data).substring(0, 500));
+      console.error("All retries exhausted, no image generated");
       return new Response(
         JSON.stringify({ error: isZh ? "AI 未能生成图片，请重试" : "AI failed to generate image, please retry" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
