@@ -10,7 +10,7 @@ import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { trimAndMerge, autoTrimSegments, extractBestFrame, getVideoDuration, type TrimSegment, type VideoSubtitle, type SubtitleStyle, type TransitionType } from "@/lib/videoEditor";
+import { trimAndMerge, autoTrimSegments, extractBestFrame, getVideoDuration, type TrimSegment, type VideoSubtitle, type SubtitleStyle, type TransitionType, type BGMOptions } from "@/lib/videoEditor";
 
 // Default fallback subtitles when AI generation fails
 const defaultSubtitles: VideoSubtitle[] = [
@@ -258,6 +258,14 @@ const SocialMediaContentCreator = () => {
   const [showSubtitleEditor, setShowSubtitleEditor] = useState(false);
   const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
   const [subtitlesConfirmed, setSubtitlesConfirmed] = useState(false);
+
+  // BGM state
+  const [bgmFile, setBgmFile] = useState<File | null>(null);
+  const [bgmUrl, setBgmUrl] = useState<string>("");
+  const [bgmVolume, setBgmVolume] = useState(0.45);
+  const [originalAudioVolume, setOriginalAudioVolume] = useState(0.3);
+  const [bgmName, setBgmName] = useState("");
+  const bgmInputRef = useRef<HTMLInputElement>(null);
 
   // Subtitle data for preview playback (synced to progress percentage)
   const subtitles = generatedSubtitles;
@@ -1121,13 +1129,22 @@ const SocialMediaContentCreator = () => {
       const burnSubtitles = generatedSubtitles;
       console.log("[Subtitles] Using", burnSubtitles.length, "subtitles (user-reviewed)");
 
-      // Real Canvas+MediaRecorder trim & merge with subtitle burn-in
+      // Build BGM options if user uploaded BGM
+      const bgm: BGMOptions | undefined = bgmUrl ? {
+        url: bgmUrl,
+        volume: bgmVolume,
+        originalVolume: originalAudioVolume,
+        fadeInDuration: 1.5,
+        fadeOutDuration: 2.0,
+      } : undefined;
+
+      // Real Canvas+MediaRecorder trim & merge with subtitle burn-in + BGM
       const outputUrl = await trimAndMerge(segments, (pct) => {
         setFfmpegProgress(pct);
         setEditTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, progress: pct } : t
         ));
-      }, burnSubtitles, subtitleStyle, selectedTransition);
+      }, burnSubtitles, subtitleStyle, selectedTransition, bgm);
       console.log("[VideoEditor] Output URL:", outputUrl);
 
       setEditTasks(prev => prev.map(t =>
@@ -2884,36 +2901,96 @@ const SocialMediaContentCreator = () => {
             )}
           </div>
 
-          {/* BGM Waveform Visualization */}
+          {/* BGM Track - Upload & Controls */}
           {showWaveform && (
-            <div className="px-4 pt-3">
-              <div className="flex items-center gap-2 mb-1.5">
+            <div className="px-4 pt-3 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
                 <Music2 className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[11px] font-medium text-foreground">{isZh ? "BGM 音轨" : "BGM Track"}</span>
-                <span className="text-[10px] text-muted-foreground">—</span>
-                <span className="text-[10px] text-muted-foreground italic">
-                  {aiSuggestions?.recommended_bgm?.[0]
-                    ? `${aiSuggestions.recommended_bgm[0].name} · ${aiSuggestions.recommended_bgm[0].style}`
-                    : (isZh ? "轻爵士 · Chill Vibes" : "Light Jazz · Chill Vibes")}
-                </span>
-                {isPlaying && <AudioLines className="w-3 h-3 text-primary animate-pulse ml-auto" />}
+                <span className="text-[11px] font-medium text-foreground">{isZh ? "BGM 背景音乐" : "BGM Track"}</span>
+                {bgmName && <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">— {bgmName}</span>}
+                {isPlaying && bgmUrl && <AudioLines className="w-3 h-3 text-primary animate-pulse ml-auto" />}
               </div>
-              <div className="flex items-end gap-[2px] h-8 bg-muted/30 rounded-md px-1 py-1 overflow-hidden">
-                {Array.from({ length: waveformBars }).map((_, i) => {
-                  const h = getWaveformHeight(i);
-                  const isPast = i / waveformBars <= playProgress / 100;
-                  return (
-                    <div
-                      key={i}
-                      className={`flex-1 rounded-sm transition-all duration-100 ${isPast ? "bg-primary" : "bg-muted-foreground/20"}`}
-                      style={{
-                        height: `${Math.max(8, h * 100)}%`,
-                        opacity: isPast ? (isPlaying ? 0.9 : 0.7) : 0.4,
-                      }}
-                    />
-                  );
-                })}
-              </div>
+
+              {!bgmUrl ? (
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => bgmInputRef.current?.click()}
+                    className="w-full h-10 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center gap-2 text-xs text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {isZh ? "上传 BGM 音频文件 (MP3/WAV/OGG)" : "Upload BGM audio (MP3/WAV/OGG)"}
+                  </button>
+                  <input
+                    ref={bgmInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setBgmFile(file);
+                        setBgmUrl(URL.createObjectURL(file));
+                        setBgmName(file.name);
+                        toast.success(isZh ? `🎵 BGM 已加载: ${file.name}` : `🎵 BGM loaded: ${file.name}`);
+                      }
+                    }}
+                  />
+                  {aiSuggestions?.recommended_bgm?.[0] && (
+                    <p className="text-[10px] text-muted-foreground italic px-1">
+                      💡 AI {isZh ? "推荐" : "suggests"}: {aiSuggestions.recommended_bgm[0].name} · {aiSuggestions.recommended_bgm[0].style}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {/* Waveform visualization */}
+                  <div className="flex items-end gap-[2px] h-8 bg-muted/30 rounded-md px-1 py-1 overflow-hidden">
+                    {Array.from({ length: waveformBars }).map((_, i) => {
+                      const h = getWaveformHeight(i);
+                      const isPast = i / waveformBars <= playProgress / 100;
+                      return (
+                        <div
+                          key={i}
+                          className={`flex-1 rounded-sm transition-all duration-100 ${isPast ? "bg-primary" : "bg-muted-foreground/20"}`}
+                          style={{
+                            height: `${Math.max(8, h * 100)}%`,
+                            opacity: isPast ? (isPlaying ? 0.9 : 0.7) : 0.4,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Volume controls */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">{isZh ? "🎵 BGM 音量" : "🎵 BGM Vol"}</span>
+                        <span className="text-[10px] font-mono text-foreground">{Math.round(bgmVolume * 100)}%</span>
+                      </div>
+                      <Slider value={[bgmVolume * 100]} max={100} step={1} onValueChange={([v]) => setBgmVolume(v / 100)} className="h-1.5" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">{isZh ? "🎤 原声音量" : "🎤 Original"}</span>
+                        <span className="text-[10px] font-mono text-foreground">{Math.round(originalAudioVolume * 100)}%</span>
+                      </div>
+                      <Slider value={[originalAudioVolume * 100]} max={100} step={1} onValueChange={([v]) => setOriginalAudioVolume(v / 100)} className="h-1.5" />
+                    </div>
+                  </div>
+
+                  {/* Remove BGM */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground truncate">{bgmName}</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => {
+                      if (bgmUrl) URL.revokeObjectURL(bgmUrl);
+                      setBgmFile(null); setBgmUrl(""); setBgmName("");
+                    }}>
+                      <Trash2 className="w-3 h-3 mr-1" />{isZh ? "移除" : "Remove"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

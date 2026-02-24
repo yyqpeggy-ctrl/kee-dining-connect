@@ -29,6 +29,17 @@ export interface SubtitleStyle {
 
 export type TransitionType = "fade" | "wipe-left" | "wipe-right" | "wipe-up" | "wipe-down" | "slide-left" | "slide-right" | "dissolve" | "zoom" | "none";
 
+export interface BGMOptions {
+  url: string;          // blob URL of the BGM audio file
+  volume: number;       // 0-1, default 0.5
+  originalVolume: number; // 0-1, volume of original video audio (ducking), default 0.3
+  fadeInDuration: number;  // seconds
+  fadeOutDuration: number; // seconds
+}
+
+/** Duration (seconds) for audio crossfade between segments */
+const AUDIO_CROSSFADE_DURATION = 0.6;
+
 /**
  * Get video duration from a blob URL
  */
@@ -282,6 +293,8 @@ function playSegmentOnCanvas(
   getSubtitle?: () => VideoSubtitle | undefined,
   subtitleStyle?: SubtitleStyle,
   transition: TransitionType = "fade",
+  gainNode?: GainNode,
+  audioCrossfadeDuration: number = AUDIO_CROSSFADE_DURATION,
 ): Promise<void> {
   return new Promise((resolve) => {
     // Resize canvas to match video
@@ -291,6 +304,10 @@ function playSegmentOnCanvas(
     const segStart = video.currentTime;
     const segDuration = endTime - segStart;
     const transDuration = transition === "none" ? 0 : Math.min(0.5, segDuration * 0.15);
+
+    // Audio crossfade timing
+    const audioFadeDur = Math.min(audioCrossfadeDuration, segDuration * 0.2);
+    const baseGain = gainNode ? (gainNode as any).__baseVolume ?? 1 : 1;
 
     let animFrameId: number | null = null;
 
@@ -318,12 +335,30 @@ function playSegmentOnCanvas(
         }
       }
 
+      // Audio crossfade: smooth gain ramp
+      if (gainNode && audioFadeDur > 0) {
+        if (elapsed < audioFadeDur) {
+          // Fade in
+          gainNode.gain.value = baseGain * (elapsed / audioFadeDur);
+        } else if (remaining < audioFadeDur) {
+          // Fade out
+          gainNode.gain.value = baseGain * (remaining / audioFadeDur);
+        } else {
+          gainNode.gain.value = baseGain;
+        }
+      }
+
       // Overlay subtitles
       if (getSubtitle) {
         drawSubtitles(ctx, canvas.width, canvas.height, getSubtitle(), subtitleStyle);
       }
       animFrameId = requestAnimationFrame(drawFrame);
     };
+
+    // Start with gain at 0 for fade-in
+    if (gainNode && audioFadeDur > 0) {
+      gainNode.gain.value = 0;
+    }
 
     video.play().then(() => {
       drawFrame();
@@ -354,6 +389,7 @@ export async function trimAndMerge(
   subtitles?: VideoSubtitle[],
   subtitleStyle?: SubtitleStyle,
   transition: TransitionType = "fade",
+  bgmOptions?: BGMOptions,
 ): Promise<string> {
   const canvas = document.createElement("canvas");
   canvas.width = 1280;
@@ -373,11 +409,47 @@ export async function trimAndMerge(
   let audioCtx: AudioContext | null = null;
   let audioDest: MediaStreamAudioDestinationNode | null = null;
 
+  // BGM nodes
+  let bgmSource: AudioBufferSourceNode | null = null;
+  let bgmGain: GainNode | null = null;
+
   try {
     audioCtx = new AudioContext();
     audioDest = audioCtx.createMediaStreamDestination();
     audioDest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
     console.log("[trimAndMerge] Audio destination set up");
+
+    // Load and start BGM if provided
+    if (bgmOptions?.url && audioCtx && audioDest) {
+      try {
+        const bgmRes = await fetch(bgmOptions.url);
+        const bgmArrayBuf = await bgmRes.arrayBuffer();
+        const bgmBuffer = await audioCtx.decodeAudioData(bgmArrayBuf);
+
+        bgmSource = audioCtx.createBufferSource();
+        bgmSource.buffer = bgmBuffer;
+        bgmSource.loop = true; // loop BGM to cover full video
+
+        bgmGain = audioCtx.createGain();
+        bgmGain.gain.value = 0; // start silent, will fade in
+
+        bgmSource.connect(bgmGain);
+        bgmGain.connect(audioDest);
+        bgmSource.start(0);
+
+        // Schedule BGM fade-in
+        const fadeIn = bgmOptions.fadeInDuration || 1.5;
+        bgmGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        bgmGain.gain.linearRampToValueAtTime(
+          bgmOptions.volume ?? 0.5,
+          audioCtx.currentTime + fadeIn
+        );
+
+        console.log("[trimAndMerge] BGM loaded and started, volume:", bgmOptions.volume);
+      } catch (e) {
+        console.warn("[trimAndMerge] BGM load failed:", e);
+      }
+    }
   } catch (e) {
     console.warn("[trimAndMerge] Audio setup failed:", e);
   }
@@ -409,6 +481,9 @@ export async function trimAndMerge(
   const totalOutputDuration = segments.reduce((acc, s) => acc + (s.endTime - s.startTime), 0);
   let elapsedTime = 0; // tracks how much output time has been recorded so far
 
+  // Original audio volume (duck when BGM is present)
+  const origVolume = bgmOptions ? (bgmOptions.originalVolume ?? 0.3) : 1;
+
   const totalSegments = segments.length;
 
   for (let i = 0; i < totalSegments; i++) {
@@ -423,11 +498,17 @@ export async function trimAndMerge(
 
       // Connect audio from this video to the shared audio destination
       let audioSource: MediaElementAudioSourceNode | null = null;
+      let segGainNode: GainNode | null = null;
       if (audioCtx && audioDest) {
         try {
           audioSource = audioCtx.createMediaElementSource(video);
-          audioSource.connect(audioDest);
-          console.log(`[trimAndMerge] Audio connected for segment ${i + 1}`);
+          segGainNode = audioCtx.createGain();
+          segGainNode.gain.value = origVolume;
+          // Store base volume for crossfade logic
+          (segGainNode as any).__baseVolume = origVolume;
+          audioSource.connect(segGainNode);
+          segGainNode.connect(audioDest);
+          console.log(`[trimAndMerge] Audio connected for segment ${i + 1} (vol: ${origVolume})`);
         } catch (e) {
           console.warn(`[trimAndMerge] Audio connect failed for segment ${i + 1}:`, e);
         }
@@ -446,10 +527,17 @@ export async function trimAndMerge(
           }
         : undefined;
 
-      // Play segment on canvas (real-time)
-      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx, getSubtitle, subtitleStyle, transition);
+      // Play segment on canvas (real-time) with audio crossfade
+      await playSegmentOnCanvas(
+        video, seg.endTime, canvas, ctx,
+        getSubtitle, subtitleStyle, transition,
+        segGainNode || undefined,
+      );
 
       // Cleanup video
+      if (segGainNode) {
+        try { segGainNode.disconnect(); } catch {}
+      }
       if (audioSource) {
         try { audioSource.disconnect(); } catch {}
       }
@@ -462,6 +550,20 @@ export async function trimAndMerge(
 
     elapsedTime += (seg.endTime - seg.startTime);
     onProgress?.(Math.round(((i + 1) / totalSegments) * 85));
+  }
+
+  // Fade out BGM
+  if (bgmGain && audioCtx) {
+    const fadeOut = bgmOptions?.fadeOutDuration || 1.5;
+    bgmGain.gain.setValueAtTime(bgmGain.gain.value, audioCtx.currentTime);
+    bgmGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + fadeOut);
+    // Wait for fade-out
+    await new Promise(r => setTimeout(r, fadeOut * 1000 + 200));
+  }
+
+  // Stop BGM
+  if (bgmSource) {
+    try { bgmSource.stop(); } catch {}
   }
 
   // Stop recording and wait for final data
