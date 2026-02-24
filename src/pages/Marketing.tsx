@@ -3,7 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound, Layers, TrendingUp, Users, Palette, MessageCircle, Video } from "lucide-react";
+import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound, Layers, TrendingUp, Users, Palette, MessageCircle, Video, Brain } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import SocialMediaTab from "@/components/marketing/SocialMediaTab";
 import EcommerceTab from "@/components/marketing/EcommerceTab";
@@ -16,6 +16,7 @@ import PartnersTab from "@/components/marketing/PartnersTab";
 import ClubsTab from "@/components/marketing/ClubsTab";
 import WechatGroupsTab from "@/components/marketing/WechatGroupsTab";
 import VideoChannelTab from "@/components/marketing/VideoChannelTab";
+import AICustomerAcquisitionTab from "@/components/marketing/AICustomerAcquisitionTab";
 import { cn } from "@/lib/utils";
 
 interface NavGroup {
@@ -70,6 +71,7 @@ const Marketing = () => {
       icon: <TrendingUp className="w-4 h-4" />,
       items: [
         { key: "analytics", label: isZh ? "流量分析" : "Traffic Analytics", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+        { key: "ai-acquisition", label: isZh ? "AI 智能获客" : "AI Acquisition", icon: <Brain className="w-3.5 h-3.5" /> },
       ],
     },
   ];
@@ -88,6 +90,7 @@ const Marketing = () => {
     wechat: <WechatGroupsTab />,
     video: <VideoChannelTab />,
     analytics: <TrafficAnalyticsTab />,
+    "ai-acquisition": <AICustomerAcquisitionTab />,
   };
 
   return (
