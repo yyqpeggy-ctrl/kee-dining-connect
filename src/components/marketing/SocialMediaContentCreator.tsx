@@ -788,6 +788,50 @@ const SocialMediaContentCreator = () => {
     toast.success(isZh ? `已选择封面：${candidate.label}` : `Cover selected: ${candidate.label}`);
   };
 
+  // Cover AI editing state
+  const [coverEditInput, setCoverEditInput] = useState<Record<string, string>>({});
+  const [coverEditLoading, setCoverEditLoading] = useState<Record<string, boolean>>({});
+  const [coverEditHistory, setCoverEditHistory] = useState<Record<string, string[]>>({});
+
+  const editCoverWithAI = async (taskId: string, instruction: string) => {
+    const task = editTasks.find(t => t.id === taskId);
+    if (!task?.coverImage || !instruction.trim()) return;
+
+    setCoverEditLoading(prev => ({ ...prev, [taskId]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-poster-edit", {
+        body: { image_url: task.coverImage, edit_instruction: instruction, language: isZh ? "zh" : "en" },
+      });
+      if (error) throw error;
+      if (!data?.image_url) throw new Error("No image returned");
+
+      // Save current image to history for undo
+      setCoverEditHistory(prev => ({
+        ...prev,
+        [taskId]: [...(prev[taskId] || []), task.coverImage!],
+      }));
+
+      setEditTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, coverImage: data.image_url } : t
+      ));
+      setCoverEditInput(prev => ({ ...prev, [taskId]: "" }));
+      toast.success(isZh ? "封面已更新" : "Cover updated");
+    } catch (e: any) {
+      toast.error(isZh ? `封面编辑失败: ${e.message}` : `Cover edit failed: ${e.message}`);
+    } finally {
+      setCoverEditLoading(prev => ({ ...prev, [taskId]: false }));
+    }
+  };
+
+  const undoCoverEdit = (taskId: string) => {
+    const history = coverEditHistory[taskId];
+    if (!history || history.length === 0) return;
+    const previousImage = history[history.length - 1];
+    setCoverEditHistory(prev => ({ ...prev, [taskId]: history.slice(0, -1) }));
+    setEditTasks(prev => prev.map(t => t.id === taskId ? { ...t, coverImage: previousImage } : t));
+    toast.success(isZh ? "已撤销封面编辑" : "Cover edit undone");
+  };
+
 
   const generateAISubtitles = async () => {
     if (!selectedVideoStyle || !selectedVideoTemplate) {
@@ -2173,6 +2217,65 @@ const SocialMediaContentCreator = () => {
                                       </p>
                                     </div>
                                   </div>
+                                  {/* AI Cover Editing */}
+                                  {task.coverImage && (
+                                    <div className="mt-2 p-2.5 rounded-md border border-dashed border-primary/30 bg-primary/5 space-y-2">
+                                      <p className="text-[10px] font-medium text-foreground flex items-center gap-1">
+                                        <Wand2 className="w-3 h-3 text-primary" />
+                                        {isZh ? "AI 封面编辑" : "AI Cover Edit"}
+                                        {coverEditHistory[task.id]?.length > 0 && (
+                                          <button onClick={() => undoCoverEdit(task.id)} className="ml-auto text-[9px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+                                            <Undo2 className="w-2.5 h-2.5" /> {isZh ? "撤销" : "Undo"}
+                                          </button>
+                                        )}
+                                      </p>
+                                      {/* Quick presets */}
+                                      <div className="flex flex-wrap gap-1">
+                                        {[
+                                          { label: isZh ? "调整LOGO位置" : "Move Logo", prompt: isZh ? "将LOGO移动到右上角，保持大小不变" : "Move the logo to the top-right corner, keep same size" },
+                                          { label: isZh ? "更换配色" : "Change Colors", prompt: isZh ? "将整体配色改为更鲜艳的暖色调，增强视觉冲击力" : "Change color scheme to vibrant warm tones for more visual impact" },
+                                          { label: isZh ? "增强对比" : "Boost Contrast", prompt: isZh ? "增强图片整体对比度和饱和度，让画面更有冲击力" : "Enhance contrast and saturation for more visual punch" },
+                                          { label: isZh ? "添加光效" : "Add Glow", prompt: isZh ? "添加柔和的光晕和光效，营造高端氛围" : "Add soft glow and light effects for premium feel" },
+                                        ].map((preset, i) => (
+                                          <Button
+                                            key={i}
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-[9px] h-5 px-2"
+                                            disabled={coverEditLoading[task.id]}
+                                            onClick={() => editCoverWithAI(task.id, preset.prompt)}
+                                          >
+                                            {preset.label}
+                                          </Button>
+                                        ))}
+                                      </div>
+                                      {/* Custom edit input */}
+                                      <div className="flex gap-1.5">
+                                        <input
+                                          type="text"
+                                          value={coverEditInput[task.id] || ""}
+                                          onChange={e => setCoverEditInput(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                          placeholder={isZh ? "输入自定义编辑指令，如：把背景换成星空..." : "Custom edit, e.g.: change background to starry sky..."}
+                                          className="flex-1 text-[11px] px-2 py-1 rounded border border-border bg-background text-foreground focus:ring-1 focus:ring-primary/30 outline-none"
+                                          onKeyDown={e => { if (e.key === "Enter" && !coverEditLoading[task.id]) editCoverWithAI(task.id, coverEditInput[task.id] || ""); }}
+                                          disabled={coverEditLoading[task.id]}
+                                        />
+                                        <Button
+                                          size="sm"
+                                          className="text-[10px] h-7 px-3"
+                                          disabled={coverEditLoading[task.id] || !(coverEditInput[task.id] || "").trim()}
+                                          onClick={() => editCoverWithAI(task.id, coverEditInput[task.id] || "")}
+                                        >
+                                          {coverEditLoading[task.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                                        </Button>
+                                      </div>
+                                      {coverEditLoading[task.id] && (
+                                        <p className="text-[9px] text-muted-foreground animate-pulse">
+                                          {isZh ? "AI 正在编辑封面..." : "AI editing cover..."}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ) : task.coverStatus === "generating" ? (
                                 <div className="flex items-center gap-2 text-muted-foreground">
