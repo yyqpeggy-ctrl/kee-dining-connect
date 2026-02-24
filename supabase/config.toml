@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.ai-schedule-suggest]
 verify_jwt = false
+
+[functions.ai-subtitle-generate]
+verify_jwt = false

@@ -12,6 +12,17 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle } from "@/lib/videoEditor";
 
+// Default fallback subtitles when AI generation fails
+const defaultSubtitles: VideoSubtitle[] = [
+  { startPct: 0, endPct: 12, zh: "欢迎来到我们的餐厅", en: "Welcome to our restaurant" },
+  { startPct: 12, endPct: 25, zh: "今天为您呈现招牌鸡尾酒", en: "Presenting our signature cocktails" },
+  { startPct: 25, endPct: 40, zh: "精选进口烈酒与新鲜水果", en: "Premium imported spirits & fresh fruits" },
+  { startPct: 40, endPct: 55, zh: "调酒师为您现场调制", en: "Crafted live by our mixologist" },
+  { startPct: 55, endPct: 70, zh: "品味非凡，尽在杯中", en: "Exceptional taste in every sip" },
+  { startPct: 70, endPct: 85, zh: "搭配主厨特制轻食小食", en: "Paired with chef's special bites" },
+  { startPct: 85, endPct: 100, zh: "欢迎预约体验 · 期待您的光临", en: "Reserve now · We look forward to seeing you" },
+];
+
 interface AISuggestion {
   tip: string;
   impact: string;
@@ -216,18 +227,11 @@ const SocialMediaContentCreator = () => {
 
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [showWaveform, setShowWaveform] = useState(true);
+  const [generatedSubtitles, setGeneratedSubtitles] = useState<VideoSubtitle[]>(defaultSubtitles);
 
-  // AI-generated bilingual subtitle data synced to progress
-  const subtitles = [
-    { start: 0, end: 12, zh: "欢迎来到我们的餐厅", en: "Welcome to our restaurant" },
-    { start: 12, end: 25, zh: "今天为您呈现招牌鸡尾酒", en: "Presenting our signature cocktails" },
-    { start: 25, end: 40, zh: "精选进口烈酒与新鲜水果", en: "Premium imported spirits & fresh fruits" },
-    { start: 40, end: 55, zh: "调酒师为您现场调制", en: "Crafted live by our mixologist" },
-    { start: 55, end: 70, zh: "品味非凡，尽在杯中", en: "Exceptional taste in every sip" },
-    { start: 70, end: 85, zh: "搭配主厨特制轻食小食", en: "Paired with chef's special bites" },
-    { start: 85, end: 100, zh: "欢迎预约体验 · 期待您的光临", en: "Reserve now · We look forward to seeing you" },
-  ];
-  const currentSubtitle = subtitles.find(s => playProgress >= s.start && playProgress < s.end);
+  // Subtitle data for preview playback (synced to progress percentage)
+  const subtitles = generatedSubtitles;
+  const currentSubtitle = subtitles.find(s => playProgress >= s.startPct && playProgress < s.endPct);
 
   // Simulated BGM waveform data (32 bars)
   const waveformBars = 32;
@@ -756,13 +760,31 @@ const SocialMediaContentCreator = () => {
       const segments = await autoTrimSegments(videoUrls, targetDuration);
       console.log("[VideoEditor] Segments:", segments);
 
-      // Convert subtitles from percentage-based to VideoSubtitle format for burn-in
-      const burnSubtitles: VideoSubtitle[] = subtitles.map(s => ({
-        startPct: s.start,
-        endPct: s.end,
-        zh: s.zh,
-        en: s.en,
-      }));
+      // Generate AI subtitles
+      let burnSubtitles: VideoSubtitle[] = generatedSubtitles;
+      try {
+        console.log("[Subtitles] Generating AI subtitles...");
+        const style = videoStyles.find(s => s.id === selectedVideoStyle);
+        const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
+        const { data: subData, error: subError } = await supabase.functions.invoke("ai-subtitle-generate", {
+          body: {
+            style: style?.name || selectedVideoStyle,
+            template: template?.name || "short video",
+            target_duration: targetDuration,
+            video_names: uploadedVideos.map(v => v.name),
+            instructions: editInstructions,
+            language: isZh ? "zh" : "en",
+          },
+        });
+        if (subError) throw subError;
+        if (subData?.subtitles?.length > 0) {
+          burnSubtitles = subData.subtitles;
+          setGeneratedSubtitles(burnSubtitles);
+          console.log("[Subtitles] AI generated", burnSubtitles.length, "subtitles");
+        }
+      } catch (subErr: any) {
+        console.warn("[Subtitles] AI generation failed, using defaults:", subErr.message);
+      }
 
       // Real Canvas+MediaRecorder trim & merge with subtitle burn-in
       const outputUrl = await trimAndMerge(segments, (pct) => {
