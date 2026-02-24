@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.ai-video-suggest]
 verify_jwt = false
+
+[functions.ai-poster-suggest]
+verify_jwt = false
