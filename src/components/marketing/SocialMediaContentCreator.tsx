@@ -43,6 +43,15 @@ interface UploadedVideo {
   thumbnail?: string;
 }
 
+interface ImageAnalysis {
+  has_logo: boolean;
+  logo_info?: { position: string; shape: string; text?: string };
+  brand_colors: string[];
+  brand_name?: string | null;
+  image_type: string;
+  design_style: string[];
+}
+
 interface UploadedImage {
   id: string;
   file: File;
@@ -50,6 +59,8 @@ interface UploadedImage {
   size: string;
   url: string;
   dataUrl?: string; // base64 for AI usage
+  analysis?: ImageAnalysis;
+  analysisStatus?: "idle" | "analyzing" | "done" | "error";
 }
 
 interface AIScheduleResult {
@@ -540,6 +551,45 @@ const SocialMediaContentCreator = () => {
     });
   };
 
+  const analyzeImage = async (imgId: string, dataUrl: string, setter: React.Dispatch<React.SetStateAction<UploadedImage[]>>) => {
+    setter(prev => prev.map(img => img.id === imgId ? { ...img, analysisStatus: "analyzing" as const } : img));
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-image-analyze", {
+        body: { image_url: dataUrl, language: isZh ? "zh" : "en" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setter(prev => prev.map(img => img.id === imgId ? { ...img, analysis: data as ImageAnalysis, analysisStatus: "done" as const } : img));
+      toast.success(isZh ? "图片识别完成" : "Image analysis complete");
+    } catch (e: any) {
+      console.error("Image analyze error:", e);
+      setter(prev => prev.map(img => img.id === imgId ? { ...img, analysisStatus: "error" as const } : img));
+      toast.error(isZh ? `识别失败: ${e.message}` : `Analysis failed: ${e.message}`);
+    }
+  };
+
+  // Auto-analyze images on upload for video module
+  const handleImageUploadWithAnalyze = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await handleImageUpload(e);
+  };
+
+  // Auto-analyze after images are added
+  useEffect(() => {
+    uploadedImages.forEach(img => {
+      if (!img.analysisStatus && img.dataUrl) {
+        analyzeImage(img.id, img.dataUrl, setUploadedImages);
+      }
+    });
+  }, [uploadedImages.length]);
+
+  useEffect(() => {
+    posterRefImages.forEach(img => {
+      if (!img.analysisStatus && img.dataUrl) {
+        analyzeImage(img.id, img.dataUrl, setPosterRefImages);
+      }
+    });
+  }, [posterRefImages.length]);
+
   const handlePosterImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -794,22 +844,67 @@ const SocialMediaContentCreator = () => {
                       <p className="text-[11px] text-muted-foreground">{isZh ? "LOGO、品牌素材等，AI 将提取融入海报" : "Logo, brand assets — AI extracts into poster"}</p>
                     </div>
                     {posterRefImages.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
+                      <div className="space-y-3 mt-2">
                         {posterRefImages.map(img => (
-                          <div key={img.id} className="relative group">
-                            <img src={img.url} alt={img.name} className="w-16 h-16 rounded-lg object-cover border border-border" />
-                            <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <Button size="icon" variant="ghost" className="h-5 w-5 text-white hover:text-white" onClick={() => {
-                                setPosterRefImages(prev => {
-                                  const found = prev.find(x => x.id === img.id);
-                                  if (found) URL.revokeObjectURL(found.url);
-                                  return prev.filter(x => x.id !== img.id);
-                                });
-                              }}>
-                                <X className="w-3 h-3" />
-                              </Button>
+                          <div key={img.id} className="flex gap-3 p-2.5 rounded-lg border border-border bg-muted/30">
+                            <div className="relative group shrink-0">
+                              <img src={img.url} alt={img.name} className="w-16 h-16 rounded-lg object-cover border border-border" />
+                              <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Button size="icon" variant="ghost" className="h-5 w-5 text-white hover:text-white" onClick={() => {
+                                  setPosterRefImages(prev => {
+                                    const found = prev.find(x => x.id === img.id);
+                                    if (found) URL.revokeObjectURL(found.url);
+                                    return prev.filter(x => x.id !== img.id);
+                                  });
+                                }}>
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </div>
-                            <p className="text-[8px] text-muted-foreground mt-0.5 truncate w-16 text-center">{img.name}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-foreground truncate">{img.name}</p>
+                              {img.analysisStatus === "analyzing" && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                  <span className="text-[10px] text-muted-foreground">{isZh ? "AI 识别中..." : "AI analyzing..."}</span>
+                                </div>
+                              )}
+                              {img.analysisStatus === "error" && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <X className="w-3 h-3 text-destructive" />
+                                  <span className="text-[10px] text-destructive">{isZh ? "识别失败" : "Analysis failed"}</span>
+                                  <Button variant="ghost" size="sm" className="h-4 px-1 text-[10px]" onClick={() => img.dataUrl && analyzeImage(img.id, img.dataUrl, setPosterRefImages)}>
+                                    <RefreshCw className="w-2.5 h-2.5 mr-0.5" />{isZh ? "重试" : "Retry"}
+                                  </Button>
+                                </div>
+                              )}
+                              {img.analysisStatus === "done" && img.analysis && (
+                                <div className="mt-1 space-y-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {img.analysis.has_logo && (
+                                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5 gap-0.5">
+                                        <Target className="w-2.5 h-2.5" />LOGO: {img.analysis.logo_info?.position || "✓"}
+                                      </Badge>
+                                    )}
+                                    {img.analysis.brand_name && (
+                                      <Badge variant="outline" className="text-[9px] h-4 px-1.5">{img.analysis.brand_name}</Badge>
+                                    )}
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5">{img.analysis.image_type}</Badge>
+                                  </div>
+                                  {img.analysis.brand_colors?.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[9px] text-muted-foreground">{isZh ? "品牌色:" : "Colors:"}</span>
+                                      {img.analysis.brand_colors.slice(0, 6).map((c, i) => (
+                                        <div key={i} className="w-3.5 h-3.5 rounded-sm border border-border" style={{ backgroundColor: c }} title={c} />
+                                      ))}
+                                    </div>
+                                  )}
+                                  {img.analysis.design_style?.length > 0 && (
+                                    <p className="text-[9px] text-muted-foreground">{img.analysis.design_style.join(" · ")}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1147,16 +1242,65 @@ const SocialMediaContentCreator = () => {
                     </div>
 
                     {uploadedImages.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-3 space-y-2.5">
                         {uploadedImages.map(img => (
-                          <div key={img.id} className="relative group">
-                            <img src={img.url} alt={img.name} className="w-20 h-20 rounded-lg object-cover border border-border" />
-                            <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-white hover:text-white" onClick={() => removeImage(img.id)}>
-                                <X className="w-3.5 h-3.5" />
-                              </Button>
+                          <div key={img.id} className="flex gap-3 p-2.5 rounded-lg border border-border bg-muted/30">
+                            <div className="relative group shrink-0">
+                              <img src={img.url} alt={img.name} className="w-20 h-20 rounded-lg object-cover border border-border" />
+                              <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-white hover:text-white" onClick={() => removeImage(img.id)}>
+                                  <X className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </div>
-                            <p className="text-[9px] text-muted-foreground mt-0.5 truncate w-20 text-center">{img.name}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-foreground truncate">{img.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{img.size}</p>
+                              {img.analysisStatus === "analyzing" && (
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                  <span className="text-[10px] text-muted-foreground">{isZh ? "AI 正在识别LOGO和品牌颜色..." : "AI detecting logo & brand colors..."}</span>
+                                </div>
+                              )}
+                              {img.analysisStatus === "error" && (
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                  <X className="w-3 h-3 text-destructive" />
+                                  <span className="text-[10px] text-destructive">{isZh ? "识别失败" : "Analysis failed"}</span>
+                                  <Button variant="ghost" size="sm" className="h-4 px-1 text-[10px]" onClick={() => img.dataUrl && analyzeImage(img.id, img.dataUrl, setUploadedImages)}>
+                                    <RefreshCw className="w-2.5 h-2.5 mr-0.5" />{isZh ? "重试" : "Retry"}
+                                  </Button>
+                                </div>
+                              )}
+                              {img.analysisStatus === "done" && img.analysis && (
+                                <div className="mt-1.5 space-y-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {img.analysis.has_logo && (
+                                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5 gap-0.5">
+                                        <Target className="w-2.5 h-2.5" />LOGO {img.analysis.logo_info?.position ? `(${img.analysis.logo_info.position})` : "✓"}
+                                      </Badge>
+                                    )}
+                                    {!img.analysis.has_logo && (
+                                      <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-muted-foreground">{isZh ? "无LOGO" : "No Logo"}</Badge>
+                                    )}
+                                    {img.analysis.brand_name && (
+                                      <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-semibold">{img.analysis.brand_name}</Badge>
+                                    )}
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5">{img.analysis.image_type}</Badge>
+                                  </div>
+                                  {img.analysis.brand_colors?.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[9px] text-muted-foreground">{isZh ? "品牌色:" : "Colors:"}</span>
+                                      {img.analysis.brand_colors.slice(0, 6).map((c, i) => (
+                                        <div key={i} className="w-4 h-4 rounded-sm border border-border shadow-sm" style={{ backgroundColor: c }} title={c} />
+                                      ))}
+                                    </div>
+                                  )}
+                                  {img.analysis.design_style?.length > 0 && (
+                                    <p className="text-[9px] text-muted-foreground">{isZh ? "风格: " : "Style: "}{img.analysis.design_style.join(" · ")}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
