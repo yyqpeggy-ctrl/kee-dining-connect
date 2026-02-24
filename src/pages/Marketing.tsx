@@ -38,6 +38,7 @@ const Marketing = () => {
       items: [
         { key: "social", label: isZh ? "社交媒体" : "Social Media", icon: <Youtube className="w-3.5 h-3.5" /> },
         { key: "ecommerce", label: isZh ? "电商平台" : "E-commerce", icon: <ShoppingBag className="w-3.5 h-3.5" /> },
+        { key: "reviews", label: isZh ? "大众点评" : "Reviews", icon: <Star className="w-3.5 h-3.5" /> },
       ],
     },
     {
@@ -54,7 +55,6 @@ const Marketing = () => {
       label: isZh ? "客户与合作" : "Customers & Partners",
       icon: <Users className="w-4 h-4" />,
       items: [
-        { key: "reviews", label: isZh ? "大众点评" : "Reviews", icon: <Star className="w-3.5 h-3.5" /> },
         { key: "customers", label: isZh ? "客群分析" : "Customers", icon: <PieChart className="w-3.5 h-3.5" /> },
         { key: "partners", label: isZh ? "合作伙伴" : "Partners", icon: <Handshake className="w-3.5 h-3.5" /> },
         { key: "clubs", label: isZh ? "社团管理" : "Clubs", icon: <UsersRound className="w-3.5 h-3.5" /> },
