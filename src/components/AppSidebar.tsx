@@ -16,6 +16,7 @@ import {
   Bike,
   Megaphone,
   BookOpen,
+  Database,
 } from "lucide-react";
 import StoreSelector from "./StoreSelector";
 import { useStore } from "@/contexts/StoreContext";
@@ -52,6 +53,7 @@ const AppSidebar = () => {
         { to: "/finance", icon: DollarSign, label: t("nav.finance") },
         { to: "/legal", icon: Scale, label: t("nav.legal") },
         { to: "/menu", icon: BookOpen, label: t("nav.menu") },
+        { to: "/data-center", icon: Database, label: t("nav.dataCenter") },
       ],
     },
   ];
