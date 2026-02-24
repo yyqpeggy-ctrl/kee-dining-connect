@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/contexts/StoreContext";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Search, Star, Edit2, Trash2, Building2, Dumbbell, Users2, Store, Handshake, Upload, FileText, Image, ExternalLink, X } from "lucide-react";
+import { Plus, Search, Star, Edit2, Trash2, Building2, Dumbbell, Users2, Store, Handshake, Upload, FileText, Image, ExternalLink, X, TrendingUp, UserPlus, DollarSign, BarChart3 } from "lucide-react";
 
 const partnerTypes = [
   { value: "hotel", labelZh: "酒店", labelEn: "Hotel", icon: Building2 },
@@ -34,6 +34,7 @@ const emptyForm = {
   name: "", short_name: "", type: "hotel", contact_person: "", phone: "", email: "", wechat: "",
   address: "", cooperation_start: new Date().toISOString().slice(0, 10), cooperation_end: "",
   cooperation_content: "", commission_rate: 0, status: "active", rating: 3, notes: "",
+  total_referrals: 0, total_revenue: 0, current_month_referrals: 0, current_month_revenue: 0,
 };
 
 const PartnersTab = () => {
@@ -73,14 +74,12 @@ const PartnersTab = () => {
       toast.error(isZh ? "文件不能超过10MB" : "File must be under 10MB");
       return;
     }
-
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
       const path = `partners/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("contracts").upload(path, file);
       if (uploadError) throw uploadError;
-
       const { data: { publicUrl } } = supabase.storage.from("contracts").getPublicUrl(path);
       const fileType = file.type === "application/pdf" ? "pdf" : "image";
       setContractFile({ url: publicUrl, type: fileType });
@@ -101,6 +100,10 @@ const PartnersTab = () => {
         store_name_en: currentStore.nameEn || currentStore.name,
         cooperation_end: values.cooperation_end || null,
         commission_rate: Number(values.commission_rate) || 0,
+        total_referrals: Number(values.total_referrals) || 0,
+        total_revenue: Number(values.total_revenue) || 0,
+        current_month_referrals: Number(values.current_month_referrals) || 0,
+        current_month_revenue: Number(values.current_month_revenue) || 0,
       };
       if (contractFile) {
         payload.contract_url = contractFile.url;
@@ -161,10 +164,19 @@ const PartnersTab = () => {
       cooperation_start: p.cooperation_start || "", cooperation_end: p.cooperation_end || "",
       cooperation_content: p.cooperation_content || "", commission_rate: p.commission_rate || 0,
       status: p.status, rating: p.rating || 3, notes: p.notes || "",
+      total_referrals: p.total_referrals || 0, total_revenue: p.total_revenue || 0,
+      current_month_referrals: p.current_month_referrals || 0, current_month_revenue: p.current_month_revenue || 0,
     });
     setContractFile(p.contract_url ? { url: p.contract_url, type: p.contract_file_type || "pdf" } : null);
     setDialogOpen(true);
   };
+
+  // Aggregate stats
+  const totalReferrals = partners.reduce((sum: number, p: any) => sum + (p.total_referrals || 0), 0);
+  const totalRevenue = partners.reduce((sum: number, p: any) => sum + (p.total_revenue || 0), 0);
+  const monthReferrals = partners.reduce((sum: number, p: any) => sum + (p.current_month_referrals || 0), 0);
+  const monthRevenue = partners.reduce((sum: number, p: any) => sum + (p.current_month_revenue || 0), 0);
+  const activeCount = partners.filter((p: any) => p.status === "active").length;
 
   const typeCounts = partnerTypes.map((pt) => ({
     ...pt,
@@ -173,16 +185,75 @@ const PartnersTab = () => {
 
   return (
     <div className="space-y-4">
-      {/* KPI Cards */}
+      {/* Performance Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Handshake className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-foreground">{activeCount}</p>
+              <p className="text-xs text-muted-foreground">{isZh ? "活跃伙伴" : "Active Partners"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-accent/50">
+              <UserPlus className="w-5 h-5 text-accent-foreground" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-foreground">{totalReferrals}</p>
+              <p className="text-xs text-muted-foreground">{isZh ? "累计引流" : "Total Referrals"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-muted">
+              <DollarSign className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-foreground">¥{totalRevenue.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{isZh ? "累计营收" : "Total Revenue"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <TrendingUp className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-foreground">{monthReferrals}</p>
+              <p className="text-xs text-muted-foreground">{isZh ? "本月引流" : "Monthly Referrals"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-accent/50">
+              <BarChart3 className="w-5 h-5 text-accent-foreground" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-foreground">¥{monthRevenue.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{isZh ? "本月营收" : "Monthly Revenue"}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Type Filter Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {typeCounts.map((tc) => (
           <Card key={tc.value} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTypeFilter(typeFilter === tc.value ? "all" : tc.value)}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${typeFilter === tc.value ? "bg-primary/20" : "bg-muted"}`}>
-                <tc.icon className={`w-5 h-5 ${typeFilter === tc.value ? "text-primary" : "text-muted-foreground"}`} />
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className={`p-1.5 rounded-lg ${typeFilter === tc.value ? "bg-primary/20" : "bg-muted"}`}>
+                <tc.icon className={`w-4 h-4 ${typeFilter === tc.value ? "text-primary" : "text-muted-foreground"}`} />
               </div>
               <div>
-                <p className="text-xl font-bold text-foreground">{tc.count}</p>
+                <p className="text-lg font-bold text-foreground">{tc.count}</p>
                 <p className="text-xs text-muted-foreground">{isZh ? tc.labelZh : tc.labelEn}</p>
               </div>
             </CardContent>
@@ -241,6 +312,22 @@ const PartnersTab = () => {
               <div><Label>{isZh ? "佣金比例 (%)" : "Commission Rate (%)"}</Label><Input type="number" value={form.commission_rate} onChange={(e) => setForm({ ...form, commission_rate: Number(e.target.value) })} /></div>
               <div><Label>{isZh ? "合作内容" : "Cooperation Details"}</Label><Textarea value={form.cooperation_content} onChange={(e) => setForm({ ...form, cooperation_content: e.target.value })} rows={2} /></div>
 
+              {/* Performance Stats */}
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  {isZh ? "合作业绩" : "Performance"}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">{isZh ? "累计引流客户" : "Total Referrals"}</Label><Input type="number" min={0} value={form.total_referrals} onChange={(e) => setForm({ ...form, total_referrals: Number(e.target.value) })} /></div>
+                  <div><Label className="text-xs">{isZh ? "累计带来营收 (¥)" : "Total Revenue (¥)"}</Label><Input type="number" min={0} value={form.total_revenue} onChange={(e) => setForm({ ...form, total_revenue: Number(e.target.value) })} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">{isZh ? "本月引流客户" : "Monthly Referrals"}</Label><Input type="number" min={0} value={form.current_month_referrals} onChange={(e) => setForm({ ...form, current_month_referrals: Number(e.target.value) })} /></div>
+                  <div><Label className="text-xs">{isZh ? "本月带来营收 (¥)" : "Monthly Revenue (¥)"}</Label><Input type="number" min={0} value={form.current_month_revenue} onChange={(e) => setForm({ ...form, current_month_revenue: Number(e.target.value) })} /></div>
+                </div>
+              </div>
+
               {/* Contract Upload */}
               <div>
                 <Label>{isZh ? "合作协议/合同" : "Contract / Agreement"}</Label>
@@ -271,13 +358,7 @@ const PartnersTab = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full mt-1"
-                    disabled={uploading}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
+                  <Button type="button" variant="outline" className="w-full mt-1" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
                     <Upload className="w-4 h-4 mr-2" />
                     {uploading ? (isZh ? "上传中..." : "Uploading...") : (isZh ? "上传合同 (PDF/图片)" : "Upload Contract (PDF/Image)")}
                   </Button>
@@ -302,7 +383,8 @@ const PartnersTab = () => {
                 <TableHead>{isZh ? "名称" : "Name"}</TableHead>
                 <TableHead>{isZh ? "类型" : "Type"}</TableHead>
                 <TableHead>{isZh ? "联系人" : "Contact"}</TableHead>
-                <TableHead>{isZh ? "合作内容" : "Details"}</TableHead>
+                <TableHead>{isZh ? "引流客户" : "Referrals"}</TableHead>
+                <TableHead>{isZh ? "带来营收" : "Revenue"}</TableHead>
                 <TableHead>{isZh ? "佣金" : "Commission"}</TableHead>
                 <TableHead>{isZh ? "合同" : "Contract"}</TableHead>
                 <TableHead>{isZh ? "状态" : "Status"}</TableHead>
@@ -312,9 +394,9 @@ const PartnersTab = () => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{isZh ? "暂无合作伙伴" : "No partners yet"}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">{isZh ? "暂无合作伙伴" : "No partners yet"}</TableCell></TableRow>
               ) : filtered.map((p: any) => (
                 <TableRow key={p.id}>
                   <TableCell>
@@ -325,7 +407,18 @@ const PartnersTab = () => {
                     <div className="text-sm">{p.contact_person}</div>
                     <div className="text-xs text-muted-foreground">{p.phone}</div>
                   </TableCell>
-                  <TableCell><span className="text-sm line-clamp-1">{p.cooperation_content || "-"}</span></TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-foreground">{p.total_referrals || 0}</div>
+                    {(p.current_month_referrals > 0) && (
+                      <div className="text-xs text-primary">+{p.current_month_referrals} {isZh ? "本月" : "this month"}</div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-foreground">¥{(p.total_revenue || 0).toLocaleString()}</div>
+                    {(p.current_month_revenue > 0) && (
+                      <div className="text-xs text-primary">+¥{p.current_month_revenue.toLocaleString()} {isZh ? "本月" : "this month"}</div>
+                    )}
+                  </TableCell>
                   <TableCell>{p.commission_rate > 0 ? `${p.commission_rate}%` : "-"}</TableCell>
                   <TableCell>
                     {p.contract_url ? (

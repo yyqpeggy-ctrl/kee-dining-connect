@@ -722,8 +722,11 @@ export type Database = {
           cooperation_start: string | null
           created_at: string
           created_by: string | null
+          current_month_referrals: number | null
+          current_month_revenue: number | null
           email: string | null
           id: string
+          last_referral_at: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -733,6 +736,8 @@ export type Database = {
           store_id: string
           store_name_en: string
           store_name_zh: string
+          total_referrals: number | null
+          total_revenue: number | null
           type: string
           updated_at: string
           wechat: string | null
@@ -748,8 +753,11 @@ export type Database = {
           cooperation_start?: string | null
           created_at?: string
           created_by?: string | null
+          current_month_referrals?: number | null
+          current_month_revenue?: number | null
           email?: string | null
           id?: string
+          last_referral_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -759,6 +767,8 @@ export type Database = {
           store_id?: string
           store_name_en?: string
           store_name_zh?: string
+          total_referrals?: number | null
+          total_revenue?: number | null
           type?: string
           updated_at?: string
           wechat?: string | null
@@ -774,8 +784,11 @@ export type Database = {
           cooperation_start?: string | null
           created_at?: string
           created_by?: string | null
+          current_month_referrals?: number | null
+          current_month_revenue?: number | null
           email?: string | null
           id?: string
+          last_referral_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -785,6 +798,8 @@ export type Database = {
           store_id?: string
           store_name_en?: string
           store_name_zh?: string
+          total_referrals?: number | null
+          total_revenue?: number | null
           type?: string
           updated_at?: string
           wechat?: string | null
