@@ -2500,6 +2500,26 @@ const SocialMediaContentCreator = () => {
             <p className="text-xs text-muted-foreground">{previewingTask?.template} · {previewingTask?.platform}</p>
           </DialogHeader>
 
+          {/* Cover Image */}
+          {previewingTask?.coverImage && (
+            <div className="px-4 pt-2">
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
+                <img src={previewingTask.coverImage} alt="cover" className="w-20 h-14 rounded-md object-cover border border-primary/30" />
+                <div className="flex-1 min-w-0">
+                  {previewingTask.aiTitle && <p className="text-sm font-medium text-foreground truncate">{previewingTask.aiTitle}</p>}
+                  <p className="text-[10px] text-muted-foreground">{isZh ? "AI 生成封面" : "AI Generated Cover"}</p>
+                  {previewingTask.aiTags && (
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {previewingTask.aiTags.slice(0, 3).map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="text-[9px] h-4">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Video Player Area */}
           <div className="relative bg-black aspect-video flex items-center justify-center cursor-pointer group" onClick={togglePlay}>
             {(previewingTask?.outputUrl || previewingTask?.sourceUrl) ? (
@@ -2507,14 +2527,22 @@ const SocialMediaContentCreator = () => {
                 src={previewingTask.outputUrl || previewingTask.sourceUrl}
                 className="absolute inset-0 w-full h-full object-contain"
                 muted={isMuted}
+                playsInline
                 ref={(el) => {
                   if (el && videoRef.current !== el) {
                     videoRef.current = el;
-                    el.onloadedmetadata = () => setVideoDuration(el.duration || 0);
+                    // WebM blobs from MediaRecorder often report duration=Infinity initially
+                    const handleDur = () => {
+                      const d = el.duration;
+                      if (d && isFinite(d) && d > 0) setVideoDuration(d);
+                    };
+                    el.onloadedmetadata = handleDur;
+                    el.ondurationchange = handleDur;
                     el.ontimeupdate = () => {
-                      if (!isSeeking.current && el.duration) {
+                      const d = el.duration;
+                      if (d && isFinite(d) && d > 0 && !isSeeking.current) {
                         setCurrentTime(el.currentTime);
-                        setPlayProgress((el.currentTime / el.duration) * 100);
+                        setPlayProgress((el.currentTime / d) * 100);
                       }
                     };
                     el.onplay = () => setIsPlaying(true);
