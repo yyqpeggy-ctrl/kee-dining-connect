@@ -892,6 +892,43 @@ const SocialMediaContentCreator = () => {
     return s.startPct < generatedSubtitles[i - 1].endPct;
   });
 
+  // Segment thumbnail cache: key = "url|time" → dataUrl
+  const [segThumbnails, setSegThumbnails] = useState<Record<string, string>>({});
+
+  const generateThumbnail = useCallback((videoUrl: string, time: number) => {
+    const key = `${videoUrl}|${time.toFixed(1)}`;
+    if (segThumbnails[key]) return;
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "auto";
+    video.crossOrigin = "anonymous";
+    video.src = videoUrl;
+    video.onloadeddata = () => { video.currentTime = Math.max(0, time); };
+    video.onseeked = () => {
+      const c = document.createElement("canvas");
+      const w = Math.min(video.videoWidth || 160, 160);
+      const h = Math.round(w * (video.videoHeight || 90) / (video.videoWidth || 160));
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, w, h);
+        const dataUrl = c.toDataURL("image/jpeg", 0.6);
+        setSegThumbnails(prev => ({ ...prev, [key]: dataUrl }));
+      }
+      video.src = "";
+    };
+    video.onerror = () => { video.src = ""; };
+    setTimeout(() => { if (video.src) video.src = ""; }, 8000);
+  }, [segThumbnails]);
+
+  // Generate thumbnails when segments change
+  useEffect(() => {
+    editableSegments.forEach(seg => {
+      const midTime = (seg.startTime + seg.endTime) / 2;
+      generateThumbnail(seg.videoUrl, midTime);
+    });
+  }, [editableSegments, generateThumbnail]);
+
   // Generate segments for preview/editing
   const generateSegments = async () => {
     if (uploadedVideos.length < 2) {
@@ -1915,6 +1952,21 @@ const SocialMediaContentCreator = () => {
                             >
                               <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                               <span className="text-[10px] font-mono text-muted-foreground w-4 shrink-0">{idx + 1}</span>
+                              {/* Thumbnail */}
+                              {(() => {
+                                const midTime = (seg.startTime + seg.endTime) / 2;
+                                const thumbKey = `${seg.videoUrl}|${midTime.toFixed(1)}`;
+                                const thumb = segThumbnails[thumbKey];
+                                return (
+                                  <div className="w-16 h-10 rounded overflow-hidden border border-border shrink-0 bg-muted flex items-center justify-center">
+                                    {thumb ? (
+                                      <img src={thumb} alt={`clip ${idx + 1}`} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <Film className="w-3.5 h-3.5 text-muted-foreground animate-pulse" />
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               <div className="flex-1 min-w-0">
                                 <p className="text-[11px] text-foreground truncate font-medium">
                                   {getVideoNameFromUrl(seg.videoUrl)}
