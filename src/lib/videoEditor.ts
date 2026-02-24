@@ -1,6 +1,7 @@
 /**
  * Browser-native video trimming & merging using Canvas + MediaRecorder.
- * No SharedArrayBuffer or special headers needed.
+ * Uses a SINGLE MediaRecorder session across all segments to produce
+ * a valid WebM file. No SharedArrayBuffer or special headers needed.
  */
 
 export interface TrimSegment {
@@ -27,171 +28,206 @@ export function getVideoDuration(url: string): Promise<number> {
 }
 
 /**
- * Record a single video segment (startTime → endTime) by drawing
- * frames from a <video> onto a <canvas> and capturing via MediaRecorder.
- * Audio is captured via AudioContext → MediaStreamDestination.
+ * Load a video element and wait until it's ready to play from a given time.
  */
-function recordSegment(
-  segment: TrimSegment,
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  fps: number = 30,
-): Promise<Blob[]> {
+function loadVideoAt(url: string, startTime: number): Promise<HTMLVideoElement> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
-    // IMPORTANT: Do NOT mute - we need audio
-    video.muted = false;
+    video.muted = true; // muted for autoplay compliance
     video.playsInline = true;
     video.preload = "auto";
     video.crossOrigin = "anonymous";
-    video.volume = 1;
-    video.src = segment.videoUrl;
-
-    const chunks: Blob[] = [];
-    let animFrameId: number | null = null;
-    let recorder: MediaRecorder | null = null;
-    let audioCtx: AudioContext | null = null;
-
-    const cleanup = () => {
-      if (animFrameId) cancelAnimationFrame(animFrameId);
-      video.pause();
-      if (audioCtx && audioCtx.state !== "closed") {
-        audioCtx.close().catch(() => {});
-      }
-      video.src = "";
-    };
+    video.src = url;
 
     video.onloadeddata = () => {
-      // Resize canvas to match video
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      video.currentTime = segment.startTime;
+      video.currentTime = startTime;
     };
 
     video.onseeked = () => {
-      // Mute the actual speaker output but still capture audio
-      // We use a gain node to silence speaker while routing to destination
-      video.play().catch((e) => {
-        console.warn("[recordSegment] play failed, trying muted:", e);
-        video.muted = true;
-        video.play().catch(reject);
-      });
+      resolve(video);
     };
 
-    video.onplay = () => {
-      const canvasStream = canvas.captureStream(fps);
+    video.onerror = () => reject(new Error(`Failed to load video: ${url}`));
+    setTimeout(() => reject(new Error("Video load timeout")), 15000);
+  });
+}
 
-      // Set up audio capture
-      try {
-        audioCtx = new AudioContext();
-        const source = audioCtx.createMediaElementSource(video);
-        const dest = audioCtx.createMediaStreamDestination();
-        // Mute speaker output by NOT connecting to audioCtx.destination
-        // But still route to the recording destination
-        source.connect(dest);
-        dest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
-        console.log("[recordSegment] Audio track added successfully");
-      } catch (e) {
-        console.warn("[recordSegment] Audio capture failed:", e);
+/**
+ * Play a single segment on the canvas, resolves when the segment ends.
+ * The video element plays in real-time while we draw frames to canvas.
+ */
+function playSegmentOnCanvas(
+  video: HTMLVideoElement,
+  endTime: number,
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+): Promise<void> {
+  return new Promise((resolve) => {
+    // Resize canvas to match video
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+
+    let animFrameId: number | null = null;
+
+    const drawFrame = () => {
+      if (video.currentTime >= endTime || video.ended || video.paused) {
+        video.pause();
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        resolve();
+        return;
       }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      animFrameId = requestAnimationFrame(drawFrame);
+    };
 
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-        ? "video/webm;codecs=vp9,opus"
-        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
-          ? "video/webm;codecs=vp8,opus"
-          : "video/webm";
-
-      recorder = new MediaRecorder(canvasStream, {
-        mimeType,
-        videoBitsPerSecond: 4_000_000,
-        audioBitsPerSecond: 128_000,
-      });
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        cleanup();
-        resolve(chunks);
-      };
-
-      recorder.onerror = () => {
-        cleanup();
-        reject(new Error("MediaRecorder error"));
-      };
-
-      recorder.start(100); // collect data every 100ms for smoother output
-
-      const drawFrame = () => {
-        if (video.currentTime >= segment.endTime || video.ended || video.paused) {
-          if (recorder && recorder.state === "recording") {
-            recorder.stop();
-          }
-          return;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        animFrameId = requestAnimationFrame(drawFrame);
-      };
+    video.play().then(() => {
       drawFrame();
-    };
+    }).catch(() => {
+      // If play fails, just resolve to skip this segment
+      console.warn("[playSegmentOnCanvas] play() failed, skipping segment");
+      resolve();
+    });
 
-    video.onerror = () => {
-      cleanup();
-      reject(new Error(`Failed to load video: ${segment.videoUrl}`));
-    };
-
-    // Safety timeout: if segment takes too long, force stop
-    const maxWait = (segment.endTime - segment.startTime + 10) * 1000;
+    // Safety timeout
+    const maxWait = (endTime - video.currentTime + 5) * 1000;
     setTimeout(() => {
-      if (recorder && recorder.state === "recording") {
-        console.warn("[recordSegment] Safety timeout, stopping recorder");
-        recorder.stop();
-      }
+      video.pause();
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      resolve();
     }, maxWait);
   });
 }
 
 /**
  * Trim and merge video segments into a single output.
- * Uses Canvas + MediaRecorder (works in all modern browsers without special headers).
- * Returns a blob URL for the merged output (webm format).
+ * Uses ONE continuous MediaRecorder session across all segments
+ * to produce a valid WebM file.
+ * Returns a blob URL for the merged output.
  */
 export async function trimAndMerge(
   segments: TrimSegment[],
   onProgress?: (pct: number) => void
 ): Promise<string> {
   const canvas = document.createElement("canvas");
+  canvas.width = 1280;
+  canvas.height = 720;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Cannot create canvas context");
 
-  const allChunks: Blob[] = [];
+  // Draw a black frame initially so the stream has content
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Create canvas stream
+  const fps = 30;
+  const canvasStream = canvas.captureStream(fps);
+
+  // Set up audio: we'll create audio context and mix audio from each segment
+  let audioCtx: AudioContext | null = null;
+  let audioDest: MediaStreamAudioDestinationNode | null = null;
+
+  try {
+    audioCtx = new AudioContext();
+    audioDest = audioCtx.createMediaStreamDestination();
+    audioDest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
+    console.log("[trimAndMerge] Audio destination set up");
+  } catch (e) {
+    console.warn("[trimAndMerge] Audio setup failed:", e);
+  }
+
+  // Choose best codec
+  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+    ? "video/webm;codecs=vp9,opus"
+    : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
+      ? "video/webm;codecs=vp8,opus"
+      : "video/webm";
+
+  // Start ONE MediaRecorder for the entire output
+  const chunks: Blob[] = [];
+  const recorder = new MediaRecorder(canvasStream, {
+    mimeType,
+    videoBitsPerSecond: 4_000_000,
+    audioBitsPerSecond: 128_000,
+  });
+
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) chunks.push(e.data);
+  };
+
+  // Start recording
+  recorder.start(200);
+  console.log("[trimAndMerge] MediaRecorder started, processing", segments.length, "segments");
+
   const totalSegments = segments.length;
 
   for (let i = 0; i < totalSegments; i++) {
-    onProgress?.(Math.round(((i) / totalSegments) * 80));
-    
-    console.log(`[trimAndMerge] Recording segment ${i + 1}/${totalSegments}: ${segments[i].startTime.toFixed(1)}s - ${segments[i].endTime.toFixed(1)}s`);
-    const chunks = await recordSegment(segments[i], canvas, ctx);
-    allChunks.push(...chunks);
-    
-    onProgress?.(Math.round(((i + 1) / totalSegments) * 80));
+    const seg = segments[i];
+    onProgress?.(Math.round((i / totalSegments) * 85));
+    console.log(`[trimAndMerge] Segment ${i + 1}/${totalSegments}: ${seg.startTime.toFixed(1)}s - ${seg.endTime.toFixed(1)}s`);
+
+    try {
+      // Load & seek the video
+      const video = await loadVideoAt(seg.videoUrl, seg.startTime);
+
+      // Connect audio from this video to the shared audio destination
+      let audioSource: MediaElementAudioSourceNode | null = null;
+      if (audioCtx && audioDest) {
+        try {
+          audioSource = audioCtx.createMediaElementSource(video);
+          audioSource.connect(audioDest);
+          // Don't connect to audioCtx.destination to avoid playing through speakers
+          console.log(`[trimAndMerge] Audio connected for segment ${i + 1}`);
+        } catch (e) {
+          console.warn(`[trimAndMerge] Audio connect failed for segment ${i + 1}:`, e);
+        }
+      }
+
+      // Unmute for audio capture (after createMediaElementSource)
+      video.muted = false;
+      video.volume = 1;
+
+      // Play segment on canvas (real-time)
+      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx);
+
+      // Cleanup video
+      if (audioSource) {
+        try { audioSource.disconnect(); } catch {}
+      }
+      video.src = "";
+    } catch (e) {
+      console.warn(`[trimAndMerge] Segment ${i + 1} failed:`, e);
+      // Draw a brief black frame for failed segments
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    onProgress?.(Math.round(((i + 1) / totalSegments) * 85));
   }
 
+  // Stop recording and wait for final data
   onProgress?.(90);
 
-  // Combine all chunks into a single blob
-  const outputBlob = new Blob(allChunks, { type: "video/webm" });
-  
+  const outputBlob = await new Promise<Blob>((resolve) => {
+    recorder.onstop = () => {
+      resolve(new Blob(chunks, { type: "video/webm" }));
+    };
+    recorder.stop();
+  });
+
+  // Cleanup audio context
+  if (audioCtx && audioCtx.state !== "closed") {
+    audioCtx.close().catch(() => {});
+  }
+
   onProgress?.(100);
+  console.log(`[trimAndMerge] Done! Output size: ${(outputBlob.size / 1024 / 1024).toFixed(1)} MB`);
 
   return URL.createObjectURL(outputBlob);
 }
 
 /**
  * Generate impactful short clips from multiple videos.
- * Instead of taking one long boring segment from each video,
- * this creates multiple short punchy clips (1-3s each) sampled
+ * Creates multiple short punchy clips (1-3s each) sampled
  * from different high-energy positions throughout each video.
  */
 export async function autoTrimSegments(
@@ -211,27 +247,23 @@ export async function autoTrimSegments(
   }
 
   // Calculate how many clips and their duration based on style
-  // Short punchy clips (1.5-3s) create more energy and impact
   const clipDuration = targetDurationSec <= 15 ? 1.5 : targetDurationSec <= 30 ? 2 : 2.5;
   const totalClips = Math.max(4, Math.floor(targetDurationSec / clipDuration));
-  
-  // Distribute clips across videos proportionally
+
   const segments: TrimSegment[] = [];
-  
+
   for (let i = 0; i < videoUrls.length; i++) {
     const videoDur = durations[i];
     if (videoDur <= 0) continue;
-    
+
     const proportion = videoDur / totalDuration;
     const clipsForThisVideo = Math.max(2, Math.round(totalClips * proportion));
-    
-    // Skip first and last 5% of video (usually intro/outro)
+
     const usableStart = videoDur * 0.05;
     const usableEnd = videoDur * 0.95;
     const usableRange = usableEnd - usableStart;
-    
+
     if (usableRange <= clipDuration) {
-      // Video too short, take one clip from middle
       segments.push({
         videoUrl: videoUrls[i],
         startTime: Math.max(0, videoDur / 2 - clipDuration / 2),
@@ -239,31 +271,24 @@ export async function autoTrimSegments(
       });
       continue;
     }
-    
-    // Sample positions using golden ratio for visually varied spacing
+
     const goldenRatio = 0.618033988749895;
-    let position = 0.1 + Math.random() * 0.2; // Start at random position 10-30%
-    
+    let position = 0.1 + Math.random() * 0.2;
+
     for (let c = 0; c < clipsForThisVideo; c++) {
       const startPos = usableStart + (position % 1) * usableRange;
       const startTime = Math.round(startPos * 10) / 10;
       const endTime = Math.round(Math.min(startTime + clipDuration, videoDur) * 10) / 10;
-      
-      // Only add if clip is meaningful (> 0.5s)
+
       if (endTime - startTime > 0.5) {
-        segments.push({
-          videoUrl: videoUrls[i],
-          startTime,
-          endTime,
-        });
+        segments.push({ videoUrl: videoUrls[i], startTime, endTime });
       }
-      
-      position += goldenRatio; // Golden ratio jump for non-repeating distribution
+
+      position += goldenRatio;
     }
   }
-  
-  // Interleave clips from different videos for dynamic pacing
-  // Sort by video index alternating to avoid all clips from same video in a row
+
+  // Interleave clips from different videos
   const interleaved: TrimSegment[] = [];
   const byVideo = new Map<string, TrimSegment[]>();
   for (const seg of segments) {
@@ -271,7 +296,7 @@ export async function autoTrimSegments(
     arr.push(seg);
     byVideo.set(seg.videoUrl, arr);
   }
-  
+
   const videoQueues = Array.from(byVideo.values());
   let qi = 0;
   while (interleaved.length < segments.length) {
@@ -280,28 +305,25 @@ export async function autoTrimSegments(
       interleaved.push(queue.shift()!);
     }
     qi++;
-    // Safety: prevent infinite loop
     if (qi > segments.length * 3) break;
   }
-  
+
   // Trim total to target duration
   let accumulated = 0;
   const finalSegments: TrimSegment[] = [];
   for (const seg of interleaved) {
     const segDur = seg.endTime - seg.startTime;
-    if (accumulated + segDur > targetDurationSec + 1) break; // allow 1s tolerance
+    if (accumulated + segDur > targetDurationSec + 1) break;
     finalSegments.push(seg);
     accumulated += segDur;
   }
-  
+
   console.log(`[autoTrimSegments] Generated ${finalSegments.length} clips, total ~${accumulated.toFixed(1)}s`);
   return finalSegments;
 }
 
 /**
  * Extract the "best" frame from a video as a data URL.
- * Samples multiple positions and picks the frame with highest visual complexity
- * (approximated by color variance on a downscaled canvas).
  */
 export async function extractBestFrame(
   videoUrl: string,
@@ -313,7 +335,6 @@ export async function extractBestFrame(
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
 
-  // Sample positions: avoid first/last 10%, pick evenly spaced points
   const start = duration * 0.1;
   const end = duration * 0.9;
   const step = (end - start) / (sampleCount - 1);
@@ -365,10 +386,6 @@ function captureFrameAt(
   });
 }
 
-/**
- * Compute a "visual complexity" score for the current canvas content.
- * Higher score = more color variation = likely a more interesting frame.
- */
 function computeFrameScore(ctx: CanvasRenderingContext2D, w: number, h: number): number {
   const sampleSize = 32;
   const stepX = Math.max(1, Math.floor(w / sampleSize));
