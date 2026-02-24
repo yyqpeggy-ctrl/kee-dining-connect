@@ -240,6 +240,9 @@ const SocialMediaContentCreator = () => {
   const [generatedSubtitles, setGeneratedSubtitles] = useState<VideoSubtitle[]>(defaultSubtitles);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>({ ...defaultSubtitleStyle });
   const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+  const [showSubtitleEditor, setShowSubtitleEditor] = useState(false);
+  const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
+  const [subtitlesConfirmed, setSubtitlesConfirmed] = useState(false);
 
   // Subtitle data for preview playback (synced to progress percentage)
   const subtitles = generatedSubtitles;
@@ -726,6 +729,67 @@ const SocialMediaContentCreator = () => {
     }
   };
 
+  const generateAISubtitles = async () => {
+    if (!selectedVideoStyle || !selectedVideoTemplate) {
+      toast.error(isZh ? "请先选择视频风格和输出格式" : "Please select video style and output format first");
+      return;
+    }
+    setIsLoadingSubtitles(true);
+    setSubtitlesConfirmed(false);
+    try {
+      const style = videoStyles.find(s => s.id === selectedVideoStyle);
+      const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
+      const { data: subData, error: subError } = await supabase.functions.invoke("ai-subtitle-generate", {
+        body: {
+          style: style?.name || selectedVideoStyle,
+          template: template?.name || "short video",
+          target_duration: targetDuration,
+          video_names: uploadedVideos.map(v => v.name),
+          instructions: editInstructions,
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (subError) throw subError;
+      if (subData?.subtitles?.length > 0) {
+        setGeneratedSubtitles(subData.subtitles);
+        setShowSubtitleEditor(true);
+        toast.success(isZh ? "AI 字幕方案已生成，请审核和编辑" : "AI subtitles generated, please review and edit");
+      } else {
+        throw new Error("No subtitles returned");
+      }
+    } catch (e: any) {
+      console.warn("[Subtitles] AI generation failed:", e.message);
+      setGeneratedSubtitles([...defaultSubtitles]);
+      setShowSubtitleEditor(true);
+      toast.error(isZh ? "AI字幕生成失败，已使用默认字幕，可手动编辑" : "AI subtitle generation failed, using defaults. You can edit manually.");
+    } finally {
+      setIsLoadingSubtitles(false);
+    }
+  };
+
+  const updateSubtitle = (index: number, field: "zh" | "en", value: string) => {
+    setGeneratedSubtitles(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+    setSubtitlesConfirmed(false);
+  };
+
+  const removeSubtitle = (index: number) => {
+    setGeneratedSubtitles(prev => prev.filter((_, i) => i !== index));
+    setSubtitlesConfirmed(false);
+  };
+
+  const addSubtitle = () => {
+    const last = generatedSubtitles[generatedSubtitles.length - 1];
+    const newStart = last ? last.endPct : 0;
+    const newEnd = Math.min(newStart + 15, 100);
+    setGeneratedSubtitles(prev => [...prev, { startPct: newStart, endPct: newEnd, zh: "", en: "" }]);
+    setSubtitlesConfirmed(false);
+  };
+
+  const updateSubtitleTiming = (index: number, field: "startPct" | "endPct", value: number) => {
+    setGeneratedSubtitles(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+    setSubtitlesConfirmed(false);
+  };
+
   const startAIEdit = async () => {
     if (uploadedVideos.length < 2) {
       toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
@@ -772,31 +836,9 @@ const SocialMediaContentCreator = () => {
       const segments = await autoTrimSegments(videoUrls, targetDuration);
       console.log("[VideoEditor] Segments:", segments);
 
-      // Generate AI subtitles
-      let burnSubtitles: VideoSubtitle[] = generatedSubtitles;
-      try {
-        console.log("[Subtitles] Generating AI subtitles...");
-        const style = videoStyles.find(s => s.id === selectedVideoStyle);
-        const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
-        const { data: subData, error: subError } = await supabase.functions.invoke("ai-subtitle-generate", {
-          body: {
-            style: style?.name || selectedVideoStyle,
-            template: template?.name || "short video",
-            target_duration: targetDuration,
-            video_names: uploadedVideos.map(v => v.name),
-            instructions: editInstructions,
-            language: isZh ? "zh" : "en",
-          },
-        });
-        if (subError) throw subError;
-        if (subData?.subtitles?.length > 0) {
-          burnSubtitles = subData.subtitles;
-          setGeneratedSubtitles(burnSubtitles);
-          console.log("[Subtitles] AI generated", burnSubtitles.length, "subtitles");
-        }
-      } catch (subErr: any) {
-        console.warn("[Subtitles] AI generation failed, using defaults:", subErr.message);
-      }
+      // Use the already-generated (and possibly user-edited) subtitles
+      const burnSubtitles = generatedSubtitles;
+      console.log("[Subtitles] Using", burnSubtitles.length, "subtitles (user-reviewed)");
 
       // Real Canvas+MediaRecorder trim & merge with subtitle burn-in
       const outputUrl = await trimAndMerge(segments, (pct) => {
@@ -1479,6 +1521,114 @@ const SocialMediaContentCreator = () => {
                       <p className="text-[10px] text-muted-foreground mt-1.5">
                         {isZh ? "AI 将从每段视频中自动提取精华片段，裁剪并拼接为目标时长的短视频" : "AI auto-extracts highlight clips from each video, trims and merges to target duration"}
                       </p>
+                    </div>
+
+                    {/* AI Subtitle Editor */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Subtitles className="w-3.5 h-3.5" />
+                          {isZh ? "📝 AI 字幕方案" : "📝 AI Subtitle Plan"}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {subtitlesConfirmed && (
+                            <Badge className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20">
+                              <Check className="w-3 h-3 mr-0.5" />{isZh ? "已确认" : "Confirmed"}
+                            </Badge>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-xs h-7"
+                            onClick={generateAISubtitles}
+                            disabled={isLoadingSubtitles || !selectedVideoStyle || !selectedVideoTemplate}
+                          >
+                            {isLoadingSubtitles ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" />{isZh ? "生成中..." : "Generating..."}</>
+                            ) : (
+                              <><Sparkles className="w-3 h-3" />{isZh ? "AI 生成字幕" : "AI Generate"}</>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => setShowSubtitleEditor(!showSubtitleEditor)}
+                          >
+                            {showSubtitleEditor ? (isZh ? "收起" : "Collapse") : (isZh ? "展开编辑" : "Expand")}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {showSubtitleEditor && (
+                        <div className="space-y-2 border border-border rounded-lg p-3 bg-muted/20">
+                          <p className="text-[10px] text-muted-foreground">
+                            {isZh ? "AI 建议的字幕方案，您可以修改文字内容、调整时间轴，确认后再开始剪辑" : "AI suggested subtitles. Edit text, adjust timing, then confirm before editing."}
+                          </p>
+                          {generatedSubtitles.map((sub, idx) => (
+                            <div key={idx} className="flex items-start gap-2 p-2 rounded-md border border-border bg-background">
+                              <div className="text-[10px] text-muted-foreground font-mono mt-2 shrink-0 w-16">
+                                {sub.startPct.toFixed(0)}%-{sub.endPct.toFixed(0)}%
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <input
+                                  type="text"
+                                  value={sub.zh}
+                                  onChange={e => updateSubtitle(idx, "zh", e.target.value)}
+                                  placeholder={isZh ? "中文字幕" : "Chinese subtitle"}
+                                  className="w-full text-sm px-2 py-1 rounded border border-border bg-background text-foreground focus:ring-1 focus:ring-primary/30 outline-none"
+                                />
+                                <input
+                                  type="text"
+                                  value={sub.en}
+                                  onChange={e => updateSubtitle(idx, "en", e.target.value)}
+                                  placeholder={isZh ? "英文字幕" : "English subtitle"}
+                                  className="w-full text-xs px-2 py-1 rounded border border-border bg-background text-muted-foreground focus:ring-1 focus:ring-primary/30 outline-none"
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 shrink-0">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={sub.startPct}
+                                    onChange={e => updateSubtitleTiming(idx, "startPct", Math.max(0, Math.min(100, Number(e.target.value))))}
+                                    className="w-12 text-[10px] px-1 py-0.5 rounded border border-border bg-background text-foreground text-center"
+                                    min={0} max={100}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">→</span>
+                                  <input
+                                    type="number"
+                                    value={sub.endPct}
+                                    onChange={e => updateSubtitleTiming(idx, "endPct", Math.max(0, Math.min(100, Number(e.target.value))))}
+                                    className="w-12 text-[10px] px-1 py-0.5 rounded border border-border bg-background text-foreground text-center"
+                                    min={0} max={100}
+                                  />
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={() => removeSubtitle(idx)}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-2 pt-1">
+                            <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={addSubtitle}>
+                              + {isZh ? "添加字幕" : "Add Subtitle"}
+                            </Button>
+                            <div className="flex-1" />
+                            <Button
+                              size="sm"
+                              className="text-xs h-7 gap-1"
+                              onClick={() => {
+                                setSubtitlesConfirmed(true);
+                                setShowSubtitleEditor(false);
+                                toast.success(isZh ? "字幕方案已确认" : "Subtitles confirmed");
+                              }}
+                            >
+                              <Check className="w-3 h-3" />{isZh ? "确认字幕" : "Confirm Subtitles"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
