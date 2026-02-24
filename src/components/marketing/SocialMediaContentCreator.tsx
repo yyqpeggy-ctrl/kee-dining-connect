@@ -64,6 +64,7 @@ interface EditTask {
   status: "queued" | "processing" | "done" | "error";
   progress: number;
   outputUrl?: string;
+  sourceUrl?: string;
   instructions: string;
 }
 
@@ -384,20 +385,37 @@ const SocialMediaContentCreator = () => {
       });
     }
 
-    // Get video durations
+    // Get video durations and thumbnails
     for (const v of newVideos) {
       try {
         const videoEl = document.createElement("video");
         videoEl.preload = "metadata";
         videoEl.src = v.url;
+        videoEl.muted = true;
         await new Promise<void>((resolve) => {
           videoEl.onloadedmetadata = () => {
             const mins = Math.floor(videoEl.duration / 60);
             const secs = Math.floor(videoEl.duration % 60);
             v.duration = `${mins}:${secs.toString().padStart(2, "0")}`;
+            // Seek to 1s to capture a thumbnail
+            videoEl.currentTime = Math.min(1, videoEl.duration * 0.1);
+          };
+          videoEl.onseeked = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = videoEl.videoWidth || 160;
+              canvas.height = videoEl.videoHeight || 90;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                v.thumbnail = canvas.toDataURL("image/jpeg", 0.7);
+              }
+            } catch { /* cross-origin or other error */ }
             resolve();
           };
           videoEl.onerror = () => resolve();
+          // fallback timeout
+          setTimeout(resolve, 3000);
         });
       } catch { /* ignore */ }
     }
@@ -436,6 +454,7 @@ const SocialMediaContentCreator = () => {
       platform: template?.platform || "",
       status: "queued" as const,
       progress: 0,
+      sourceUrl: v.url,
       instructions: editInstructions,
     }));
 
@@ -856,7 +875,11 @@ const SocialMediaContentCreator = () => {
                           <div key={v.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
                             <div className="flex items-center gap-3">
                               <div className="w-16 h-10 rounded bg-muted flex items-center justify-center overflow-hidden">
-                                <video src={v.url} className="w-full h-full object-cover" muted />
+                                {v.thumbnail ? (
+                                  <img src={v.thumbnail} alt={v.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <FileVideo className="w-5 h-5 text-muted-foreground/50" />
+                                )}
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{v.name}</p>
@@ -1025,9 +1048,15 @@ const SocialMediaContentCreator = () => {
                       {editTasks.filter(t => t.status === "done").map(task => (
                         <div key={task.id} className="p-4 rounded-lg border border-border">
                           <div className="flex items-center gap-3 mb-4 cursor-pointer" onClick={() => openPreview(task)}>
-                            <div className="w-24 h-14 rounded-lg bg-muted flex items-center justify-center relative group">
-                              <Play className="w-6 h-6 text-muted-foreground/50 group-hover:text-primary transition-colors" />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
+                            <div className="w-24 h-14 rounded-lg bg-muted flex items-center justify-center relative group overflow-hidden">
+                              {task.sourceUrl ? (
+                                <video src={task.sourceUrl} className="w-full h-full object-cover" muted />
+                              ) : (
+                                <FileVideo className="w-6 h-6 text-muted-foreground/50" />
+                              )}
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Play className="w-5 h-5 text-white" />
+                              </div>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">{task.videoName}</p>
@@ -1390,12 +1419,26 @@ const SocialMediaContentCreator = () => {
 
           {/* Video Player Area */}
           <div className="relative bg-black aspect-video flex items-center justify-center cursor-pointer group" onClick={togglePlay}>
-            <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black flex items-center justify-center">
-              <div className="text-center">
-                <Film className="w-16 h-16 text-muted-foreground/20 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground/40 font-mono">{previewingTask?.videoName}</p>
+            {previewingTask?.sourceUrl ? (
+              <video
+                src={previewingTask.sourceUrl}
+                className="absolute inset-0 w-full h-full object-contain"
+                muted={isMuted}
+                ref={(el) => {
+                  if (el) {
+                    if (isPlaying && el.paused) el.play().catch(() => {});
+                    if (!isPlaying && !el.paused) el.pause();
+                  }
+                }}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black flex items-center justify-center">
+                <div className="text-center">
+                  <Film className="w-16 h-16 text-muted-foreground/20 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground/40 font-mono">{previewingTask?.videoName}</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Play/Pause overlay */}
             {!isPlaying && playProgress === 0 && (
