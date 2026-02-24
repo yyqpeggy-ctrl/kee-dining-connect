@@ -21,31 +21,33 @@ serve(async (req) => {
 
     const systemPrompt = language === "zh"
       ? `你是一位专业的社交媒体短视频剪辑顾问，专注于餐饮、酒吧行业的内容营销。
-请根据用户提供的视频素材信息、剪辑模板和要求，生成专业的剪辑建议。
+用户需要从两段长视频素材中提取精彩片段，合并剪辑为一段有营销冲击力的短视频。
+请根据两段视频素材信息、剪辑模板和要求，生成专业的合并剪辑建议。
 回复必须使用 suggest_edits 工具。`
       : `You are a professional social media video editing consultant specializing in F&B and bar industry content marketing.
-Based on the video materials, template, and instructions provided, generate professional editing suggestions.
+The user needs to extract highlights from two long source videos and merge them into one impactful marketing short video.
+Based on the two video materials, template, and instructions provided, generate professional merge editing suggestions.
 You must use the suggest_edits tool to respond.`;
 
     const userPrompt = language === "zh"
-      ? `视频素材：${JSON.stringify(videos)}
+      ? `两段视频素材：${JSON.stringify(videos)}
 剪辑模板：${template}
 目标平台：${platform}
 用户要求：${instructions || "无特殊要求"}
 
-请生成：
-1. 3-5条具体的剪辑建议（每条包含建议内容和预期互动提升百分比）
-2. 推荐的BGM风格和具体曲目
+请针对"从两段长视频合并为一段营销短视频"的场景生成：
+1. 3-5条具体的合并剪辑建议（如何从两段素材中选取和交叉剪辑，每条包含建议内容和预期互动提升百分比）
+2. 推荐的BGM风格和具体曲目（适合合并后的短视频节奏）
 3. 推荐的标题和标签
 4. 最佳发布时间建议`
-      : `Video materials: ${JSON.stringify(videos)}
+      : `Two video materials: ${JSON.stringify(videos)}
 Edit template: ${template}
 Target platform: ${platform}
 User instructions: ${instructions || "No special requirements"}
 
-Please generate:
-1. 3-5 specific editing suggestions (each with suggestion content and expected engagement boost percentage)
-2. Recommended BGM style and specific tracks
+Generate suggestions for "merging two long videos into one marketing short":
+1. 3-5 specific merge editing suggestions (how to select and cross-cut between the two sources, each with suggestion content and expected engagement boost percentage)
+2. Recommended BGM style and specific tracks (fitting the merged short video rhythm)
 3. Recommended titles and hashtags
 4. Best posting time suggestions`;
 
