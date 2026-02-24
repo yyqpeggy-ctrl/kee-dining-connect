@@ -715,6 +715,8 @@ export type Database = {
           address: string | null
           commission_rate: number | null
           contact_person: string | null
+          contract_file_type: string | null
+          contract_url: string | null
           cooperation_content: string | null
           cooperation_end: string | null
           cooperation_start: string | null
@@ -739,6 +741,8 @@ export type Database = {
           address?: string | null
           commission_rate?: number | null
           contact_person?: string | null
+          contract_file_type?: string | null
+          contract_url?: string | null
           cooperation_content?: string | null
           cooperation_end?: string | null
           cooperation_start?: string | null
@@ -763,6 +767,8 @@ export type Database = {
           address?: string | null
           commission_rate?: number | null
           contact_person?: string | null
+          contract_file_type?: string | null
+          contract_url?: string | null
           cooperation_content?: string | null
           cooperation_end?: string | null
           cooperation_start?: string | null
