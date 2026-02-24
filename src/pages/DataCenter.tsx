@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -46,11 +46,14 @@ interface ImportRecord {
 interface KnowledgeDoc {
   id: string;
   title: string;
+  description: string | null;
   category: string;
-  format: string;
-  size: string;
-  updatedAt: string;
-  description: string;
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ===== Template Definitions =====
@@ -192,15 +195,7 @@ const dataTemplates: DataTemplate[] = [
   },
 ];
 
-// Knowledge documents mock
-const knowledgeDocs: KnowledgeDoc[] = [
-  { id: "1", title: "Standard Operating Procedures", category: "SOP", format: "PDF", size: "2.4 MB", updatedAt: "2026-02-20", description: "Complete SOP manual for all departments" },
-  { id: "2", title: "Cocktail Recipe Book", category: "Recipe", format: "XLSX", size: "1.1 MB", updatedAt: "2026-02-18", description: "Full cocktail recipe database with cost breakdown" },
-  { id: "3", title: "Staff Training Manual", category: "Training", format: "PDF", size: "5.2 MB", updatedAt: "2026-02-15", description: "New employee onboarding and training guide" },
-  { id: "4", title: "Supplier Price List 2026", category: "Procurement", format: "XLSX", size: "890 KB", updatedAt: "2026-02-10", description: "Latest supplier pricing for all materials" },
-  { id: "5", title: "Food Safety Guidelines", category: "Compliance", format: "PDF", size: "3.7 MB", updatedAt: "2026-01-28", description: "Health and food safety compliance documentation" },
-  { id: "6", title: "Marketing Brand Guidelines", category: "Marketing", format: "PDF", size: "8.1 MB", updatedAt: "2026-01-20", description: "Brand identity, logo usage, and design guidelines" },
-];
+const knowledgeCategories = ["SOP", "Recipe", "Training", "Procurement", "Compliance", "Marketing", "General"];
 
 const importHistory: ImportRecord[] = [
   { id: "1", template: "库存物料", fileName: "inventory_2026Q1.xlsx", status: "success", rows: 156, errors: 0, date: "2026-02-20 14:30" },
@@ -241,6 +236,104 @@ const DataCenter = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [knowledgeSearch, setKnowledgeSearch] = useState("");
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDescription, setUploadDescription] = useState("");
+  const [uploadCategory, setUploadCategory] = useState("General");
+  const knowledgeFileRef = useRef<HTMLInputElement>(null);
+
+  // Fetch knowledge docs from DB
+  const fetchKnowledgeDocs = useCallback(async () => {
+    setIsLoadingDocs(true);
+    try {
+      const { data, error } = await supabase
+        .from("knowledge_documents")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setKnowledgeDocs((data || []) as unknown as KnowledgeDoc[]);
+    } catch (e: any) {
+      console.error("Fetch knowledge docs error:", e);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchKnowledgeDocs(); }, [fetchKnowledgeDocs]);
+
+  // Upload knowledge doc
+  const handleUploadKnowledgeDoc = async (file: File) => {
+    if (!uploadTitle.trim()) {
+      toast.error(isZh ? "请输入文档标题" : "Please enter a document title");
+      return;
+    }
+    setIsUploadingDoc(true);
+    try {
+      const fileExt = file.name.split(".").pop() || "bin";
+      const filePath = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("knowledge-files")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("knowledge-files")
+        .getPublicUrl(filePath);
+
+      const { error: insertError } = await supabase
+        .from("knowledge_documents")
+        .insert({
+          title: uploadTitle.trim(),
+          description: uploadDescription.trim() || null,
+          category: uploadCategory,
+          file_url: urlData.publicUrl,
+          file_name: file.name,
+          file_type: fileExt.toUpperCase(),
+          file_size: file.size,
+        } as any);
+      if (insertError) throw insertError;
+
+      toast.success(isZh ? "文档上传成功" : "Document uploaded successfully");
+      setUploadDialogOpen(false);
+      setUploadTitle("");
+      setUploadDescription("");
+      setUploadCategory("General");
+      fetchKnowledgeDocs();
+    } catch (e: any) {
+      console.error("Upload error:", e);
+      toast.error(isZh ? `上传失败: ${e.message}` : `Upload failed: ${e.message}`);
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  // Delete knowledge doc
+  const handleDeleteKnowledgeDoc = async (doc: KnowledgeDoc) => {
+    try {
+      // Extract storage path from URL
+      const urlParts = doc.file_url.split("/knowledge-files/");
+      if (urlParts[1]) {
+        await supabase.storage.from("knowledge-files").remove([urlParts[1]]);
+      }
+      const { error } = await supabase.from("knowledge_documents").delete().eq("id", doc.id as any);
+      if (error) throw error;
+      toast.success(isZh ? "文档已删除" : "Document deleted");
+      fetchKnowledgeDocs();
+    } catch (e: any) {
+      toast.error(isZh ? `删除失败: ${e.message}` : `Delete failed: ${e.message}`);
+    }
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const filteredTemplates = dataTemplates.filter((t) => {
     const matchSearch = searchQuery === "" ||
@@ -696,44 +789,59 @@ const DataCenter = () => {
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input className="pl-8 w-56" placeholder={isZh ? "搜索文档..." : "Search docs..."} value={knowledgeSearch} onChange={e => setKnowledgeSearch(e.target.value)} />
                     </div>
-                    <Button size="sm"><Plus className="w-3.5 h-3.5 mr-1" />{isZh ? "上传文档" : "Upload Doc"}</Button>
+                    <Button size="sm" onClick={() => setUploadDialogOpen(true)}>
+                      <Plus className="w-3.5 h-3.5 mr-1" />{isZh ? "上传文档" : "Upload Doc"}
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredDocs.map(doc => (
-                    <Card key={doc.id} className="border-border hover:border-primary/30 transition-colors group cursor-pointer">
-                      <CardContent className="pt-4 pb-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                            {getFormatIcon(doc.format.toLowerCase())}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-foreground text-sm truncate">{doc.title}</h3>
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline" className="text-xs">{doc.category}</Badge>
-                              <span className="text-xs text-muted-foreground">{doc.size}</span>
-                              <span className="text-xs text-muted-foreground">{doc.updatedAt}</span>
+                {isLoadingDocs ? (
+                  <div className="text-center py-12 text-muted-foreground">{isZh ? "加载中..." : "Loading..."}</div>
+                ) : filteredDocs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FolderOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">{isZh ? "暂无文档，点击上方按钮上传" : "No documents yet. Click Upload to add one."}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredDocs.map(doc => (
+                      <Card key={doc.id} className="border-border hover:border-primary/30 transition-colors group">
+                        <CardContent className="pt-4 pb-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                              {getFormatIcon(doc.file_type.toLowerCase())}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-foreground text-sm truncate">{doc.title}</h3>
+                              {doc.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>}
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline" className="text-xs">{doc.category}</Badge>
+                                <span className="text-xs text-muted-foreground">{formatFileSize(doc.file_size)}</span>
+                                <span className="text-xs text-muted-foreground">{doc.updated_at.slice(0, 10)}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex gap-1.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="sm" variant="outline" className="h-7 text-xs flex-1">
-                            <Download className="w-3 h-3 mr-1" />{isZh ? "下载" : "Download"}
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs flex-1">
-                            <Eye className="w-3 h-3 mr-1" />{isZh ? "预览" : "Preview"}
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs">
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          <div className="flex gap-1.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button size="sm" variant="outline" className="h-7 text-xs flex-1" asChild>
+                              <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-3 h-3 mr-1" />{isZh ? "下载" : "Download"}
+                              </a>
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs flex-1" asChild>
+                              <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                                <Eye className="w-3 h-3 mr-1" />{isZh ? "预览" : "Preview"}
+                              </a>
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteKnowledgeDoc(doc)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -816,6 +924,51 @@ const DataCenter = () => {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== Upload Knowledge Doc Dialog ===== */}
+        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{isZh ? "上传知识文档" : "Upload Knowledge Document"}</DialogTitle>
+              <DialogDescription>{isZh ? "上传SOP、配方、培训资料等文档到知识库" : "Upload SOPs, recipes, training materials to the knowledge base"}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground">{isZh ? "文档标题" : "Title"} *</label>
+                <Input className="mt-1" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} placeholder={isZh ? "输入文档标题..." : "Enter document title..."} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">{isZh ? "分类" : "Category"}</label>
+                <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {knowledgeCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">{isZh ? "描述" : "Description"}</label>
+                <Textarea className="mt-1" value={uploadDescription} onChange={e => setUploadDescription(e.target.value)} placeholder={isZh ? "可选：输入描述..." : "Optional: enter description..."} rows={2} />
+              </div>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">{isZh ? "选择要上传的文件" : "Select a file to upload"}</p>
+                <input
+                  ref={knowledgeFileRef}
+                  type="file"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadKnowledgeDoc(file);
+                  }}
+                />
+                <Button variant="outline" onClick={() => knowledgeFileRef.current?.click()} disabled={isUploadingDoc}>
+                  {isUploadingDoc ? (isZh ? "上传中..." : "Uploading...") : (isZh ? "选择文件" : "Select File")}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
