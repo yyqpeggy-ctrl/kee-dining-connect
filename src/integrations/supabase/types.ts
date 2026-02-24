@@ -710,6 +710,81 @@ export type Database = {
         }
         Relationships: []
       }
+      partners: {
+        Row: {
+          address: string | null
+          commission_rate: number | null
+          contact_person: string | null
+          cooperation_content: string | null
+          cooperation_end: string | null
+          cooperation_start: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          rating: number | null
+          short_name: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          type: string
+          updated_at: string
+          wechat: string | null
+        }
+        Insert: {
+          address?: string | null
+          commission_rate?: number | null
+          contact_person?: string | null
+          cooperation_content?: string | null
+          cooperation_end?: string | null
+          cooperation_start?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          short_name?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          type?: string
+          updated_at?: string
+          wechat?: string | null
+        }
+        Update: {
+          address?: string | null
+          commission_rate?: number | null
+          contact_person?: string | null
+          cooperation_content?: string | null
+          cooperation_end?: string | null
+          cooperation_start?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          short_name?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          type?: string
+          updated_at?: string
+          wechat?: string | null
+        }
+        Relationships: []
+      }
       procurement_orders: {
         Row: {
           approved_at: string | null
