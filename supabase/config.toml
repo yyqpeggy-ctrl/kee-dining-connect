@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.ai-poster-image]
 verify_jwt = false
+
+[functions.ai-poster-edit]
+verify_jwt = false
