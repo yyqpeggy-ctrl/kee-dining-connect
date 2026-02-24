@@ -104,36 +104,81 @@ const SocialMediaContentCreator = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playProgress, setPlayProgress] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSeeking = useRef(false);
 
-  // Simulate video playback
   const togglePlay = useCallback(() => {
-    if (isPlaying) {
-      if (playIntervalRef.current) clearInterval(playIntervalRef.current);
-      playIntervalRef.current = null;
-      setIsPlaying(false);
+    const vid = videoRef.current;
+    if (vid) {
+      if (isPlaying) {
+        vid.pause();
+      } else {
+        vid.play().catch(() => {});
+      }
     } else {
-      setIsPlaying(true);
-      playIntervalRef.current = setInterval(() => {
-        setPlayProgress(prev => {
-          if (prev >= 100) {
-            if (playIntervalRef.current) clearInterval(playIntervalRef.current);
-            playIntervalRef.current = null;
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 0.5;
-        });
-      }, 100);
+      // Fallback for no-source simulated playback
+      if (isPlaying) {
+        if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+        setIsPlaying(false);
+      } else {
+        setIsPlaying(true);
+        playIntervalRef.current = setInterval(() => {
+          setPlayProgress(prev => {
+            if (prev >= 100) {
+              if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+              playIntervalRef.current = null;
+              setIsPlaying(false);
+              return 0;
+            }
+            return prev + 0.5;
+          });
+        }, 100);
+      }
     }
   }, [isPlaying]);
+
+  const handleSeek = useCallback((values: number[]) => {
+    const val = values[0];
+    setPlayProgress(val);
+    const vid = videoRef.current;
+    if (vid && videoDuration > 0) {
+      isSeeking.current = true;
+      vid.currentTime = (val / 100) * videoDuration;
+      setTimeout(() => { isSeeking.current = false; }, 100);
+    }
+  }, [videoDuration]);
+
+  const handleSkip = useCallback((delta: number) => {
+    const vid = videoRef.current;
+    if (vid && videoDuration > 0) {
+      const newTime = Math.max(0, Math.min(vid.currentTime + delta, videoDuration));
+      vid.currentTime = newTime;
+      setCurrentTime(newTime);
+      setPlayProgress((newTime / videoDuration) * 100);
+    } else {
+      setPlayProgress(prev => Math.max(0, Math.min(100, prev + delta * 3)));
+    }
+  }, [videoDuration]);
 
   const openPreview = useCallback((task: EditTask) => {
     setPreviewingTask(task);
     setPlayProgress(0);
+    setCurrentTime(0);
+    setVideoDuration(0);
     setIsPlaying(false);
+    videoRef.current = null;
     if (playIntervalRef.current) clearInterval(playIntervalRef.current);
   }, []);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [showWaveform, setShowWaveform] = useState(true);
@@ -1425,9 +1470,18 @@ const SocialMediaContentCreator = () => {
                 className="absolute inset-0 w-full h-full object-contain"
                 muted={isMuted}
                 ref={(el) => {
-                  if (el) {
-                    if (isPlaying && el.paused) el.play().catch(() => {});
-                    if (!isPlaying && !el.paused) el.pause();
+                  if (el && videoRef.current !== el) {
+                    videoRef.current = el;
+                    el.onloadedmetadata = () => setVideoDuration(el.duration || 0);
+                    el.ontimeupdate = () => {
+                      if (!isSeeking.current && el.duration) {
+                        setCurrentTime(el.currentTime);
+                        setPlayProgress((el.currentTime / el.duration) * 100);
+                      }
+                    };
+                    el.onplay = () => setIsPlaying(true);
+                    el.onpause = () => setIsPlaying(false);
+                    el.onended = () => { setIsPlaying(false); setPlayProgress(0); setCurrentTime(0); };
                   }
                 }}
               />
@@ -1522,26 +1576,28 @@ const SocialMediaContentCreator = () => {
           <div className="px-4 pb-4 space-y-3 pt-2">
             {/* Progress bar */}
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-muted-foreground w-8">
-                {Math.floor(playProgress * 0.15 / 100)}:{String(Math.floor((playProgress * 0.15 / 100 % 1) * 60)).padStart(2, '0')}
+              <span className="text-[10px] font-mono text-muted-foreground w-10 text-right">
+                {videoDuration > 0 ? formatTime(currentTime) : formatTime(playProgress * 0.15 / 100 * 60)}
               </span>
-              <Slider value={[playProgress]} max={100} step={0.5} onValueChange={(v) => setPlayProgress(v[0])} className="flex-1" />
-              <span className="text-[10px] font-mono text-muted-foreground w-8">
-                {previewingTask?.template === "15s短视频" || previewingTask?.template === "15s Short" ? "0:15" :
-                 previewingTask?.template === "60s产品展示" || previewingTask?.template === "60s Product" ? "1:00" : "0:30"}
+              <Slider value={[playProgress]} max={100} step={0.1} onValueChange={handleSeek} className="flex-1" />
+              <span className="text-[10px] font-mono text-muted-foreground w-10">
+                {videoDuration > 0 ? formatTime(videoDuration) : (
+                  previewingTask?.template === "15s短视频" || previewingTask?.template === "15s Short" ? "0:15" :
+                  previewingTask?.template === "60s产品展示" || previewingTask?.template === "60s Product" ? "1:00" : "0:30"
+                )}
               </span>
             </div>
 
             {/* Control buttons */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPlayProgress(Math.max(0, playProgress - 10))}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSkip(-5)}>
                   <SkipBack className="w-4 h-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-9 w-9" onClick={togglePlay}>
                   {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPlayProgress(Math.min(100, playProgress + 10))}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSkip(5)}>
                   <SkipForward className="w-4 h-4" />
                 </Button>
               </div>
