@@ -110,6 +110,8 @@ const SocialMediaContentCreator = () => {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [selectedHeadlineIdx, setSelectedHeadlineIdx] = useState<number>(0);
   const [posterEditInstruction, setPosterEditInstruction] = useState("");
+  const posterImageInputRef = useRef<HTMLInputElement>(null);
+  const [posterRefImages, setPosterRefImages] = useState<UploadedImage[]>([]);
   const [isEditingImage, setIsEditingImage] = useState(false);
   const [editHistory, setEditHistory] = useState<string[]>([]);
   const [aiTopicResult, setAiTopicResult] = useState<AITopicResult | null>(cachedTopicResult);
@@ -306,7 +308,8 @@ const SocialMediaContentCreator = () => {
           body_copy: headline.body_copy,
           style: headline.style,
           color_palette: posterResult.color_palette,
-          extra_instructions: posterInstructions || "",
+          extra_instructions: posterInstructions + (posterRefImages.length > 0 ? (isZh ? " 请参考用户提供的品牌素材图片，提取LOGO和品牌元素融入海报。" : " Reference user's brand images, extract logo and brand elements into poster.") : ""),
+          reference_images: posterRefImages.slice(0, 2).map(img => img.dataUrl).filter(Boolean),
           language: isZh ? "zh" : "en",
         },
       });
@@ -537,6 +540,29 @@ const SocialMediaContentCreator = () => {
     });
   };
 
+  const handlePosterImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newImages: UploadedImage[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      if (file.size > 20 * 1024 * 1024) continue;
+      const url = URL.createObjectURL(file);
+      let dataUrl: string | undefined;
+      try {
+        const reader = new FileReader();
+        dataUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      } catch { /* ignore */ }
+      newImages.push({ id: crypto.randomUUID(), file, name: file.name, size: formatFileSize(file.size), url, dataUrl });
+    }
+    setPosterRefImages(prev => [...prev, ...newImages]);
+    if (newImages.length > 0) toast.success(isZh ? `已导入 ${newImages.length} 张参考图` : `Imported ${newImages.length} ref image(s)`);
+    if (e.target) e.target.value = "";
+  };
+
   const generateVideoCover = async (taskId: string) => {
     try {
       const style = videoStyles.find(s => s.id === selectedVideoStyle);
@@ -758,6 +784,37 @@ const SocialMediaContentCreator = () => {
                     placeholder={isZh ? "可选：输入额外要求，如'突出周年庆'、'主打鸡尾酒系列'..." : "Optional: extra instructions like 'highlight anniversary', 'feature cocktail series'..."}
                     className="w-full p-3 border border-border rounded-lg bg-background text-foreground text-sm resize-none h-20 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
                   />
+                  {/* Reference image upload for poster */}
+                  <div>
+                    <input ref={posterImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePosterImageUpload} />
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => posterImageInputRef.current?.click()}>
+                        <ImagePlus className="w-3.5 h-3.5" />{isZh ? "导入参考图片" : "Import Ref Images"}
+                      </Button>
+                      <p className="text-[11px] text-muted-foreground">{isZh ? "LOGO、品牌素材等，AI 将提取融入海报" : "Logo, brand assets — AI extracts into poster"}</p>
+                    </div>
+                    {posterRefImages.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {posterRefImages.map(img => (
+                          <div key={img.id} className="relative group">
+                            <img src={img.url} alt={img.name} className="w-16 h-16 rounded-lg object-cover border border-border" />
+                            <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Button size="icon" variant="ghost" className="h-5 w-5 text-white hover:text-white" onClick={() => {
+                                setPosterRefImages(prev => {
+                                  const found = prev.find(x => x.id === img.id);
+                                  if (found) URL.revokeObjectURL(found.url);
+                                  return prev.filter(x => x.id !== img.id);
+                                });
+                              }}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <p className="text-[8px] text-muted-foreground mt-0.5 truncate w-16 text-center">{img.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3">
                     <Button className="gap-1.5" disabled={!selectedTemplate || isLoadingPoster} onClick={fetchPosterSuggestions}>
                       {isLoadingPoster ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
