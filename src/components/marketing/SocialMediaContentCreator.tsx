@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2, Maximize2, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
+import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2, Maximize2, Volume2, VolumeX, SkipBack, SkipForward, Subtitles, AudioLines } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +133,42 @@ const SocialMediaContentCreator = () => {
     setIsPlaying(false);
     if (playIntervalRef.current) clearInterval(playIntervalRef.current);
   }, []);
+
+  const [showSubtitles, setShowSubtitles] = useState(true);
+  const [showWaveform, setShowWaveform] = useState(true);
+
+  // AI-generated subtitle data synced to progress
+  const subtitlesZh = [
+    { start: 0, end: 12, text: "欢迎来到我们的餐厅" },
+    { start: 12, end: 25, text: "今天为您呈现招牌鸡尾酒" },
+    { start: 25, end: 40, text: "精选进口烈酒与新鲜水果" },
+    { start: 40, end: 55, text: "调酒师为您现场调制" },
+    { start: 55, end: 70, text: "品味非凡，尽在杯中" },
+    { start: 70, end: 85, text: "搭配主厨特制轻食小食" },
+    { start: 85, end: 100, text: "欢迎预约体验 · 期待您的光临" },
+  ];
+  const subtitlesEn = [
+    { start: 0, end: 12, text: "Welcome to our restaurant" },
+    { start: 12, end: 25, text: "Presenting our signature cocktails" },
+    { start: 25, end: 40, text: "Premium imported spirits & fresh fruits" },
+    { start: 40, end: 55, text: "Crafted live by our mixologist" },
+    { start: 55, end: 70, text: "Exceptional taste in every sip" },
+    { start: 70, end: 85, text: "Paired with chef's special bites" },
+    { start: 85, end: 100, text: "Reserve now · We look forward to seeing you" },
+  ];
+  const currentSubtitle = (isZh ? subtitlesZh : subtitlesEn).find(s => playProgress >= s.start && playProgress < s.end);
+
+  // Simulated BGM waveform data (32 bars)
+  const waveformBars = 32;
+  const getWaveformHeight = (barIdx: number) => {
+    const seed = Math.sin(barIdx * 12.9898 + 78.233) * 43758.5453;
+    const base = (seed - Math.floor(seed)) * 0.6 + 0.2;
+    const progressFactor = barIdx / waveformBars <= playProgress / 100 ? 1 : 0.3;
+    const playingBoost = isPlaying && barIdx / waveformBars <= playProgress / 100
+      ? 0.8 + Math.sin(Date.now() / 200 + barIdx) * 0.2
+      : 1;
+    return base * progressFactor * playingBoost;
+  };
 
   useEffect(() => {
     return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current); };
@@ -1343,7 +1379,7 @@ const SocialMediaContentCreator = () => {
 
       {/* Video Preview Dialog */}
       <Dialog open={!!previewingTask} onOpenChange={(open) => { if (!open) { setPreviewingTask(null); setIsPlaying(false); setPlayProgress(0); if (playIntervalRef.current) clearInterval(playIntervalRef.current); } }}>
-        <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden">
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="text-base flex items-center gap-2">
               <Video className="w-4 h-4 text-primary" />
@@ -1354,7 +1390,6 @@ const SocialMediaContentCreator = () => {
 
           {/* Video Player Area */}
           <div className="relative bg-black aspect-video flex items-center justify-center cursor-pointer group" onClick={togglePlay}>
-            {/* Simulated video content */}
             <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black flex items-center justify-center">
               <div className="text-center">
                 <Film className="w-16 h-16 text-muted-foreground/20 mx-auto mb-2" />
@@ -1363,7 +1398,7 @@ const SocialMediaContentCreator = () => {
             </div>
 
             {/* Play/Pause overlay */}
-            {!isPlaying && (
+            {!isPlaying && playProgress === 0 && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="w-16 h-16 rounded-full bg-primary/80 flex items-center justify-center shadow-lg group-hover:bg-primary transition-colors">
                   <Play className="w-7 h-7 text-primary-foreground ml-1" />
@@ -1371,7 +1406,7 @@ const SocialMediaContentCreator = () => {
               </div>
             )}
 
-            {/* Top-right info */}
+            {/* Top info */}
             <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
               <Badge variant="secondary" className="text-[10px] bg-black/50 text-white border-none">
                 {previewingTask?.template === "15s短视频" || previewingTask?.template === "15s Short" ? "0:15" :
@@ -1379,30 +1414,75 @@ const SocialMediaContentCreator = () => {
                  previewingTask?.template === "3min品牌故事" || previewingTask?.template === "3min Brand Story" ? "3:00" : "0:30"}
               </Badge>
             </div>
-
-            {/* Playing indicator */}
             {isPlaying && (
               <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-[10px] text-white/70 font-mono">PLAYING</span>
               </div>
             )}
+
+            {/* AI Subtitle Overlay */}
+            {showSubtitles && currentSubtitle && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[80%]">
+                <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
+                  <p className="text-white text-sm font-medium text-center leading-relaxed tracking-wide">
+                    {currentSubtitle.text}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Subtitle badge indicator */}
+            {showSubtitles && (
+              <div className="absolute bottom-3 left-3 z-10">
+                <Badge className="text-[9px] bg-primary/60 text-white border-none gap-1">
+                  <Subtitles className="w-2.5 h-2.5" />AI {isZh ? "字幕" : "Subs"}
+                </Badge>
+              </div>
+            )}
           </div>
 
+          {/* BGM Waveform Visualization */}
+          {showWaveform && (
+            <div className="px-4 pt-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Music2 className="w-3.5 h-3.5 text-primary" />
+                <span className="text-[11px] font-medium text-foreground">{isZh ? "BGM 音轨" : "BGM Track"}</span>
+                <span className="text-[10px] text-muted-foreground">—</span>
+                <span className="text-[10px] text-muted-foreground italic">
+                  {aiSuggestions?.recommended_bgm?.[0]
+                    ? `${aiSuggestions.recommended_bgm[0].name} · ${aiSuggestions.recommended_bgm[0].style}`
+                    : (isZh ? "轻爵士 · Chill Vibes" : "Light Jazz · Chill Vibes")}
+                </span>
+                {isPlaying && <AudioLines className="w-3 h-3 text-primary animate-pulse ml-auto" />}
+              </div>
+              <div className="flex items-end gap-[2px] h-8 bg-muted/30 rounded-md px-1 py-1 overflow-hidden">
+                {Array.from({ length: waveformBars }).map((_, i) => {
+                  const h = getWaveformHeight(i);
+                  const isPast = i / waveformBars <= playProgress / 100;
+                  return (
+                    <div
+                      key={i}
+                      className={`flex-1 rounded-sm transition-all duration-100 ${isPast ? "bg-primary" : "bg-muted-foreground/20"}`}
+                      style={{
+                        height: `${Math.max(8, h * 100)}%`,
+                        opacity: isPast ? (isPlaying ? 0.9 : 0.7) : 0.4,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Controls */}
-          <div className="px-4 pb-4 space-y-3">
+          <div className="px-4 pb-4 space-y-3 pt-2">
             {/* Progress bar */}
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-muted-foreground w-8">
                 {Math.floor(playProgress * 0.15 / 100)}:{String(Math.floor((playProgress * 0.15 / 100 % 1) * 60)).padStart(2, '0')}
               </span>
-              <Slider
-                value={[playProgress]}
-                max={100}
-                step={0.5}
-                onValueChange={(v) => setPlayProgress(v[0])}
-                className="flex-1"
-              />
+              <Slider value={[playProgress]} max={100} step={0.5} onValueChange={(v) => setPlayProgress(v[0])} className="flex-1" />
               <span className="text-[10px] font-mono text-muted-foreground w-8">
                 {previewingTask?.template === "15s短视频" || previewingTask?.template === "15s Short" ? "0:15" :
                  previewingTask?.template === "60s产品展示" || previewingTask?.template === "60s Product" ? "1:00" : "0:30"}
@@ -1424,6 +1504,12 @@ const SocialMediaContentCreator = () => {
               </div>
 
               <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSubtitles(!showSubtitles)} title={isZh ? "字幕" : "Subtitles"}>
+                  <Subtitles className={`w-4 h-4 ${showSubtitles ? "text-primary" : ""}`} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowWaveform(!showWaveform)} title={isZh ? "音轨" : "Waveform"}>
+                  <AudioLines className={`w-4 h-4 ${showWaveform ? "text-primary" : ""}`} />
+                </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMuted(!isMuted)}>
                   {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </Button>
