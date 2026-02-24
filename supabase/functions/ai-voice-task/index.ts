@@ -66,7 +66,7 @@ Respond ONLY with valid JSON in this format:
 
 If no actionable tasks are found, return empty tasks array with a summary explaining what was heard.`;
 
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
