@@ -714,20 +714,23 @@ const SocialMediaContentCreator = () => {
     setEditInstructions(`Style: ${selectedVideoStyle}`);
     fetchAISuggestions();
 
-    toast.info(isZh ? `🎬 开始真实剪辑：目标时长 ${targetDuration}秒...` : `🎬 Starting real edit: target ${targetDuration}s...`);
+    toast.info(isZh ? `🎬 开始剪辑：目标时长 ${targetDuration}秒...` : `🎬 Starting edit: target ${targetDuration}s...`);
 
     try {
       // Auto-generate trim segments based on target duration
       const videoUrls = uploadedVideos.map(v => v.url);
+      console.log("[VideoEditor] Starting trim with", videoUrls.length, "videos, target:", targetDuration, "s");
       const segments = await autoTrimSegments(videoUrls, targetDuration);
+      console.log("[VideoEditor] Segments:", segments);
 
-      // Real ffmpeg trim & merge
+      // Real Canvas+MediaRecorder trim & merge
       const outputUrl = await trimAndMerge(segments, (pct) => {
         setFfmpegProgress(pct);
         setEditTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, progress: pct } : t
         ));
       });
+      console.log("[VideoEditor] Output URL:", outputUrl);
 
       setEditTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, status: "done", progress: 100, outputUrl, coverStatus: "generating" } : t

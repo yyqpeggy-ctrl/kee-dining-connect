@@ -1,110 +1,12 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile } from "@ffmpeg/util";
-
-let ffmpegInstance: FFmpeg | null = null;
-let loadPromise: Promise<void> | null = null;
-
-export async function getFFmpeg(): Promise<FFmpeg> {
-  if (ffmpegInstance?.loaded) return ffmpegInstance;
-  if (loadPromise) {
-    await loadPromise;
-    return ffmpegInstance!;
-  }
-
-  ffmpegInstance = new FFmpeg();
-  loadPromise = ffmpegInstance.load({
-    coreURL: "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.js",
-    wasmURL: "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.wasm",
-  }).then(() => {});
-  await loadPromise;
-  return ffmpegInstance;
-}
+/**
+ * Browser-native video trimming & merging using Canvas + MediaRecorder.
+ * No SharedArrayBuffer or special headers needed.
+ */
 
 export interface TrimSegment {
   videoUrl: string;
   startTime: number; // seconds
   endTime: number;   // seconds
-}
-
-/**
- * Trim and merge video segments into a single output.
- * - Trims each video to the specified time range
- * - Concatenates all trimmed segments
- * - Returns a blob URL for the merged output
- */
-export async function trimAndMerge(
-  segments: TrimSegment[],
-  onProgress?: (pct: number) => void
-): Promise<string> {
-  const ffmpeg = await getFFmpeg();
-
-  // Progress tracking
-  ffmpeg.on("progress", ({ progress }) => {
-    onProgress?.(Math.min(Math.round(progress * 100), 99));
-  });
-
-  const trimmedFiles: string[] = [];
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    const inputName = `input_${i}.mp4`;
-    const outputName = `trimmed_${i}.mp4`;
-
-    // Write input file
-    const fileData = await fetchFile(seg.videoUrl);
-    await ffmpeg.writeFile(inputName, fileData);
-
-    // Trim: -ss (start) -to (end) with re-encode for accurate seeking
-    const duration = seg.endTime - seg.startTime;
-    await ffmpeg.exec([
-      "-ss", String(seg.startTime),
-      "-i", inputName,
-      "-t", String(duration),
-      "-c:v", "libx264",
-      "-preset", "ultrafast",
-      "-c:a", "aac",
-      "-y",
-      outputName,
-    ]);
-
-    trimmedFiles.push(outputName);
-    // Cleanup input to save memory
-    await ffmpeg.deleteFile(inputName);
-  }
-
-  let outputBlob: Blob;
-
-  if (trimmedFiles.length === 1) {
-    // Single segment, no concat needed
-    const data = await ffmpeg.readFile(trimmedFiles[0]);
-    outputBlob = new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" });
-    await ffmpeg.deleteFile(trimmedFiles[0]);
-  } else {
-    // Create concat file list
-    const concatList = trimmedFiles.map(f => `file '${f}'`).join("\n");
-    await ffmpeg.writeFile("concat.txt", concatList);
-
-    await ffmpeg.exec([
-      "-f", "concat",
-      "-safe", "0",
-      "-i", "concat.txt",
-      "-c", "copy",
-      "-y",
-      "output.mp4",
-    ]);
-
-    const data = await ffmpeg.readFile("output.mp4");
-    outputBlob = new Blob([new Uint8Array(data as Uint8Array)], { type: "video/mp4" });
-
-    // Cleanup
-    for (const f of trimmedFiles) {
-      try { await ffmpeg.deleteFile(f); } catch {}
-    }
-    try { await ffmpeg.deleteFile("concat.txt"); } catch {}
-    try { await ffmpeg.deleteFile("output.mp4"); } catch {}
-  }
-
-  return URL.createObjectURL(outputBlob);
 }
 
 /**
@@ -115,10 +17,139 @@ export function getVideoDuration(url: string): Promise<number> {
     const video = document.createElement("video");
     video.preload = "metadata";
     video.src = url;
-    video.onloadedmetadata = () => resolve(video.duration);
+    video.onloadedmetadata = () => {
+      resolve(video.duration);
+      video.src = "";
+    };
     video.onerror = () => resolve(0);
-    setTimeout(() => resolve(0), 5000);
+    setTimeout(() => resolve(0), 8000);
   });
+}
+
+/**
+ * Record a single video segment (startTime → endTime) by drawing
+ * frames from a <video> onto a <canvas> and capturing via MediaRecorder.
+ */
+function recordSegment(
+  segment: TrimSegment,
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  fps: number = 30,
+): Promise<Blob[]> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.muted = true; // avoid autoplay restrictions
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = segment.videoUrl;
+
+    const chunks: Blob[] = [];
+    let animFrameId: number | null = null;
+
+    video.onloadeddata = () => {
+      // Resize canvas to match video
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+
+      video.currentTime = segment.startTime;
+    };
+
+    video.onseeked = () => {
+      // Start playback from the seek point
+      video.play().catch(reject);
+    };
+
+    video.onplay = () => {
+      const stream = canvas.captureStream(fps);
+
+      // Try to add audio track if available
+      try {
+        const audioCtx = new AudioContext();
+        const source = audioCtx.createMediaElementSource(video);
+        const dest = audioCtx.createMediaStreamDestination();
+        source.connect(dest);
+        source.connect(audioCtx.destination);
+        dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+      } catch {
+        // No audio - that's fine
+      }
+
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
+          ? "video/webm;codecs=vp8"
+          : "video/webm";
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 4_000_000,
+      });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        video.pause();
+        video.src = "";
+        resolve(chunks);
+      };
+
+      recorder.onerror = (e) => {
+        reject(new Error("MediaRecorder error"));
+      };
+
+      recorder.start();
+
+      const drawFrame = () => {
+        if (video.currentTime >= segment.endTime || video.ended) {
+          recorder.stop();
+          return;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        animFrameId = requestAnimationFrame(drawFrame);
+      };
+      drawFrame();
+    };
+
+    video.onerror = () => reject(new Error(`Failed to load video: ${segment.videoUrl}`));
+  });
+}
+
+/**
+ * Trim and merge video segments into a single output.
+ * Uses Canvas + MediaRecorder (works in all modern browsers without special headers).
+ * Returns a blob URL for the merged output (webm format).
+ */
+export async function trimAndMerge(
+  segments: TrimSegment[],
+  onProgress?: (pct: number) => void
+): Promise<string> {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Cannot create canvas context");
+
+  const allChunks: Blob[] = [];
+  const totalSegments = segments.length;
+
+  for (let i = 0; i < totalSegments; i++) {
+    onProgress?.(Math.round(((i) / totalSegments) * 80));
+    
+    const chunks = await recordSegment(segments[i], canvas, ctx);
+    allChunks.push(...chunks);
+    
+    onProgress?.(Math.round(((i + 1) / totalSegments) * 80));
+  }
+
+  onProgress?.(90);
+
+  // Combine all chunks into a single blob
+  const outputBlob = new Blob(allChunks, { type: "video/webm" });
+  
+  onProgress?.(100);
+
+  return URL.createObjectURL(outputBlob);
 }
 
 /**
@@ -133,7 +164,6 @@ export async function autoTrimSegments(
   const totalDuration = durations.reduce((a, b) => a + b, 0);
 
   if (totalDuration <= targetDurationSec) {
-    // Videos are already short enough, use full duration
     return videoUrls.map((url, i) => ({
       videoUrl: url,
       startTime: 0,
@@ -141,12 +171,10 @@ export async function autoTrimSegments(
     }));
   }
 
-  // Distribute target duration proportionally
   const segments: TrimSegment[] = [];
   for (let i = 0; i < videoUrls.length; i++) {
     const proportion = durations[i] / totalDuration;
-    const segDuration = Math.max(2, targetDurationSec * proportion); // min 2 seconds per segment
-    // Pick from the middle of each video for "highlights"
+    const segDuration = Math.max(2, targetDurationSec * proportion);
     const midPoint = durations[i] / 2;
     const halfSeg = segDuration / 2;
     const startTime = Math.max(0, midPoint - halfSeg);
