@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { trimAndMerge, autoTrimSegments } from "@/lib/videoEditor";
 
 interface AISuggestion {
   tip: string;
@@ -139,6 +140,9 @@ const SocialMediaContentCreator = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSeeking = useRef(false);
+  const [targetDuration, setTargetDuration] = useState(30); // target output duration in seconds
+  const [ffmpegProgress, setFfmpegProgress] = useState(0);
+  const [isFFmpegLoading, setIsFFmpegLoading] = useState(false);
 
   const togglePlay = useCallback(() => {
     const vid = videoRef.current;
@@ -659,7 +663,7 @@ const SocialMediaContentCreator = () => {
     }
   };
 
-  const startAIEdit = () => {
+  const startAIEdit = async () => {
     if (uploadedVideos.length < 2) {
       toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
       return;
@@ -675,45 +679,59 @@ const SocialMediaContentCreator = () => {
 
     const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
     const style = videoStyles.find(s => s.id === selectedVideoStyle);
+    const taskId = crypto.randomUUID();
     const mergedTask: EditTask = {
-      id: crypto.randomUUID(),
+      id: taskId,
       videoName: isZh
         ? `${style?.name || ""} · ${uploadedVideos[0].name} + ${uploadedVideos[1].name}`
         : `${style?.name || ""} · ${uploadedVideos[0].name} + ${uploadedVideos[1].name}`,
       template: template?.name || "",
       platform: template?.platform || "",
-      status: "queued",
+      status: "processing",
       progress: 0,
-      sourceUrl: uploadedVideos[0].url,
-      instructions: `Style: ${selectedVideoStyle}`,
+      instructions: `Style: ${selectedVideoStyle} | Target: ${targetDuration}s`,
     };
 
     setEditTasks(prev => [...prev, mergedTask]);
     setVideoStep("edit");
+    setIsFFmpegLoading(true);
 
-    // Also fetch AI suggestions with the style context
+    // Also fetch AI suggestions
     setEditInstructions(`Style: ${selectedVideoStyle}`);
     fetchAISuggestions();
 
-    // Simulate AI merge processing
-    setTimeout(() => {
-      setEditTasks(prev => prev.map(t => t.id === mergedTask.id ? { ...t, status: "processing", progress: 0 } : t));
-      const interval = setInterval(() => {
-        setEditTasks(prev => prev.map(t => {
-          if (t.id !== mergedTask.id) return t;
-          const newProgress = Math.min(t.progress + Math.random() * 10, 100);
-          if (newProgress >= 100) {
-            clearInterval(interval);
-            // Auto-generate cover when done
-            generateVideoCover(mergedTask.id);
-            return { ...t, status: "done", progress: 100, coverStatus: "generating" };
-          }
-          return { ...t, progress: Math.round(newProgress) };
-        }));
-      }, 1000);
-    }, 500);
+    toast.info(isZh ? `🎬 开始真实剪辑：目标时长 ${targetDuration}秒...` : `🎬 Starting real edit: target ${targetDuration}s...`);
 
-    toast.info(isZh ? "AI 正在智能分析并合并剪辑..." : "AI is analyzing and merging clips...");
+    try {
+      // Auto-generate trim segments based on target duration
+      const videoUrls = uploadedVideos.map(v => v.url);
+      const segments = await autoTrimSegments(videoUrls, targetDuration);
+
+      // Real ffmpeg trim & merge
+      const outputUrl = await trimAndMerge(segments, (pct) => {
+        setFfmpegProgress(pct);
+        setEditTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, progress: pct } : t
+        ));
+      });
+
+      setEditTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: "done", progress: 100, outputUrl, coverStatus: "generating" } : t
+      ));
+
+      // Auto-generate cover
+      generateVideoCover(taskId);
+      toast.success(isZh ? `✅ 视频已剪辑完成！时长约 ${targetDuration}秒` : `✅ Video edited! Duration ~${targetDuration}s`);
+    } catch (err: any) {
+      console.error("FFmpeg edit error:", err);
+      setEditTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: "error", progress: 0 } : t
+      ));
+      toast.error(isZh ? `剪辑失败: ${err.message}` : `Edit failed: ${err.message}`);
+    } finally {
+      setIsFFmpegLoading(false);
+      setFfmpegProgress(0);
+    }
   };
 
   const handlePublish = (taskId: string) => {
@@ -1351,9 +1369,33 @@ const SocialMediaContentCreator = () => {
                         </button>
                       ))}
                     </div>
+
+                    {/* Target Duration Selector */}
+                    <div className="mb-4">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">{isZh ? "🎯 目标时长" : "🎯 Target Duration"}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {[15, 30, 60, 90, 180].map(sec => (
+                          <button
+                            key={sec}
+                            onClick={() => setTargetDuration(sec)}
+                            className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${targetDuration === sec ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                          >
+                            {sec < 60 ? `${sec}s` : `${sec / 60}min`}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        {isZh ? "AI 将从每段视频中自动提取精华片段，裁剪并拼接为目标时长的短视频" : "AI auto-extracts highlight clips from each video, trims and merges to target duration"}
+                      </p>
+                    </div>
+
                     <div className="flex items-center gap-3">
-                      <Button className="gap-1.5" size="lg" onClick={startAIEdit} disabled={uploadedVideos.length < 2 || !selectedVideoStyle || !selectedVideoTemplate}>
-                        <Sparkles className="w-4 h-4" />{isZh ? "一键 AI 智能剪辑" : "One-Click AI Edit"}
+                      <Button className="gap-1.5" size="lg" onClick={startAIEdit} disabled={uploadedVideos.length < 2 || !selectedVideoStyle || !selectedVideoTemplate || isFFmpegLoading}>
+                        {isFFmpegLoading ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" />{isZh ? `剪辑中 ${ffmpegProgress}%...` : `Editing ${ffmpegProgress}%...`}</>
+                        ) : (
+                          <><Scissors className="w-4 h-4" />{isZh ? `一键剪辑 → ${targetDuration < 60 ? targetDuration + "秒" : (targetDuration / 60) + "分钟"}短视频` : `Edit → ${targetDuration < 60 ? targetDuration + "s" : (targetDuration / 60) + "min"} Video`}</>
+                        )}
                       </Button>
                       {(uploadedVideos.length < 2 || !selectedVideoStyle) && (
                         <p className="text-xs text-muted-foreground">
@@ -1501,8 +1543,8 @@ const SocialMediaContentCreator = () => {
                               </div>
                             ) : (
                               <div className="w-28 h-16 rounded-lg bg-muted flex items-center justify-center relative group overflow-hidden shrink-0 cursor-pointer" onClick={() => openPreview(task)}>
-                                {task.sourceUrl ? (
-                                  <video src={task.sourceUrl} className="w-full h-full object-cover" muted />
+                                {(task.outputUrl || task.sourceUrl) ? (
+                                  <video src={task.outputUrl || task.sourceUrl} className="w-full h-full object-cover" muted />
                                 ) : (
                                   <FileVideo className="w-6 h-6 text-muted-foreground/50" />
                                 )}
@@ -1882,9 +1924,9 @@ const SocialMediaContentCreator = () => {
 
           {/* Video Player Area */}
           <div className="relative bg-black aspect-video flex items-center justify-center cursor-pointer group" onClick={togglePlay}>
-            {previewingTask?.sourceUrl ? (
+            {(previewingTask?.outputUrl || previewingTask?.sourceUrl) ? (
               <video
-                src={previewingTask.sourceUrl}
+                src={previewingTask.outputUrl || previewingTask.sourceUrl}
                 className="absolute inset-0 w-full h-full object-contain"
                 muted={isMuted}
                 ref={(el) => {
