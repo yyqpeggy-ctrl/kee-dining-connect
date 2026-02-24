@@ -10,6 +10,13 @@ export interface TrimSegment {
   endTime: number;   // seconds
 }
 
+export interface VideoSubtitle {
+  startPct: number;  // 0-100 percentage of total duration
+  endPct: number;    // 0-100 percentage of total duration
+  zh: string;
+  en: string;
+}
+
 /**
  * Get video duration from a blob URL
  */
@@ -56,11 +63,68 @@ function loadVideoAt(url: string, startTime: number): Promise<HTMLVideoElement> 
  * Play a single segment on the canvas, resolves when the segment ends.
  * The video element plays in real-time while we draw frames to canvas.
  */
+/**
+ * Draw bilingual subtitles onto the canvas.
+ */
+function drawSubtitles(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  subtitle: VideoSubtitle | undefined,
+) {
+  if (!subtitle) return;
+
+  const zhFontSize = Math.round(h * 0.045);
+  const enFontSize = Math.round(h * 0.032);
+  const padding = Math.round(h * 0.015);
+  const bottomMargin = Math.round(h * 0.08);
+
+  // Measure text to draw background
+  ctx.font = `bold ${zhFontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+  const zhWidth = ctx.measureText(subtitle.zh).width;
+  ctx.font = `${enFontSize}px "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
+  const enWidth = ctx.measureText(subtitle.en).width;
+
+  const boxWidth = Math.max(zhWidth, enWidth) + padding * 4;
+  const boxHeight = zhFontSize + enFontSize + padding * 3;
+  const boxX = (w - boxWidth) / 2;
+  const boxY = h - bottomMargin - boxHeight;
+
+  // Semi-transparent background
+  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+  const radius = 8;
+  ctx.beginPath();
+  ctx.moveTo(boxX + radius, boxY);
+  ctx.lineTo(boxX + boxWidth - radius, boxY);
+  ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
+  ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
+  ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
+  ctx.lineTo(boxX + radius, boxY + boxHeight);
+  ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
+  ctx.lineTo(boxX, boxY + radius);
+  ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Chinese text
+  ctx.font = `bold ${zhFontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+  ctx.fillStyle = "#FFFFFF";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(subtitle.zh, w / 2, boxY + padding);
+
+  // English text
+  ctx.font = `${enFontSize}px "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillText(subtitle.en, w / 2, boxY + padding + zhFontSize + padding * 0.5);
+}
+
 function playSegmentOnCanvas(
   video: HTMLVideoElement,
   endTime: number,
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
+  getSubtitle?: () => VideoSubtitle | undefined,
 ): Promise<void> {
   return new Promise((resolve) => {
     // Resize canvas to match video
@@ -77,6 +141,10 @@ function playSegmentOnCanvas(
         return;
       }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Overlay subtitles
+      if (getSubtitle) {
+        drawSubtitles(ctx, canvas.width, canvas.height, getSubtitle());
+      }
       animFrameId = requestAnimationFrame(drawFrame);
     };
 
@@ -106,7 +174,8 @@ function playSegmentOnCanvas(
  */
 export async function trimAndMerge(
   segments: TrimSegment[],
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  subtitles?: VideoSubtitle[],
 ): Promise<string> {
   const canvas = document.createElement("canvas");
   canvas.width = 1280;
@@ -158,10 +227,15 @@ export async function trimAndMerge(
   recorder.start(200);
   console.log("[trimAndMerge] MediaRecorder started, processing", segments.length, "segments");
 
+  // Calculate total output duration for subtitle percentage mapping
+  const totalOutputDuration = segments.reduce((acc, s) => acc + (s.endTime - s.startTime), 0);
+  let elapsedTime = 0; // tracks how much output time has been recorded so far
+
   const totalSegments = segments.length;
 
   for (let i = 0; i < totalSegments; i++) {
     const seg = segments[i];
+    const segElapsedStart = elapsedTime;
     onProgress?.(Math.round((i / totalSegments) * 85));
     console.log(`[trimAndMerge] Segment ${i + 1}/${totalSegments}: ${seg.startTime.toFixed(1)}s - ${seg.endTime.toFixed(1)}s`);
 
@@ -175,7 +249,6 @@ export async function trimAndMerge(
         try {
           audioSource = audioCtx.createMediaElementSource(video);
           audioSource.connect(audioDest);
-          // Don't connect to audioCtx.destination to avoid playing through speakers
           console.log(`[trimAndMerge] Audio connected for segment ${i + 1}`);
         } catch (e) {
           console.warn(`[trimAndMerge] Audio connect failed for segment ${i + 1}:`, e);
@@ -186,8 +259,17 @@ export async function trimAndMerge(
       video.muted = false;
       video.volume = 1;
 
+      // Build subtitle getter that maps current playback to output timeline percentage
+      const getSubtitle = subtitles && subtitles.length > 0
+        ? () => {
+            const currentOutputTime = segElapsedStart + (video.currentTime - seg.startTime);
+            const pct = totalOutputDuration > 0 ? (currentOutputTime / totalOutputDuration) * 100 : 0;
+            return subtitles.find(s => pct >= s.startPct && pct < s.endPct);
+          }
+        : undefined;
+
       // Play segment on canvas (real-time)
-      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx);
+      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx, getSubtitle);
 
       // Cleanup video
       if (audioSource) {
@@ -196,11 +278,11 @@ export async function trimAndMerge(
       video.src = "";
     } catch (e) {
       console.warn(`[trimAndMerge] Segment ${i + 1} failed:`, e);
-      // Draw a brief black frame for failed segments
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
+    elapsedTime += (seg.endTime - seg.startTime);
     onProgress?.(Math.round(((i + 1) / totalSegments) * 85));
   }
 

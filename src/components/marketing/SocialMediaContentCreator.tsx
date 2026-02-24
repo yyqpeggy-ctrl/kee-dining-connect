@@ -10,7 +10,7 @@ import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { trimAndMerge, autoTrimSegments, extractBestFrame } from "@/lib/videoEditor";
+import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle } from "@/lib/videoEditor";
 
 interface AISuggestion {
   tip: string;
@@ -756,13 +756,21 @@ const SocialMediaContentCreator = () => {
       const segments = await autoTrimSegments(videoUrls, targetDuration);
       console.log("[VideoEditor] Segments:", segments);
 
-      // Real Canvas+MediaRecorder trim & merge
+      // Convert subtitles from percentage-based to VideoSubtitle format for burn-in
+      const burnSubtitles: VideoSubtitle[] = subtitles.map(s => ({
+        startPct: s.start,
+        endPct: s.end,
+        zh: s.zh,
+        en: s.en,
+      }));
+
+      // Real Canvas+MediaRecorder trim & merge with subtitle burn-in
       const outputUrl = await trimAndMerge(segments, (pct) => {
         setFfmpegProgress(pct);
         setEditTasks(prev => prev.map(t =>
           t.id === taskId ? { ...t, progress: pct } : t
         ));
-      });
+      }, burnSubtitles);
       console.log("[VideoEditor] Output URL:", outputUrl);
 
       setEditTasks(prev => prev.map(t =>
