@@ -418,6 +418,20 @@ const SocialMediaContentCreator = () => {
     }
   };
 
+  const downloadVideo = useCallback((url: string | undefined, filename?: string) => {
+    if (!url) {
+      toast.error(isZh ? "没有可下载的视频" : "No video available to download");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || `edited-video-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success(isZh ? "视频已开始下载" : "Video download started");
+  }, [isZh]);
+
   const undoEdit = () => {
     if (editHistory.length === 0) return;
     const prev = editHistory[editHistory.length - 1];
@@ -1563,9 +1577,16 @@ const SocialMediaContentCreator = () => {
                                   ))}
                                 </div>
                               )}
-                              <Button size="sm" variant="ghost" className="gap-1 text-xs h-6 mt-1 p-0 text-primary" onClick={() => openPreview(task)}>
-                                <Play className="w-3 h-3" />{isZh ? "预览视频" : "Preview Video"}
-                              </Button>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Button size="sm" variant="ghost" className="gap-1 text-xs h-6 p-0 text-primary" onClick={() => openPreview(task)}>
+                                  <Play className="w-3 h-3" />{isZh ? "预览视频" : "Preview Video"}
+                                </Button>
+                                {task.outputUrl && (
+                                  <Button size="sm" variant="ghost" className="gap-1 text-xs h-6 p-0 text-muted-foreground hover:text-primary" onClick={() => downloadVideo(task.outputUrl, `${task.aiTitle || task.videoName}.mp4`)}>
+                                    <Download className="w-3 h-3" />{isZh ? "下载" : "Download"}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -2098,7 +2119,7 @@ const SocialMediaContentCreator = () => {
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   <Maximize2 className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1 text-xs h-7 ml-2" onClick={() => { toast.success(isZh ? "视频已下载" : "Video downloaded"); }}>
+                <Button variant="outline" size="sm" className="gap-1 text-xs h-7 ml-2" onClick={() => downloadVideo(previewingTask?.outputUrl || previewingTask?.sourceUrl, `${previewingTask?.aiTitle || previewingTask?.videoName || "video"}.mp4`)}>
                   <Download className="w-3 h-3" />{isZh ? "下载" : "Download"}
                 </Button>
               </div>
