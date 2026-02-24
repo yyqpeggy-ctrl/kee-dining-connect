@@ -17,6 +17,16 @@ export interface VideoSubtitle {
   en: string;
 }
 
+export interface SubtitleStyle {
+  zhFontScale: number;    // multiplier, default 1.0
+  enFontScale: number;    // multiplier, default 1.0
+  zhColor: string;        // hex color e.g. "#FFFFFF"
+  enColor: string;        // hex color e.g. "#FFFFFF"
+  bgColor: string;        // hex bg color e.g. "#000000"
+  bgOpacity: number;      // 0-1
+  position: "bottom" | "top" | "center"; // vertical position
+}
+
 /**
  * Get video duration from a blob URL
  */
@@ -71,15 +81,22 @@ function drawSubtitles(
   w: number,
   h: number,
   subtitle: VideoSubtitle | undefined,
+  style?: SubtitleStyle,
 ) {
   if (!subtitle) return;
 
-  const zhFontSize = Math.round(h * 0.045);
-  const enFontSize = Math.round(h * 0.032);
-  const padding = Math.round(h * 0.015);
-  const bottomMargin = Math.round(h * 0.08);
+  const s = style || {
+    zhFontScale: 1, enFontScale: 1,
+    zhColor: "#FFFFFF", enColor: "#FFFFFF",
+    bgColor: "#000000", bgOpacity: 0.65,
+    position: "bottom" as const,
+  };
 
-  // Measure text to draw background
+  const zhFontSize = Math.round(h * 0.045 * s.zhFontScale);
+  const enFontSize = Math.round(h * 0.032 * s.enFontScale);
+  const padding = Math.round(h * 0.015);
+
+  // Measure text
   ctx.font = `bold ${zhFontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
   const zhWidth = ctx.measureText(subtitle.zh).width;
   ctx.font = `${enFontSize}px "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
@@ -88,10 +105,29 @@ function drawSubtitles(
   const boxWidth = Math.max(zhWidth, enWidth) + padding * 4;
   const boxHeight = zhFontSize + enFontSize + padding * 3;
   const boxX = (w - boxWidth) / 2;
-  const boxY = h - bottomMargin - boxHeight;
 
-  // Semi-transparent background
-  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+  // Position
+  let boxY: number;
+  if (s.position === "top") {
+    boxY = Math.round(h * 0.05);
+  } else if (s.position === "center") {
+    boxY = Math.round((h - boxHeight) / 2);
+  } else {
+    boxY = h - Math.round(h * 0.08) - boxHeight;
+  }
+
+  // Parse hex to rgb for background
+  const hexToRgb = (hex: string) => {
+    const c = hex.replace("#", "");
+    return {
+      r: parseInt(c.substring(0, 2), 16) || 0,
+      g: parseInt(c.substring(2, 4), 16) || 0,
+      b: parseInt(c.substring(4, 6), 16) || 0,
+    };
+  };
+  const bg = hexToRgb(s.bgColor);
+  ctx.fillStyle = `rgba(${bg.r}, ${bg.g}, ${bg.b}, ${s.bgOpacity})`;
+
   const radius = 8;
   ctx.beginPath();
   ctx.moveTo(boxX + radius, boxY);
@@ -108,14 +144,14 @@ function drawSubtitles(
 
   // Chinese text
   ctx.font = `bold ${zhFontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
-  ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = s.zhColor;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillText(subtitle.zh, w / 2, boxY + padding);
 
   // English text
   ctx.font = `${enFontSize}px "SF Pro Display", "Helvetica Neue", Arial, sans-serif`;
-  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillStyle = s.enColor;
   ctx.fillText(subtitle.en, w / 2, boxY + padding + zhFontSize + padding * 0.5);
 }
 
@@ -125,6 +161,7 @@ function playSegmentOnCanvas(
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
   getSubtitle?: () => VideoSubtitle | undefined,
+  subtitleStyle?: SubtitleStyle,
 ): Promise<void> {
   return new Promise((resolve) => {
     // Resize canvas to match video
@@ -143,7 +180,7 @@ function playSegmentOnCanvas(
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       // Overlay subtitles
       if (getSubtitle) {
-        drawSubtitles(ctx, canvas.width, canvas.height, getSubtitle());
+        drawSubtitles(ctx, canvas.width, canvas.height, getSubtitle(), subtitleStyle);
       }
       animFrameId = requestAnimationFrame(drawFrame);
     };
@@ -176,6 +213,7 @@ export async function trimAndMerge(
   segments: TrimSegment[],
   onProgress?: (pct: number) => void,
   subtitles?: VideoSubtitle[],
+  subtitleStyle?: SubtitleStyle,
 ): Promise<string> {
   const canvas = document.createElement("canvas");
   canvas.width = 1280;
@@ -269,7 +307,7 @@ export async function trimAndMerge(
         : undefined;
 
       // Play segment on canvas (real-time)
-      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx, getSubtitle);
+      await playSegmentOnCanvas(video, seg.endTime, canvas, ctx, getSubtitle, subtitleStyle);
 
       // Cleanup video
       if (audioSource) {
