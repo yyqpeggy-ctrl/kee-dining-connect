@@ -3,7 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound, Layers, TrendingUp, Users, Palette } from "lucide-react";
+import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound, Layers, TrendingUp, Users, Palette, MessageCircle, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import SocialMediaTab from "@/components/marketing/SocialMediaTab";
 import EcommerceTab from "@/components/marketing/EcommerceTab";
@@ -14,6 +14,8 @@ import EventsTab from "@/components/marketing/EventsTab";
 import CustomerAnalysisTab from "@/components/marketing/CustomerAnalysisTab";
 import PartnersTab from "@/components/marketing/PartnersTab";
 import ClubsTab from "@/components/marketing/ClubsTab";
+import WechatGroupsTab from "@/components/marketing/WechatGroupsTab";
+import VideoChannelTab from "@/components/marketing/VideoChannelTab";
 import { cn } from "@/lib/utils";
 
 interface NavGroup {
@@ -58,6 +60,8 @@ const Marketing = () => {
         { key: "customers", label: isZh ? "客群分析" : "Customers", icon: <PieChart className="w-3.5 h-3.5" /> },
         { key: "partners", label: isZh ? "合作伙伴" : "Partners", icon: <Handshake className="w-3.5 h-3.5" /> },
         { key: "clubs", label: isZh ? "社团管理" : "Clubs", icon: <UsersRound className="w-3.5 h-3.5" /> },
+        { key: "wechat", label: isZh ? "微信群" : "WeChat Groups", icon: <MessageCircle className="w-3.5 h-3.5" /> },
+        { key: "video", label: isZh ? "视频号" : "Video Channel", icon: <Video className="w-3.5 h-3.5" /> },
       ],
     },
     {
@@ -81,6 +85,8 @@ const Marketing = () => {
     customers: <CustomerAnalysisTab />,
     partners: <PartnersTab />,
     clubs: <ClubsTab />,
+    wechat: <WechatGroupsTab />,
+    video: <VideoChannelTab />,
     analytics: <TrafficAnalyticsTab />,
   };
 
