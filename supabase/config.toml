@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.ai-poster-suggest]
 verify_jwt = false
+
+[functions.ai-poster-image]
+verify_jwt = false

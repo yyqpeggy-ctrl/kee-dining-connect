@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Image, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,6 +69,10 @@ const SocialMediaContentCreator = () => {
   const [posterResult, setPosterResult] = useState<AIPosterResult | null>(null);
   const [isLoadingPoster, setIsLoadingPoster] = useState(false);
   const [posterInstructions, setPosterInstructions] = useState("");
+  const [generatedPosterImage, setGeneratedPosterImage] = useState<string | null>(null);
+  const [posterImageDesc, setPosterImageDesc] = useState<string>("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [selectedHeadlineIdx, setSelectedHeadlineIdx] = useState<number>(0);
 
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
@@ -123,6 +127,44 @@ const SocialMediaContentCreator = () => {
       toast.error(isZh ? `生成失败: ${e.message}` : `Generation failed: ${e.message}`);
     } finally {
       setIsLoadingPoster(false);
+    }
+  };
+
+  const generatePosterImage = async (headlineIdx?: number) => {
+    if (!posterResult || !selectedTemplate) {
+      toast.error(isZh ? "请先生成AI文案" : "Please generate AI copy first");
+      return;
+    }
+    const idx = headlineIdx ?? selectedHeadlineIdx;
+    const headline = posterResult.headlines[idx];
+    if (!headline) return;
+    const template = posterTemplates.find(t => t.id === selectedTemplate);
+
+    setIsGeneratingImage(true);
+    setGeneratedPosterImage(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-poster-image", {
+        body: {
+          template_name: template?.name || "",
+          headline: headline.main_title,
+          subtitle: headline.subtitle,
+          body_copy: headline.body_copy,
+          style: headline.style,
+          color_palette: posterResult.color_palette,
+          extra_instructions: posterInstructions || "",
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setGeneratedPosterImage(data.image_url);
+      setPosterImageDesc(data.description || "");
+      toast.success(isZh ? "海报视觉稿已生成！" : "Poster visual generated!");
+    } catch (e: any) {
+      console.error("Poster image error:", e);
+      toast.error(isZh ? `图片生成失败: ${e.message}` : `Image generation failed: ${e.message}`);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -353,12 +395,20 @@ const SocialMediaContentCreator = () => {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2"><Type className="w-4 h-4 text-primary" />{isZh ? "AI 生成标题与文案" : "AI Generated Headlines & Copy"}</CardTitle>
+                    <CardDescription>{isZh ? "点击选择一个文案方案，然后生成对应的海报视觉稿" : "Click to select a copy variant, then generate the poster visual"}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {posterResult.headlines.map((h, i) => (
-                      <div key={i} className="p-4 rounded-xl border border-border bg-muted/30 space-y-2">
+                      <div
+                        key={i}
+                        onClick={() => setSelectedHeadlineIdx(i)}
+                        className={`p-4 rounded-xl border-2 space-y-2 cursor-pointer transition-all ${selectedHeadlineIdx === i ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-muted/30 hover:border-primary/40"}`}
+                      >
                         <div className="flex items-center justify-between">
-                          <Badge variant="outline" className="text-[10px]">{h.style}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px]">{h.style}</Badge>
+                            {selectedHeadlineIdx === i && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">{isZh ? "已选" : "Selected"}</Badge>}
+                          </div>
                           <span className="text-[10px] text-muted-foreground">#{i + 1}</span>
                         </div>
                         <p className="text-lg font-bold text-foreground">{h.main_title}</p>
@@ -366,6 +416,13 @@ const SocialMediaContentCreator = () => {
                         <p className="text-sm text-foreground/80 leading-relaxed mt-2">{h.body_copy}</p>
                       </div>
                     ))}
+                    <div className="flex items-center gap-3 pt-2">
+                      <Button className="gap-1.5" onClick={() => generatePosterImage()} disabled={isGeneratingImage}>
+                        {isGeneratingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+                        {isGeneratingImage ? (isZh ? "AI 生成中..." : "Generating...") : (isZh ? "🎨 生成海报视觉稿" : "🎨 Generate Poster Image")}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">{isZh ? "基于所选文案和配色方案，AI 自动生成海报图片" : "AI generates poster image based on selected copy & color palette"}</p>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -432,6 +489,53 @@ const SocialMediaContentCreator = () => {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* AI Generated Poster Image */}
+                {(generatedPosterImage || isGeneratingImage) && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <ImagePlus className="w-4 h-4 text-primary" />
+                        {isZh ? "AI 生成海报视觉稿" : "AI Generated Poster Visual"}
+                      </CardTitle>
+                      <CardDescription>{isZh ? "基于文案和设计建议自动生成的海报图片" : "Auto-generated poster image based on copy and design suggestions"}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {isGeneratingImage ? (
+                        <div className="flex flex-col items-center justify-center py-16 gap-4">
+                          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                          <p className="text-sm text-muted-foreground">{isZh ? "AI 正在创作海报视觉稿，请稍候..." : "AI is creating your poster visual, please wait..."}</p>
+                          <p className="text-xs text-muted-foreground/60">{isZh ? "通常需要 10-30 秒" : "Usually takes 10-30 seconds"}</p>
+                        </div>
+                      ) : generatedPosterImage ? (
+                        <div className="space-y-4">
+                          <div className="relative rounded-xl overflow-hidden border border-border shadow-md">
+                            <img
+                              src={generatedPosterImage}
+                              alt="AI Generated Poster"
+                              className="w-full h-auto max-h-[600px] object-contain bg-muted/20"
+                            />
+                          </div>
+                          {posterImageDesc && (
+                            <p className="text-xs text-muted-foreground leading-relaxed">{posterImageDesc}</p>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => generatePosterImage()} disabled={isGeneratingImage}>
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              {isZh ? "重新生成" : "Regenerate"}
+                            </Button>
+                            <Button size="sm" variant="outline" className="gap-1.5" asChild>
+                              <a href={generatedPosterImage} download="poster.png" target="_blank" rel="noopener noreferrer">
+                                <Download className="w-3.5 h-3.5" />
+                                {isZh ? "下载图片" : "Download"}
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
 
