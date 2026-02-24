@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2, Maximize2, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -97,6 +99,44 @@ const SocialMediaContentCreator = () => {
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [aiScheduleResult, setAiScheduleResult] = useState<AIScheduleResult | null>(cachedScheduleResult);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [previewingTask, setPreviewingTask] = useState<EditTask | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playProgress, setPlayProgress] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Simulate video playback
+  const togglePlay = useCallback(() => {
+    if (isPlaying) {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+      playIntervalRef.current = null;
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      playIntervalRef.current = setInterval(() => {
+        setPlayProgress(prev => {
+          if (prev >= 100) {
+            if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+            playIntervalRef.current = null;
+            setIsPlaying(false);
+            return 0;
+          }
+          return prev + 0.5;
+        });
+      }, 100);
+    }
+  }, [isPlaying]);
+
+  const openPreview = useCallback((task: EditTask) => {
+    setPreviewingTask(task);
+    setPlayProgress(0);
+    setIsPlaying(false);
+    if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current); };
+  }, []);
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
     setIsLoadingAI(true);
@@ -899,7 +939,7 @@ const SocialMediaContentCreator = () => {
                           )}
                           {task.status === "done" && (
                             <div className="flex items-center gap-2 mt-3">
-                              <Button size="sm" variant="outline" className="gap-1 text-xs h-7">
+                              <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => openPreview(task)}>
                                 <Play className="w-3 h-3" />{isZh ? "预览" : "Preview"}
                               </Button>
                               <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => {
@@ -948,9 +988,10 @@ const SocialMediaContentCreator = () => {
                     <div className="space-y-4">
                       {editTasks.filter(t => t.status === "done").map(task => (
                         <div key={task.id} className="p-4 rounded-lg border border-border">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-24 h-14 rounded-lg bg-muted flex items-center justify-center">
-                              <Play className="w-6 h-6 text-muted-foreground/50" />
+                          <div className="flex items-center gap-3 mb-4 cursor-pointer" onClick={() => openPreview(task)}>
+                            <div className="w-24 h-14 rounded-lg bg-muted flex items-center justify-center relative group">
+                              <Play className="w-6 h-6 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
                             </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">{task.videoName}</p>
@@ -1299,6 +1340,104 @@ const SocialMediaContentCreator = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Video Preview Dialog */}
+      <Dialog open={!!previewingTask} onOpenChange={(open) => { if (!open) { setPreviewingTask(null); setIsPlaying(false); setPlayProgress(0); if (playIntervalRef.current) clearInterval(playIntervalRef.current); } }}>
+        <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Video className="w-4 h-4 text-primary" />
+              {previewingTask?.videoName}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">{previewingTask?.template} · {previewingTask?.platform}</p>
+          </DialogHeader>
+
+          {/* Video Player Area */}
+          <div className="relative bg-black aspect-video flex items-center justify-center cursor-pointer group" onClick={togglePlay}>
+            {/* Simulated video content */}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black flex items-center justify-center">
+              <div className="text-center">
+                <Film className="w-16 h-16 text-muted-foreground/20 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground/40 font-mono">{previewingTask?.videoName}</p>
+              </div>
+            </div>
+
+            {/* Play/Pause overlay */}
+            {!isPlaying && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="w-16 h-16 rounded-full bg-primary/80 flex items-center justify-center shadow-lg group-hover:bg-primary transition-colors">
+                  <Play className="w-7 h-7 text-primary-foreground ml-1" />
+                </div>
+              </div>
+            )}
+
+            {/* Top-right info */}
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+              <Badge variant="secondary" className="text-[10px] bg-black/50 text-white border-none">
+                {previewingTask?.template === "15s短视频" || previewingTask?.template === "15s Short" ? "0:15" :
+                 previewingTask?.template === "60s产品展示" || previewingTask?.template === "60s Product" ? "1:00" :
+                 previewingTask?.template === "3min品牌故事" || previewingTask?.template === "3min Brand Story" ? "3:00" : "0:30"}
+              </Badge>
+            </div>
+
+            {/* Playing indicator */}
+            {isPlaying && (
+              <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[10px] text-white/70 font-mono">PLAYING</span>
+              </div>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className="px-4 pb-4 space-y-3">
+            {/* Progress bar */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-muted-foreground w-8">
+                {Math.floor(playProgress * 0.15 / 100)}:{String(Math.floor((playProgress * 0.15 / 100 % 1) * 60)).padStart(2, '0')}
+              </span>
+              <Slider
+                value={[playProgress]}
+                max={100}
+                step={0.5}
+                onValueChange={(v) => setPlayProgress(v[0])}
+                className="flex-1"
+              />
+              <span className="text-[10px] font-mono text-muted-foreground w-8">
+                {previewingTask?.template === "15s短视频" || previewingTask?.template === "15s Short" ? "0:15" :
+                 previewingTask?.template === "60s产品展示" || previewingTask?.template === "60s Product" ? "1:00" : "0:30"}
+              </span>
+            </div>
+
+            {/* Control buttons */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPlayProgress(Math.max(0, playProgress - 10))}>
+                  <SkipBack className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={togglePlay}>
+                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPlayProgress(Math.min(100, playProgress + 10))}>
+                  <SkipForward className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMuted(!isMuted)}>
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Maximize2 className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1 text-xs h-7 ml-2" onClick={() => { toast.success(isZh ? "视频已下载" : "Video downloaded"); }}>
+                  <Download className="w-3 h-3" />{isZh ? "下载" : "Download"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
