@@ -17,39 +17,51 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { videos, template, platform, instructions, language } = await req.json();
+    const { videos, template, platform, instructions, language, style } = await req.json();
+
+    const styleDescriptions: Record<string, { zh: string; en: string }> = {
+      energetic: { zh: "活力动感：快节奏剪辑、炫酷转场、强节奏BGM、卡点", en: "Energetic: Fast cuts, cool transitions, upbeat BGM, beat-synced" },
+      elegant: { zh: "高端优雅：慢镜头、柔和过渡、轻爵士BGM、精致调色", en: "Elegant: Slow-mo, soft transitions, jazz BGM, refined color grading" },
+      storytelling: { zh: "故事叙事：叙事结构、情感铺垫、旁白字幕、起承转合", en: "Storytelling: Narrative arc, emotional build, voiceover subs, story structure" },
+      trendy: { zh: "潮流网感：热门BGM、卡点剪辑、社交平台爆款风格", en: "Trendy: Trending BGM, beat-synced cuts, viral social media style" },
+      minimal: { zh: "简约清新：留白构图、自然色调、轻音乐、呼吸感", en: "Minimal: Clean composition, natural tones, light music, breathing room" },
+      cinematic: { zh: "电影质感：宽幅画面、调色渲染、史诗感配乐、叙事张力", en: "Cinematic: Widescreen, color grading, epic soundtrack, narrative tension" },
+    };
+    const styleDesc = styleDescriptions[style || "energetic"] || styleDescriptions["energetic"];
 
     const systemPrompt = language === "zh"
       ? `你是一位专业的社交媒体短视频剪辑顾问，专注于餐饮、酒吧行业的内容营销。
-用户需要从两段长视频素材中提取精彩片段，合并剪辑为一段有营销冲击力的短视频。
-请根据两段视频素材信息、剪辑模板和要求，生成专业的合并剪辑建议。
+用户上传了两段长视频素材，需要AI自动提取精彩片段并合并为一段有营销冲击力的短视频。
+用户选择的剪辑风格是：${styleDesc.zh}
+你需要根据风格自动决定：片段选取策略、转场方式、BGM选曲、字幕样式、节奏把控等所有剪辑细节。
 回复必须使用 suggest_edits 工具。`
       : `You are a professional social media video editing consultant specializing in F&B and bar industry content marketing.
-The user needs to extract highlights from two long source videos and merge them into one impactful marketing short video.
-Based on the two video materials, template, and instructions provided, generate professional merge editing suggestions.
+The user uploaded two long source videos. AI must automatically extract highlights and merge into one impactful marketing short.
+Selected editing style: ${styleDesc.en}
+You must auto-decide: clip extraction strategy, transition types, BGM selection, subtitle style, pacing — all editing details based on this style.
 You must use the suggest_edits tool to respond.`;
 
     const userPrompt = language === "zh"
       ? `两段视频素材：${JSON.stringify(videos)}
-剪辑模板：${template}
+输出格式：${template}
 目标平台：${platform}
-用户要求：${instructions || "无特殊要求"}
+剪辑风格：${styleDesc.zh}
 
-请针对"从两段长视频合并为一段营销短视频"的场景生成：
-1. 3-5条具体的合并剪辑建议（如何从两段素材中选取和交叉剪辑，每条包含建议内容和预期互动提升百分比）
-2. 推荐的BGM风格和具体曲目（适合合并后的短视频节奏）
-3. 推荐的标题和标签
+请自动生成完整的AI剪辑方案：
+1. 3-5条具体的片段提取与合并建议（从素材A和素材B分别提取哪些片段、如何交叉剪辑，每条包含预期互动提升百分比）
+2. 根据风格推荐的BGM曲目（含匹配度评分）
+3. 推荐的视频标题（3个）和标签
 4. 最佳发布时间建议`
-      : `Two video materials: ${JSON.stringify(videos)}
-Edit template: ${template}
+      : `Two source videos: ${JSON.stringify(videos)}
+Output format: ${template}
 Target platform: ${platform}
-User instructions: ${instructions || "No special requirements"}
+Editing style: ${styleDesc.en}
 
-Generate suggestions for "merging two long videos into one marketing short":
-1. 3-5 specific merge editing suggestions (how to select and cross-cut between the two sources, each with suggestion content and expected engagement boost percentage)
-2. Recommended BGM style and specific tracks (fitting the merged short video rhythm)
-3. Recommended titles and hashtags
-4. Best posting time suggestions`;
+Auto-generate the complete AI editing plan:
+1. 3-5 specific clip extraction & merge suggestions (which segments from Video A and B, how to cross-cut, each with expected engagement boost %)
+2. BGM tracks recommended for this style (with match score)
+3. 3 recommended video titles and hashtags
+4. Best posting time suggestion`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",

@@ -78,6 +78,7 @@ const SocialMediaContentCreator = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [uploadedVideos, setUploadedVideos] = useState<UploadedVideo[]>([]);
   const [selectedVideoTemplate, setSelectedVideoTemplate] = useState<string | null>(null);
+  const [selectedVideoStyle, setSelectedVideoStyle] = useState<string | null>(null);
   const [editTasks, setEditTasks] = useState<EditTask[]>([]);
   const [editInstructions, setEditInstructions] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -221,6 +222,7 @@ const SocialMediaContentCreator = () => {
           template: template?.name || "15s Short",
           platform: template?.platform || "TikTok",
           instructions: editInstructions || "",
+          style: selectedVideoStyle || "energetic",
           language: isZh ? "zh" : "en",
         },
       });
@@ -478,29 +480,38 @@ const SocialMediaContentCreator = () => {
       toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
       return;
     }
+    if (!selectedVideoStyle) {
+      toast.error(isZh ? "请选择视频风格" : "Please select a video style");
+      return;
+    }
     if (!selectedVideoTemplate) {
-      toast.error(isZh ? "请选择剪辑模板" : "Please select a template");
+      toast.error(isZh ? "请选择输出格式" : "Please select output format");
       return;
     }
 
     const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
+    const style = videoStyles.find(s => s.id === selectedVideoStyle);
     const mergedTask: EditTask = {
       id: crypto.randomUUID(),
       videoName: isZh
-        ? `合并剪辑：${uploadedVideos[0].name} + ${uploadedVideos[1].name}`
-        : `Merged: ${uploadedVideos[0].name} + ${uploadedVideos[1].name}`,
+        ? `${style?.name || ""} · ${uploadedVideos[0].name} + ${uploadedVideos[1].name}`
+        : `${style?.name || ""} · ${uploadedVideos[0].name} + ${uploadedVideos[1].name}`,
       template: template?.name || "",
       platform: template?.platform || "",
       status: "queued",
       progress: 0,
-      sourceUrl: uploadedVideos[0].url, // use first video as preview source
-      instructions: editInstructions,
+      sourceUrl: uploadedVideos[0].url,
+      instructions: `Style: ${selectedVideoStyle}`,
     };
 
     setEditTasks(prev => [...prev, mergedTask]);
     setVideoStep("edit");
 
-    // Simulate AI merge processing (longer than single video)
+    // Also fetch AI suggestions with the style context
+    setEditInstructions(`Style: ${selectedVideoStyle}`);
+    fetchAISuggestions();
+
+    // Simulate AI merge processing
     setTimeout(() => {
       setEditTasks(prev => prev.map(t => t.id === mergedTask.id ? { ...t, status: "processing", progress: 0 } : t));
       const interval = setInterval(() => {
@@ -516,7 +527,7 @@ const SocialMediaContentCreator = () => {
       }, 1000);
     }, 500);
 
-    toast.info(isZh ? "AI 正在合并剪辑两段视频..." : "AI is merging two videos into a short clip...");
+    toast.info(isZh ? "AI 正在智能分析并合并剪辑..." : "AI is analyzing and merging clips...");
   };
 
   const handlePublish = (taskId: string) => {
@@ -547,6 +558,15 @@ const SocialMediaContentCreator = () => {
     { id: "reel", name: isZh ? "60秒Reel" : "60s Reel", platform: "Instagram / 小红书", ratio: "9:16" },
     { id: "vlog", name: isZh ? "3分钟Vlog" : "3min Vlog", platform: "YouTube / B站", ratio: "16:9" },
     { id: "live", name: isZh ? "直播预告片" : "Live Preview", platform: isZh ? "全平台" : "All Platforms", ratio: "1:1" },
+  ];
+
+  const videoStyles = [
+    { id: "energetic", name: isZh ? "🔥 活力动感" : "🔥 Energetic", desc: isZh ? "快节奏剪辑、炫酷转场、强节奏BGM" : "Fast cuts, cool transitions, upbeat BGM", color: "bg-red-500/10 text-red-500" },
+    { id: "elegant", name: isZh ? "✨ 高端优雅" : "✨ Elegant", desc: isZh ? "慢镜头、柔和过渡、轻爵士BGM" : "Slow-mo, soft transitions, jazz BGM", color: "bg-amber-500/10 text-amber-500" },
+    { id: "storytelling", name: isZh ? "📖 故事叙事" : "📖 Storytelling", desc: isZh ? "叙事结构、情感铺垫、旁白字幕" : "Narrative arc, emotional build, voiceover subs", color: "bg-blue-500/10 text-blue-500" },
+    { id: "trendy", name: isZh ? "🎵 潮流网感" : "🎵 Trendy", desc: isZh ? "热门BGM、卡点剪辑、社交平台爆款风格" : "Trending BGM, beat-synced cuts, viral style", color: "bg-purple-500/10 text-purple-500" },
+    { id: "minimal", name: isZh ? "🍃 简约清新" : "🍃 Minimal", desc: isZh ? "留白构图、自然色调、轻音乐" : "Clean composition, natural tones, light music", color: "bg-green-500/10 text-green-500" },
+    { id: "cinematic", name: isZh ? "🎬 电影质感" : "🎬 Cinematic", desc: isZh ? "宽幅画面、调色渲染、史诗感配乐" : "Widescreen, color grading, epic soundtrack", color: "bg-cyan-500/10 text-cyan-500" },
   ];
 
   const aiTopics = [
@@ -933,22 +953,41 @@ const SocialMediaContentCreator = () => {
                   </CardContent>
                 </Card>
 
-                {/* Template selection */}
+                {/* Style selection */}
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2"><Film className="w-4 h-4 text-primary" />{isZh ? "选择剪辑模板" : "Select Edit Template"}</CardTitle>
+                    <CardTitle className="text-base flex items-center gap-2"><Palette className="w-4 h-4 text-primary" />{isZh ? "选择视频风格" : "Choose Video Style"}</CardTitle>
+                    <CardDescription>{isZh ? "选择一种风格，AI 自动决定片段提取、转场、BGM、字幕等所有剪辑细节" : "Pick a style — AI handles clip extraction, transitions, BGM, subtitles and all editing details"}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {videoStyles.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedVideoStyle(s.id)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all hover:shadow-md ${selectedVideoStyle === s.id ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40"}`}
+                        >
+                          <p className="font-semibold text-sm text-foreground">{s.name}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{s.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Output format + Start */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Film className="w-4 h-4" />{isZh ? "输出格式" : "Output Format"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                       {videoTemplates.map((v) => (
                         <button
                           key={v.id}
                           onClick={() => setSelectedVideoTemplate(v.id)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all hover:shadow-md ${selectedVideoTemplate === v.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
+                          className={`p-3 rounded-xl border-2 text-left transition-all hover:shadow-md ${selectedVideoTemplate === v.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
                         >
-                          <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center mb-3">
-                            <Video className="w-8 h-8 text-muted-foreground/50" />
-                          </div>
                           <p className="font-semibold text-sm text-foreground">{v.name}</p>
                           <div className="flex items-center justify-between mt-1">
                             <p className="text-[11px] text-muted-foreground">{v.platform}</p>
@@ -957,42 +996,16 @@ const SocialMediaContentCreator = () => {
                         </button>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Edit instructions */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="w-4 h-4" />{isZh ? "合并剪辑要求（可选）" : "Merge Instructions (Optional)"}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <textarea
-                      className="w-full min-h-[80px] p-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder={isZh ? "例如：从素材A提取调酒特写，从素材B提取顾客反应，前3秒要有吸睛画面，加节奏感BGM..." : "e.g., Extract cocktail close-ups from Video A, customer reactions from Video B, eye-catching first 3s, upbeat BGM..."}
-                      value={editInstructions}
-                      onChange={(e) => setEditInstructions(e.target.value)}
-                    />
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      {(isZh
-                        ? ["交叉剪辑", "加字幕", "加BGM", "慢动作特写", "快剪节奏", "品牌水印", "片尾CTA", "对比蒙太奇"]
-                        : ["Cross-cut", "Add Subtitles", "Add BGM", "Slow-mo Close-up", "Fast Cuts", "Brand Watermark", "End CTA", "Montage"]
-                      ).map(tag => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors"
-                          onClick={() => setEditInstructions(prev => prev ? `${prev}，${tag}` : tag)}
-                        >
-                          + {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="mt-4">
-                      <Button className="gap-1.5" onClick={startAIEdit} disabled={uploadedVideos.length < 2 || !selectedVideoTemplate}>
-                        <Scissors className="w-3.5 h-3.5" />{isZh ? "开始 AI 合并剪辑" : "Start AI Merge Edit"}
+                    <div className="flex items-center gap-3">
+                      <Button className="gap-1.5" size="lg" onClick={startAIEdit} disabled={uploadedVideos.length < 2 || !selectedVideoStyle || !selectedVideoTemplate}>
+                        <Sparkles className="w-4 h-4" />{isZh ? "一键 AI 智能剪辑" : "One-Click AI Edit"}
                       </Button>
-                      {uploadedVideos.length < 2 && (
-                        <p className="text-xs text-muted-foreground mt-2">{isZh ? "请先上传两段长视频素材" : "Please upload two long videos first"}</p>
+                      {(uploadedVideos.length < 2 || !selectedVideoStyle) && (
+                        <p className="text-xs text-muted-foreground">
+                          {uploadedVideos.length < 2
+                            ? (isZh ? "请先上传两段视频" : "Upload two videos first")
+                            : (isZh ? "请选择风格" : "Pick a style")}
+                        </p>
                       )}
                     </div>
                   </CardContent>
