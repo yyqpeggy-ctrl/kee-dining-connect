@@ -845,6 +845,21 @@ const SocialMediaContentCreator = () => {
     setSubtitlesConfirmed(false);
   };
 
+  const distributeSubtitlesEvenly = () => {
+    if (generatedSubtitles.length === 0) return;
+    const count = generatedSubtitles.length;
+    const gap = 1; // 1% gap between subtitles for breathing room
+    const totalGap = (count - 1) * gap;
+    const segLen = (100 - totalGap) / count;
+    setGeneratedSubtitles(prev => prev.map((s, i) => ({
+      ...s,
+      startPct: Math.round((i * (segLen + gap)) * 10) / 10,
+      endPct: Math.round((i * (segLen + gap) + segLen) * 10) / 10,
+    })));
+    setSubtitlesConfirmed(false);
+    toast.success(isZh ? "字幕时间轴已均匀分配" : "Subtitle timing evenly distributed");
+  };
+
   const updateSubtitleTiming = (index: number, field: "startPct" | "endPct", value: number) => {
     setGeneratedSubtitles(prev => {
       const updated = [...prev];
@@ -1813,6 +1828,9 @@ const SocialMediaContentCreator = () => {
                           <div className="flex items-center gap-2 pt-1">
                             <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={addSubtitle}>
                               + {isZh ? "添加字幕" : "Add Subtitle"}
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={distributeSubtitlesEvenly} disabled={generatedSubtitles.length < 2}>
+                              <RotateCcw className="w-3 h-3" />{isZh ? "均分时间轴" : "Even Distribute"}
                             </Button>
                             <div className="flex-1" />
                             <Button
