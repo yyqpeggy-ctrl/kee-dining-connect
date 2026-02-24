@@ -20,7 +20,7 @@ import Finance from "./pages/Finance";
 import Legal from "./pages/Legal";
 import Procurement from "./pages/Procurement";
 import Marketing from "./pages/Marketing";
-import CustomerAnalysis from "./pages/CustomerAnalysis";
+// CustomerAnalysis moved into Marketing as a tab
 import Menu from "./pages/Menu";
 import NotFound from "./pages/NotFound";
 
@@ -49,7 +49,7 @@ const App = () => (
               <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
               <Route path="/legal" element={<ProtectedRoute><Legal /></ProtectedRoute>} />
               <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
-              <Route path="/customers" element={<ProtectedRoute><CustomerAnalysis /></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
               <Route path="/menu" element={<ProtectedRoute><Menu /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
