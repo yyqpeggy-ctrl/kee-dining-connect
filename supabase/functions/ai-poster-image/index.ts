@@ -69,7 +69,7 @@ Requirements:
       }
     }
 
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 5;
     let imageUrl = "";
     let textContent = "";
 
@@ -104,37 +104,84 @@ Requirements:
         }
         const errText = await response.text();
         console.error("AI gateway error:", response.status, errText);
+        // On server errors, retry instead of failing immediately
+        if (response.status >= 500 && attempt < MAX_RETRIES - 1) {
+          console.warn(`Server error ${response.status}, retrying...`);
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
         return new Response(
           JSON.stringify({ error: "AI gateway error" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const data = await response.json();
-      const message = data.choices?.[0]?.message;
-      const images = message?.images || [];
-      textContent = message?.content || "";
-
-      console.log(`Attempt ${attempt + 1} - Images count:`, images.length);
-
-      if (images.length > 0) {
-        imageUrl = images[0].image_url?.url || "";
+      const rawText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        console.error("Failed to parse response JSON, length:", rawText.length);
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        break;
       }
 
-      // Check content array for image parts
-      if (!imageUrl && Array.isArray(message?.content)) {
-        const imgPart = message.content.find((p: any) => p.type === "image_url");
-        if (imgPart) {
-          imageUrl = imgPart.image_url?.url || "";
+      const message = data.choices?.[0]?.message;
+      if (!message) {
+        console.warn(`Attempt ${attempt + 1} - No message in response`);
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        break;
+      }
+
+      // Method 1: Check images array (primary format)
+      const images = message.images || [];
+      console.log(`Attempt ${attempt + 1} - Images array count:`, images.length);
+      if (images.length > 0) {
+        imageUrl = images[0]?.image_url?.url || images[0]?.url || "";
+      }
+
+      // Method 2: Check content as array with image_url parts
+      if (!imageUrl && Array.isArray(message.content)) {
+        for (const part of message.content) {
+          if (part?.type === "image_url" && part?.image_url?.url) {
+            imageUrl = part.image_url.url;
+            break;
+          }
+          // Some responses embed base64 directly
+          if (typeof part === "string" && part.startsWith("data:image")) {
+            imageUrl = part;
+            break;
+          }
+        }
+        textContent = message.content
+          .filter((p: any) => typeof p === "string" || p?.type === "text")
+          .map((p: any) => (typeof p === "string" ? p : p?.text || ""))
+          .join("");
+      }
+
+      // Method 3: Check if content string itself contains base64 image
+      if (!imageUrl && typeof message.content === "string") {
+        textContent = message.content;
+        const b64Match = message.content.match(/(data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+)/);
+        if (b64Match) {
+          imageUrl = b64Match[1];
         }
       }
 
-      if (imageUrl) break;
+      if (imageUrl) {
+        console.log(`Attempt ${attempt + 1} - Image found! URL length: ${imageUrl.length}`);
+        break;
+      }
 
       console.warn(`Attempt ${attempt + 1} returned no image, retrying...`);
-      // Small delay before retry
       if (attempt < MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
       }
     }
 
