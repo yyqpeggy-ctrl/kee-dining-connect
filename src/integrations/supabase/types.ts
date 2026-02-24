@@ -620,6 +620,69 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          ai_insight: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          last_activity: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          score: number
+          source: string
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          tags: string[] | null
+          updated_at: string
+          wechat: string | null
+        }
+        Insert: {
+          ai_insight?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_activity?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          score?: number
+          source?: string
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          tags?: string[] | null
+          updated_at?: string
+          wechat?: string | null
+        }
+        Update: {
+          ai_insight?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_activity?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          score?: number
+          source?: string
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          tags?: string[] | null
+          updated_at?: string
+          wechat?: string | null
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           category: string
