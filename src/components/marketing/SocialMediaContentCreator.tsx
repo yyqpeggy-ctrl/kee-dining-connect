@@ -10,7 +10,7 @@ import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { trimAndMerge, autoTrimSegments } from "@/lib/videoEditor";
+import { trimAndMerge, autoTrimSegments, extractBestFrame } from "@/lib/videoEditor";
 
 interface AISuggestion {
   tip: string;
@@ -633,6 +633,41 @@ const SocialMediaContentCreator = () => {
 
   const generateVideoCover = async (taskId: string) => {
     try {
+      // Find the task to get its outputUrl
+      const task = editTasks.find(t => t.id === taskId) || 
+        // Task might have just been updated, check latest
+        undefined;
+      
+      // Try to extract a real frame from the output video first
+      let coverDataUrl = "";
+      const currentTask = editTasks.find(t => t.id === taskId);
+      const videoSrc = currentTask?.outputUrl || currentTask?.sourceUrl || uploadedVideos[0]?.url;
+      
+      if (videoSrc) {
+        try {
+          console.log("[Cover] Extracting best frame from video...");
+          coverDataUrl = await extractBestFrame(videoSrc, 6);
+          console.log("[Cover] Frame extracted successfully");
+        } catch (frameErr) {
+          console.warn("[Cover] Frame extraction failed, falling back to AI:", frameErr);
+        }
+      }
+
+      // If frame extraction worked, use it directly as cover
+      if (coverDataUrl) {
+        const aiTitle = aiSuggestions?.recommended_titles?.[0] || (isZh ? "AI 精选短视频" : "AI Curated Short");
+        const aiTags = aiSuggestions?.recommended_tags?.slice(0, 5) || [];
+
+        setEditTasks(prev => prev.map(t =>
+          t.id === taskId
+            ? { ...t, coverImage: coverDataUrl, coverStatus: "done" as const, aiTitle, aiTags }
+            : t
+        ));
+        toast.success(isZh ? "🎨 已从视频中自动提取最佳帧作为封面！" : "🎨 Best frame extracted as cover!");
+        return;
+      }
+
+      // Fallback: use AI to generate cover
       const style = videoStyles.find(s => s.id === selectedVideoStyle);
       const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
       const { data, error } = await supabase.functions.invoke("ai-poster-image", {
@@ -649,16 +684,14 @@ const SocialMediaContentCreator = () => {
             : selectedVideoStyle === "chill_groove" ? ["#f4a261", "#e9c46a", "#2a9d8f", "#264653"]
             : ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
           extra_instructions: isZh
-            ? `这是视频封面图，风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}，需要有视觉冲击力和营销吸引力。${uploadedImages.length > 0 ? `用户提供了${uploadedImages.length}张参考图片（含LOGO/品牌素材），请提取其中的品牌元素、配色和LOGO融入封面设计。` : ""}`
-            : `This is a video cover image, style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}, needs visual impact and marketing appeal. ${uploadedImages.length > 0 ? `User provided ${uploadedImages.length} reference image(s) (logo/brand assets). Extract brand elements, colors and logo to integrate into cover design.` : ""}`,
-          reference_images: uploadedImages.slice(0, 2).map(img => img.dataUrl).filter(Boolean),
+            ? `这是视频封面图，风格：${style?.desc || ""}，格式：${template?.ratio || "9:16"}，需要有视觉冲击力。`
+            : `Video cover, style: ${style?.desc || ""}, format: ${template?.ratio || "9:16"}, needs visual impact.`,
           language: isZh ? "zh" : "en",
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Also generate title and tags from AI suggestions
       const aiTitle = aiSuggestions?.recommended_titles?.[0] || (isZh ? "AI 精选短视频" : "AI Curated Short");
       const aiTags = aiSuggestions?.recommended_tags?.slice(0, 5) || [];
 

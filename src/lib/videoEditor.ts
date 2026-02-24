@@ -189,3 +189,112 @@ export async function autoTrimSegments(
 
   return segments;
 }
+
+/**
+ * Extract the "best" frame from a video as a data URL.
+ * Samples multiple positions and picks the frame with highest visual complexity
+ * (approximated by color variance on a downscaled canvas).
+ */
+export async function extractBestFrame(
+  videoUrl: string,
+  sampleCount: number = 5,
+): Promise<string> {
+  const duration = await getVideoDuration(videoUrl);
+  if (duration <= 0) throw new Error("Cannot read video duration");
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
+  // Sample positions: avoid first/last 10%, pick evenly spaced points
+  const start = duration * 0.1;
+  const end = duration * 0.9;
+  const step = (end - start) / (sampleCount - 1);
+  const times = Array.from({ length: sampleCount }, (_, i) => start + step * i);
+
+  let bestDataUrl = "";
+  let bestScore = -1;
+
+  for (const time of times) {
+    const dataUrl = await captureFrameAt(videoUrl, time, canvas, ctx);
+    const score = computeFrameScore(ctx, canvas.width, canvas.height);
+    if (score > bestScore) {
+      bestScore = score;
+      bestDataUrl = dataUrl;
+    }
+  }
+
+  return bestDataUrl;
+}
+
+function captureFrameAt(
+  videoUrl: string,
+  time: number,
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = videoUrl;
+
+    video.onloadeddata = () => {
+      canvas.width = Math.min(video.videoWidth, 1280);
+      canvas.height = Math.min(video.videoHeight, 720);
+      video.currentTime = time;
+    };
+
+    video.onseeked = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      video.src = "";
+      resolve(dataUrl);
+    };
+
+    video.onerror = () => reject(new Error("Failed to load video for frame extraction"));
+    setTimeout(() => reject(new Error("Frame extraction timeout")), 10000);
+  });
+}
+
+/**
+ * Compute a "visual complexity" score for the current canvas content.
+ * Higher score = more color variation = likely a more interesting frame.
+ */
+function computeFrameScore(ctx: CanvasRenderingContext2D, w: number, h: number): number {
+  // Sample a grid of pixels for performance
+  const sampleSize = 32;
+  const stepX = Math.max(1, Math.floor(w / sampleSize));
+  const stepY = Math.max(1, Math.floor(h / sampleSize));
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  let sumR = 0, sumG = 0, sumB = 0, count = 0;
+  const samples: [number, number, number][] = [];
+
+  for (let y = 0; y < h; y += stepY) {
+    for (let x = 0; x < w; x += stepX) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+      sumR += r; sumG += g; sumB += b;
+      samples.push([r, g, b]);
+      count++;
+    }
+  }
+
+  if (count === 0) return 0;
+
+  const avgR = sumR / count, avgG = sumG / count, avgB = sumB / count;
+
+  // Variance as complexity score
+  let variance = 0;
+  for (const [r, g, b] of samples) {
+    variance += (r - avgR) ** 2 + (g - avgG) ** 2 + (b - avgB) ** 2;
+  }
+
+  // Penalize very dark or very bright frames (likely transitions)
+  const brightness = (avgR + avgG + avgB) / 3;
+  const brightnessPenalty = brightness < 30 || brightness > 240 ? 0.3 : 1;
+
+  return (variance / count) * brightnessPenalty;
+}
