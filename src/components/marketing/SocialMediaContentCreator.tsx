@@ -65,6 +65,10 @@ interface EditTask {
   instructions: string;
 }
 
+// Module-level cache to persist AI results across page navigations
+let cachedTopicResult: AITopicResult | null = null;
+let cachedScheduleResult: AIScheduleResult | null = null;
+
 const SocialMediaContentCreator = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language === "zh";
@@ -89,9 +93,9 @@ const SocialMediaContentCreator = () => {
   const [posterEditInstruction, setPosterEditInstruction] = useState("");
   const [isEditingImage, setIsEditingImage] = useState(false);
   const [editHistory, setEditHistory] = useState<string[]>([]);
-  const [aiTopicResult, setAiTopicResult] = useState<AITopicResult | null>(null);
+  const [aiTopicResult, setAiTopicResult] = useState<AITopicResult | null>(cachedTopicResult);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
-  const [aiScheduleResult, setAiScheduleResult] = useState<AIScheduleResult | null>(null);
+  const [aiScheduleResult, setAiScheduleResult] = useState<AIScheduleResult | null>(cachedScheduleResult);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
@@ -232,6 +236,7 @@ const SocialMediaContentCreator = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      cachedTopicResult = data;
       setAiTopicResult(data);
       toast.success(isZh ? "AI 推荐已更新" : "AI recommendations updated");
     } catch (e: any) {
@@ -253,6 +258,7 @@ const SocialMediaContentCreator = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      cachedScheduleResult = data;
       setAiScheduleResult(data);
       toast.success(isZh ? "AI 排期已生成" : "AI schedule generated");
     } catch (e: any) {
