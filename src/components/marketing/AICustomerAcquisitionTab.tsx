@@ -47,8 +47,8 @@ const AICustomerAcquisitionTab = () => {
     ? ["小红书", "大众点评", "微信群", "企业微信", "抖音", "微博", "LinkedIn", "地图线索"]
     : ["Xiaohongshu", "Dianping", "WeChat Group", "WeCom", "Douyin", "Weibo", "LinkedIn", "Map Leads"];
   const offlineSources = isZh
-    ? ["线下活动", "门店到访", "朋友推荐", "传单", "电话咨询"]
-    : ["Offline Event", "Walk-in", "Referral", "Flyer", "Phone Inquiry"];
+    ? ["线下活动", "门店到访", "朋友推荐", "传单", "电话咨询", "合作伙伴"]
+    : ["Offline Event", "Walk-in", "Referral", "Flyer", "Phone Inquiry", "Partner"];
   const allSources = [...onlineSources, ...offlineSources, "manual"];
 
   const getChannelCategory = (source: string): "online" | "offline" => {
