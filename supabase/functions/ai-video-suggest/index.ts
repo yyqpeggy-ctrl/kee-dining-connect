@@ -26,6 +26,9 @@ serve(async (req) => {
       trendy: { zh: "潮流网感：热门BGM、卡点剪辑、社交平台爆款风格", en: "Trendy: Trending BGM, beat-synced cuts, viral social media style" },
       minimal: { zh: "简约清新：留白构图、自然色调、轻音乐、呼吸感", en: "Minimal: Clean composition, natural tones, light music, breathing room" },
       cinematic: { zh: "电影质感：宽幅画面、调色渲染、史诗感配乐、叙事张力", en: "Cinematic: Widescreen, color grading, epic soundtrack, narrative tension" },
+      cyberpunk: { zh: "赛博朋克：霓虹色调、故障艺术转场、电子合成器BGM、未来感HUD叠加、高饱和青紫配色", en: "Cyberpunk: Neon palette, glitch art transitions, synth BGM, futuristic HUD overlays, high-saturation cyan-purple grading" },
+      south_american: { zh: "南美肆意：热带色彩爆炸、狂欢节节奏剪辑、拉丁打击乐BGM、自由奔放手持运镜、阳光高光溢出", en: "South American: Tropical color explosion, carnival-rhythm editing, Latin percussion BGM, wild handheld camera, sun-drenched highlight blowout" },
+      chill_groove: { zh: "放松动感：Lofi慵懒节奏、柔和胶片滤镜、慢推慢拉运镜、City Pop氛围BGM、温暖黄调", en: "Chill Groove: Lofi lazy beats, soft film grain filter, slow dolly movement, City Pop vibes BGM, warm amber tones" },
     };
     const styleDesc = styleDescriptions[style || "energetic"] || styleDescriptions["energetic"];
 
