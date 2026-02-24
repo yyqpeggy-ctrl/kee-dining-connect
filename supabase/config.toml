@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.ai-topic-suggest]
 verify_jwt = false
+
+[functions.ai-schedule-suggest]
+verify_jwt = false
