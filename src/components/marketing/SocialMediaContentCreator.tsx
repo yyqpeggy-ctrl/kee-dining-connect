@@ -474,8 +474,8 @@ const SocialMediaContentCreator = () => {
   };
 
   const startAIEdit = () => {
-    if (uploadedVideos.length === 0) {
-      toast.error(isZh ? "请先上传视频素材" : "Please upload videos first");
+    if (uploadedVideos.length < 2) {
+      toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
       return;
     }
     if (!selectedVideoTemplate) {
@@ -484,39 +484,39 @@ const SocialMediaContentCreator = () => {
     }
 
     const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
-    const newTasks: EditTask[] = uploadedVideos.map(v => ({
+    const mergedTask: EditTask = {
       id: crypto.randomUUID(),
-      videoName: v.name,
+      videoName: isZh
+        ? `合并剪辑：${uploadedVideos[0].name} + ${uploadedVideos[1].name}`
+        : `Merged: ${uploadedVideos[0].name} + ${uploadedVideos[1].name}`,
       template: template?.name || "",
       platform: template?.platform || "",
-      status: "queued" as const,
+      status: "queued",
       progress: 0,
-      sourceUrl: v.url,
+      sourceUrl: uploadedVideos[0].url, // use first video as preview source
       instructions: editInstructions,
-    }));
+    };
 
-    setEditTasks(prev => [...prev, ...newTasks]);
+    setEditTasks(prev => [...prev, mergedTask]);
     setVideoStep("edit");
 
-    // Simulate AI processing
-    newTasks.forEach((task, idx) => {
-      setTimeout(() => {
-        setEditTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: "processing", progress: 0 } : t));
-        const interval = setInterval(() => {
-          setEditTasks(prev => prev.map(t => {
-            if (t.id !== task.id) return t;
-            const newProgress = Math.min(t.progress + Math.random() * 15, 100);
-            if (newProgress >= 100) {
-              clearInterval(interval);
-              return { ...t, status: "done", progress: 100 };
-            }
-            return { ...t, progress: Math.round(newProgress) };
-          }));
-        }, 800);
-      }, idx * 2000);
-    });
+    // Simulate AI merge processing (longer than single video)
+    setTimeout(() => {
+      setEditTasks(prev => prev.map(t => t.id === mergedTask.id ? { ...t, status: "processing", progress: 0 } : t));
+      const interval = setInterval(() => {
+        setEditTasks(prev => prev.map(t => {
+          if (t.id !== mergedTask.id) return t;
+          const newProgress = Math.min(t.progress + Math.random() * 10, 100);
+          if (newProgress >= 100) {
+            clearInterval(interval);
+            return { ...t, status: "done", progress: 100 };
+          }
+          return { ...t, progress: Math.round(newProgress) };
+        }));
+      }, 1000);
+    }, 500);
 
-    toast.info(isZh ? "AI 正在剪辑视频..." : "AI is editing videos...");
+    toast.info(isZh ? "AI 正在合并剪辑两段视频..." : "AI is merging two videos into a short clip...");
   };
 
   const handlePublish = (taskId: string) => {
@@ -855,14 +855,14 @@ const SocialMediaContentCreator = () => {
           </div>
         </TabsContent>
 
-        {/* Video Edit */}
+        {/* Video Edit - Merge Two Videos */}
         <TabsContent value="video">
           <div className="space-y-4">
             {/* Step indicator */}
             <div className="flex items-center gap-2 text-sm">
               {[
-                { key: "upload", label: isZh ? "① 导入素材" : "① Import" },
-                { key: "edit", label: isZh ? "② AI剪辑" : "② AI Edit" },
+                { key: "upload", label: isZh ? "① 导入两段素材" : "① Import 2 Videos" },
+                { key: "edit", label: isZh ? "② AI合并剪辑" : "② AI Merge" },
                 { key: "preview", label: isZh ? "③ 预览发布" : "③ Publish" },
               ].map((step, i) => (
                 <div key={step.key} className="flex items-center gap-2">
@@ -963,19 +963,19 @@ const SocialMediaContentCreator = () => {
                 {/* Edit instructions */}
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="w-4 h-4" />{isZh ? "剪辑要求（可选）" : "Edit Instructions (Optional)"}</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="w-4 h-4" />{isZh ? "合并剪辑要求（可选）" : "Merge Instructions (Optional)"}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <textarea
                       className="w-full min-h-[80px] p-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder={isZh ? "例如：保留调酒过程的特写镜头，加入节奏感强的BGM，前3秒要有吸睛画面..." : "e.g., Keep cocktail close-ups, add upbeat BGM, eye-catching first 3 seconds..."}
+                      placeholder={isZh ? "例如：从素材A提取调酒特写，从素材B提取顾客反应，前3秒要有吸睛画面，加节奏感BGM..." : "e.g., Extract cocktail close-ups from Video A, customer reactions from Video B, eye-catching first 3s, upbeat BGM..."}
                       value={editInstructions}
                       onChange={(e) => setEditInstructions(e.target.value)}
                     />
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
                       {(isZh
-                        ? ["加字幕", "加BGM", "慢动作特写", "快剪节奏", "品牌水印", "片尾CTA"]
-                        : ["Add Subtitles", "Add BGM", "Slow-mo Close-up", "Fast Cuts", "Brand Watermark", "End CTA"]
+                        ? ["交叉剪辑", "加字幕", "加BGM", "慢动作特写", "快剪节奏", "品牌水印", "片尾CTA", "对比蒙太奇"]
+                        : ["Cross-cut", "Add Subtitles", "Add BGM", "Slow-mo Close-up", "Fast Cuts", "Brand Watermark", "End CTA", "Montage"]
                       ).map(tag => (
                         <Badge
                           key={tag}
@@ -988,9 +988,12 @@ const SocialMediaContentCreator = () => {
                       ))}
                     </div>
                     <div className="mt-4">
-                      <Button className="gap-1.5" onClick={startAIEdit} disabled={uploadedVideos.length === 0 || !selectedVideoTemplate}>
-                        <Sparkles className="w-3.5 h-3.5" />{isZh ? "开始 AI 智能剪辑" : "Start AI Edit"}
+                      <Button className="gap-1.5" onClick={startAIEdit} disabled={uploadedVideos.length < 2 || !selectedVideoTemplate}>
+                        <Scissors className="w-3.5 h-3.5" />{isZh ? "开始 AI 合并剪辑" : "Start AI Merge Edit"}
                       </Button>
+                      {uploadedVideos.length < 2 && (
+                        <p className="text-xs text-muted-foreground mt-2">{isZh ? "请先上传两段长视频素材" : "Please upload two long videos first"}</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1001,8 +1004,8 @@ const SocialMediaContentCreator = () => {
             {videoStep === "edit" && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2"><Scissors className="w-4 h-4 text-primary" />{isZh ? "AI 剪辑进度" : "AI Editing Progress"}</CardTitle>
-                  <CardDescription>{isZh ? "AI 正在根据您的要求智能剪辑视频" : "AI is editing your videos based on instructions"}</CardDescription>
+                  <CardTitle className="text-base flex items-center gap-2"><Scissors className="w-4 h-4 text-primary" />{isZh ? "AI 合并剪辑进度" : "AI Merge Progress"}</CardTitle>
+                  <CardDescription>{isZh ? "AI 正在从两段素材中提取精华并合并剪辑" : "AI is extracting highlights from both videos and merging"}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {editTasks.length === 0 ? (
