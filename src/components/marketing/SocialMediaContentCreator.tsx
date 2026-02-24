@@ -41,6 +41,12 @@ interface UploadedVideo {
   thumbnail?: string;
 }
 
+interface AIScheduleResult {
+  schedule: { time: string; platform: string; content_type: string; topic: string; estimated_engagement: string; status: string }[];
+  platform_analysis: { platform: string; best_time: string; reason: string; engagement_boost: string }[];
+  summary_stats: { label: string; value: string; sub: string }[];
+}
+
 interface AITopicResult {
   topics: { topic: string; score: number; trend: string; platform: string; content_type: string }[];
   recommended_tags: string[];
@@ -85,6 +91,8 @@ const SocialMediaContentCreator = () => {
   const [editHistory, setEditHistory] = useState<string[]>([]);
   const [aiTopicResult, setAiTopicResult] = useState<AITopicResult | null>(null);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [aiScheduleResult, setAiScheduleResult] = useState<AIScheduleResult | null>(null);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
   const fetchAISuggestions = async () => {
     const template = videoTemplates.find(t => t.id === (selectedVideoTemplate || "short"));
     setIsLoadingAI(true);
@@ -231,6 +239,27 @@ const SocialMediaContentCreator = () => {
       toast.error(isZh ? `推荐生成失败: ${e.message}` : `Recommendation failed: ${e.message}`);
     } finally {
       setIsLoadingTopics(false);
+    }
+  };
+
+  const fetchAISchedule = async () => {
+    setIsLoadingSchedule(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-schedule-suggest", {
+        body: {
+          store_name: "",
+          language: isZh ? "zh" : "en",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiScheduleResult(data);
+      toast.success(isZh ? "AI 排期已生成" : "AI schedule generated");
+    } catch (e: any) {
+      console.error("AI schedule error:", e);
+      toast.error(isZh ? `排期生成失败: ${e.message}` : `Schedule failed: ${e.message}`);
+    } finally {
+      setIsLoadingSchedule(false);
     }
   };
 
@@ -1181,37 +1210,74 @@ const SocialMediaContentCreator = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base flex items-center gap-2"><CalendarClock className="w-4 h-4 text-primary" />{isZh ? "AI 智能发布排期" : "AI Smart Publish Schedule"}</CardTitle>
-                    <CardDescription>{isZh ? "AI 分析最佳发布时间，自动排期实现最大曝光" : "AI analyzes optimal posting times for maximum exposure"}</CardDescription>
+                    <CardDescription>{isZh ? "AI 分析各平台最佳发布时间，自动生成本周排期" : "AI analyzes optimal posting times per platform and generates weekly schedule"}</CardDescription>
                   </div>
-                  <Button size="sm" className="gap-1"><Sparkles className="w-3 h-3" />{isZh ? "AI 优化排期" : "Optimize Schedule"}</Button>
+                  <Button size="sm" className="gap-1" onClick={fetchAISchedule} disabled={isLoadingSchedule}>
+                    {isLoadingSchedule ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    {isZh ? "AI 生成排期" : "Generate Schedule"}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {publishSchedule.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
+                {isLoadingSchedule ? (
+                  <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">{isZh ? "AI 正在分析各平台最佳发布时间..." : "AI is analyzing optimal posting times..."}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(aiScheduleResult?.schedule || publishSchedule.map(s => ({ time: s.time, platform: s.platform, content_type: s.type, topic: "", estimated_engagement: "", status: s.status }))).map((s, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/30 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{s.time}</p>
+                            <p className="text-[11px] text-muted-foreground">{s.platform} · {s.content_type}</p>
+                            {s.topic && <p className="text-[11px] text-primary mt-0.5">{s.topic}</p>}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{s.time}</p>
-                          <p className="text-[11px] text-muted-foreground">{s.platform} · {s.type}</p>
+                        <div className="flex items-center gap-2">
+                          {s.estimated_engagement && <Badge variant="outline" className="text-[10px]">{s.estimated_engagement}</Badge>}
+                          {statusBadge(s.status)}
                         </div>
                       </div>
-                      {statusBadge(s.status)}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
+            {/* Platform Analysis */}
+            {aiScheduleResult?.platform_analysis && aiScheduleResult.platform_analysis.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" />{isZh ? "各平台最佳发布时间" : "Best Posting Time by Platform"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {aiScheduleResult.platform_analysis.map((pa, i) => (
+                      <div key={i} className="p-3 rounded-lg border border-border">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium text-foreground">{pa.platform}</p>
+                          <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px]">{pa.engagement_boost}</Badge>
+                        </div>
+                        <p className="text-xs text-primary font-medium">{pa.best_time}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">{pa.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[
+              {(aiScheduleResult?.summary_stats || [
                 { label: isZh ? "最佳发布时间" : "Best Post Time", value: isZh ? "周三 20:00" : "Wed 8PM", sub: isZh ? "互动峰值时段" : "Peak engagement" },
                 { label: isZh ? "本周计划" : "This Week Plan", value: "5", sub: isZh ? "条内容待发布" : "posts scheduled" },
                 { label: isZh ? "AI 自动化率" : "AI Automation", value: "72%", sub: isZh ? "内容由AI辅助生成" : "AI-assisted content" },
-              ].map((s, i) => (
+              ]).map((s, i) => (
                 <Card key={i}>
                   <CardContent className="pt-4 pb-3 text-center">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
