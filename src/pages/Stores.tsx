@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { MapPin, Users, Clock, MoreHorizontal, Phone, Settings, Building2 } from "lucide-react";
+import { MapPin, Users, Clock, MoreHorizontal, Phone, Settings, Building2, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/contexts/StoreContext";
 import { stores as allStoresList } from "@/components/StoreSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StoreRenovationTab from "@/components/stores/StoreRenovationTab";
+import StoreVideoTab from "@/components/stores/StoreVideoTab";
 
 interface StoreData {
   id: string;
@@ -58,6 +59,7 @@ const Stores = () => {
         <TabsList>
           <TabsTrigger value="stores">{isZh ? "门店列表" : "Store List"}</TabsTrigger>
           <TabsTrigger value="renovation">{isZh ? "装修与资产" : "Renovation & Assets"}</TabsTrigger>
+          <TabsTrigger value="video" className="flex items-center gap-1.5"><Video className="w-3.5 h-3.5" />{isZh ? "视频监控" : "Video Surveillance"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stores" className="space-y-6">
@@ -131,6 +133,10 @@ const Stores = () => {
 
         <TabsContent value="renovation">
           <StoreRenovationTab />
+        </TabsContent>
+
+        <TabsContent value="video">
+          <StoreVideoTab />
         </TabsContent>
       </Tabs>
     </AppLayout>
