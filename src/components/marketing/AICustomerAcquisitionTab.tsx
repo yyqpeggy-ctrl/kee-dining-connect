@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Target, Users, TrendingUp, Sparkles, UserPlus, Filter, BarChart3, Zap, RefreshCw, Copy, Send, Star, ArrowUpRight, Edit, Trash2 } from "lucide-react";
+import { Brain, Target, Users, TrendingUp, Sparkles, UserPlus, Filter, BarChart3, Zap, RefreshCw, Copy, Send, Star, ArrowUpRight, Edit, Trash2, X, Globe, MapPin, Sliders } from "lucide-react";
 import { useStore } from "@/contexts/StoreContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,6 +34,50 @@ const AICustomerAcquisitionTab = () => {
   const [showLeadDialog, setShowLeadDialog] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", wechat: "", email: "", source: "manual", score: 50, status: "new", tags: "", notes: "" });
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterChannel, setFilterChannel] = useState<"all" | "online" | "offline">("all");
+  const [filterSource, setFilterSource] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterScoreMin, setFilterScoreMin] = useState(0);
+  const [filterScoreMax, setFilterScoreMax] = useState(100);
+
+  const onlineSources = isZh
+    ? ["小红书", "大众点评", "微信群", "企业微信", "抖音", "微博", "LinkedIn"]
+    : ["Xiaohongshu", "Dianping", "WeChat Group", "WeCom", "Douyin", "Weibo", "LinkedIn"];
+  const offlineSources = isZh
+    ? ["线下活动", "门店到访", "朋友推荐", "传单", "电话咨询"]
+    : ["Offline Event", "Walk-in", "Referral", "Flyer", "Phone Inquiry"];
+  const allSources = [...onlineSources, ...offlineSources, "manual"];
+
+  const getChannelCategory = (source: string): "online" | "offline" => {
+    if (offlineSources.includes(source)) return "offline";
+    return "online";
+  };
+
+  const filteredLeads = leads.filter(lead => {
+    if (filterChannel !== "all" && getChannelCategory(lead.source) !== filterChannel) return false;
+    if (filterSource !== "all" && lead.source !== filterSource) return false;
+    if (filterStatus !== "all" && lead.status !== filterStatus) return false;
+    if (lead.score < filterScoreMin || lead.score > filterScoreMax) return false;
+    return true;
+  });
+
+  const activeFilterCount = [
+    filterChannel !== "all",
+    filterSource !== "all",
+    filterStatus !== "all",
+    filterScoreMin > 0 || filterScoreMax < 100,
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setFilterChannel("all");
+    setFilterSource("all");
+    setFilterStatus("all");
+    setFilterScoreMin(0);
+    setFilterScoreMax(100);
+  };
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -292,19 +336,129 @@ const AICustomerAcquisitionTab = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base">{isZh ? "线索池" : "Lead Pool"}</CardTitle>
-              <Button size="sm" onClick={openAddDialog}><UserPlus className="w-3.5 h-3.5 mr-1.5" />{isZh ? "添加线索" : "Add Lead"}</Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant={showFilters ? "secondary" : "outline"} onClick={() => setShowFilters(!showFilters)}>
+                  <Sliders className="w-3.5 h-3.5 mr-1.5" />
+                  {isZh ? "筛选" : "Filter"}
+                  {activeFilterCount > 0 && (
+                    <Badge variant="default" className="ml-1.5 h-4 w-4 p-0 flex items-center justify-center text-[10px]">{activeFilterCount}</Badge>
+                  )}
+                </Button>
+                <Button size="sm" onClick={openAddDialog}><UserPlus className="w-3.5 h-3.5 mr-1.5" />{isZh ? "添加线索" : "Add Lead"}</Button>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              {/* Filter Panel */}
+              {showFilters && (
+                <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium flex items-center gap-1.5">
+                      <Filter className="w-3.5 h-3.5" />
+                      {isZh ? "筛选条件" : "Filters"}
+                    </h4>
+                    {activeFilterCount > 0 && (
+                      <Button size="sm" variant="ghost" onClick={clearFilters} className="h-7 text-xs">
+                        <X className="w-3 h-3 mr-1" />{isZh ? "清除筛选" : "Clear"}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Channel Category: Online / Offline */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{isZh ? "渠道类型" : "Channel Type"}</label>
+                    <div className="flex gap-1.5">
+                      {([
+                        { value: "all", label: isZh ? "全部" : "All", icon: null },
+                        { value: "online", label: isZh ? "线上渠道" : "Online", icon: <Globe className="w-3.5 h-3.5" /> },
+                        { value: "offline", label: isZh ? "线下渠道" : "Offline", icon: <MapPin className="w-3.5 h-3.5" /> },
+                      ] as const).map(ch => (
+                        <button
+                          key={ch.value}
+                          onClick={() => { setFilterChannel(ch.value); setFilterSource("all"); }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all border ${
+                            filterChannel === ch.value
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-muted-foreground border-border hover:bg-accent"
+                          }`}
+                        >
+                          {ch.icon}{ch.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Source Filter */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{isZh ? "具体来源" : "Source"}</label>
+                      <Select value={filterSource} onValueChange={setFilterSource}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="all">{isZh ? "全部来源" : "All Sources"}</SelectItem>
+                          {filterChannel === "all" && (
+                            <>
+                              <SelectItem value="__online_header" disabled className="font-semibold text-xs text-muted-foreground">
+                                ── {isZh ? "线上渠道" : "Online"} ──
+                              </SelectItem>
+                              {onlineSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              <SelectItem value="__offline_header" disabled className="font-semibold text-xs text-muted-foreground">
+                                ── {isZh ? "线下渠道" : "Offline"} ──
+                              </SelectItem>
+                              {offlineSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              <SelectItem value="manual">{isZh ? "手动录入" : "Manual"}</SelectItem>
+                            </>
+                          )}
+                          {filterChannel === "online" && onlineSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          {filterChannel === "offline" && offlineSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{isZh ? "线索状态" : "Status"}</label>
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="all">{isZh ? "全部状态" : "All Statuses"}</SelectItem>
+                          {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Score Range */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{isZh ? "评分范围" : "Score Range"}</label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={100} value={filterScoreMin} onChange={e => setFilterScoreMin(Number(e.target.value))} className="h-8 text-xs w-16" placeholder="Min" />
+                        <span className="text-xs text-muted-foreground">–</span>
+                        <Input type="number" min={0} max={100} value={filterScoreMax} onChange={e => setFilterScoreMax(Number(e.target.value))} className="h-8 text-xs w-16" placeholder="Max" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter summary */}
+                  <p className="text-xs text-muted-foreground">
+                    {isZh ? `共 ${filteredLeads.length} 条线索（总计 ${leads.length} 条）` : `${filteredLeads.length} of ${leads.length} leads shown`}
+                  </p>
+                </div>
+              )}
+
               {loading ? (
                 <p className="text-center text-muted-foreground py-8">{isZh ? "加载中..." : "Loading..."}</p>
-              ) : leads.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">{isZh ? "暂无线索数据" : "No leads yet"}</p>
+              ) : filteredLeads.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {leads.length === 0
+                    ? (isZh ? "暂无线索数据" : "No leads yet")
+                    : (isZh ? "没有符合筛选条件的线索" : "No leads match filters")}
+                </p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>{isZh ? "姓名" : "Name"}</TableHead>
                       <TableHead>{isZh ? "联系方式" : "Contact"}</TableHead>
+                      <TableHead>{isZh ? "渠道" : "Channel"}</TableHead>
                       <TableHead>{isZh ? "来源" : "Source"}</TableHead>
                       <TableHead>{isZh ? "评分" : "Score"}</TableHead>
                       <TableHead>{isZh ? "标签" : "Tags"}</TableHead>
@@ -315,12 +469,19 @@ const AICustomerAcquisitionTab = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leads.map((lead) => (
+                    {filteredLeads.map((lead) => (
                       <TableRow key={lead.id}>
                         <TableCell className="font-medium">{lead.name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {lead.phone && <div>{lead.phone}</div>}
                           {lead.wechat && <div>WeChat: {lead.wechat}</div>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getChannelCategory(lead.source) === "online" ? "default" : "secondary"} className="text-xs">
+                            {getChannelCategory(lead.source) === "online"
+                              ? <><Globe className="w-3 h-3 mr-1" />{isZh ? "线上" : "Online"}</>
+                              : <><MapPin className="w-3 h-3 mr-1" />{isZh ? "线下" : "Offline"}</>}
+                          </Badge>
                         </TableCell>
                         <TableCell><Badge variant="outline">{lead.source}</Badge></TableCell>
                         <TableCell>
@@ -336,7 +497,7 @@ const AICustomerAcquisitionTab = () => {
                         <TableCell>
                           <Select value={lead.status} onValueChange={(v) => handleStatusChange(lead.id, v)}>
                             <SelectTrigger className="w-24 h-7 text-xs">{statusBadge(lead.status)}</SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="bg-popover z-50">
                               {statusOptions.map(opt => (
                                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                               ))}
@@ -393,10 +554,12 @@ const AICustomerAcquisitionTab = () => {
                 <label className="text-sm font-medium">{isZh ? "来源" : "Source"}</label>
                 <Select value={leadForm.source} onValueChange={v => setLeadForm(f => ({ ...f, source: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["manual", isZh ? "小红书" : "Xiaohongshu", isZh ? "大众点评" : "Dianping", isZh ? "微信群" : "WeChat Group", isZh ? "企业微信" : "WeCom", isZh ? "抖音" : "Douyin", isZh ? "线下活动" : "Offline Event"].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="manual">{isZh ? "手动录入" : "Manual"}</SelectItem>
+                    <SelectItem value="__online_h" disabled className="font-semibold text-xs text-muted-foreground">── {isZh ? "线上渠道" : "Online"} ──</SelectItem>
+                    {onlineSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    <SelectItem value="__offline_h" disabled className="font-semibold text-xs text-muted-foreground">── {isZh ? "线下渠道" : "Offline"} ──</SelectItem>
+                    {offlineSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
