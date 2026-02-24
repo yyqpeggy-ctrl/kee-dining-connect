@@ -1,8 +1,9 @@
+import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound } from "lucide-react";
+import { Youtube, ShoppingBag, Megaphone, BarChart3, Star, CalendarDays, PieChart, Handshake, UsersRound, Layers, TrendingUp, Users, Palette } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import SocialMediaTab from "@/components/marketing/SocialMediaTab";
 import EcommerceTab from "@/components/marketing/EcommerceTab";
@@ -13,15 +14,79 @@ import EventsTab from "@/components/marketing/EventsTab";
 import CustomerAnalysisTab from "@/components/marketing/CustomerAnalysisTab";
 import PartnersTab from "@/components/marketing/PartnersTab";
 import ClubsTab from "@/components/marketing/ClubsTab";
+import { cn } from "@/lib/utils";
+
+interface NavGroup {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  items: { key: string; label: string; icon: React.ReactNode }[];
+}
 
 const Marketing = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
   const { storeName } = useStore();
 
+  const [activeTab, setActiveTab] = useState("social");
+
+  const groups: NavGroup[] = [
+    {
+      key: "content",
+      label: isZh ? "内容与渠道" : "Content & Channels",
+      icon: <Palette className="w-4 h-4" />,
+      items: [
+        { key: "social", label: isZh ? "社交媒体" : "Social Media", icon: <Youtube className="w-3.5 h-3.5" /> },
+        { key: "ecommerce", label: isZh ? "电商平台" : "E-commerce", icon: <ShoppingBag className="w-3.5 h-3.5" /> },
+      ],
+    },
+    {
+      key: "promotion",
+      label: isZh ? "活动与推广" : "Activities & Promotion",
+      icon: <Megaphone className="w-4 h-4" />,
+      items: [
+        { key: "campaigns", label: isZh ? "营销活动" : "Campaigns", icon: <Megaphone className="w-3.5 h-3.5" /> },
+        { key: "events", label: isZh ? "活动策划" : "Events", icon: <CalendarDays className="w-3.5 h-3.5" /> },
+      ],
+    },
+    {
+      key: "crm",
+      label: isZh ? "客户与合作" : "Customers & Partners",
+      icon: <Users className="w-4 h-4" />,
+      items: [
+        { key: "reviews", label: isZh ? "大众点评" : "Reviews", icon: <Star className="w-3.5 h-3.5" /> },
+        { key: "customers", label: isZh ? "客群分析" : "Customers", icon: <PieChart className="w-3.5 h-3.5" /> },
+        { key: "partners", label: isZh ? "合作伙伴" : "Partners", icon: <Handshake className="w-3.5 h-3.5" /> },
+        { key: "clubs", label: isZh ? "社团管理" : "Clubs", icon: <UsersRound className="w-3.5 h-3.5" /> },
+      ],
+    },
+    {
+      key: "analytics",
+      label: isZh ? "数据分析" : "Analytics",
+      icon: <TrendingUp className="w-4 h-4" />,
+      items: [
+        { key: "analytics", label: isZh ? "流量分析" : "Traffic Analytics", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+      ],
+    },
+  ];
+
+  const activeGroup = groups.find(g => g.items.some(i => i.key === activeTab));
+
+  const contentMap: Record<string, React.ReactNode> = {
+    social: <SocialMediaTab />,
+    ecommerce: <EcommerceTab />,
+    campaigns: <CampaignsTab />,
+    reviews: <DianpingReviewsTab />,
+    events: <EventsTab />,
+    customers: <CustomerAnalysisTab />,
+    partners: <PartnersTab />,
+    clubs: <ClubsTab />,
+    analytics: <TrafficAnalyticsTab />,
+  };
+
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-bold font-display text-foreground">{t("marketingMgmt.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">{storeName(isZh)} · {t("marketingMgmt.subtitle")}</p>
@@ -29,29 +94,51 @@ const Marketing = () => {
 
         <StoreIndicator />
 
-        <Tabs defaultValue="social" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="social" className="gap-1.5"><Youtube className="w-3.5 h-3.5" />{t("marketingMgmt.socialMedia")}</TabsTrigger>
-            <TabsTrigger value="ecommerce" className="gap-1.5"><ShoppingBag className="w-3.5 h-3.5" />{t("marketingMgmt.ecommerce")}</TabsTrigger>
-            <TabsTrigger value="campaigns" className="gap-1.5"><Megaphone className="w-3.5 h-3.5" />{t("marketingMgmt.campaigns")}</TabsTrigger>
-            <TabsTrigger value="reviews" className="gap-1.5"><Star className="w-3.5 h-3.5" />{isZh ? "大众点评" : "Reviews"}</TabsTrigger>
-            <TabsTrigger value="events" className="gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{isZh ? "活动策划" : "Events"}</TabsTrigger>
-            <TabsTrigger value="customers" className="gap-1.5"><PieChart className="w-3.5 h-3.5" />{isZh ? "客群分析" : "Customers"}</TabsTrigger>
-            <TabsTrigger value="partners" className="gap-1.5"><Handshake className="w-3.5 h-3.5" />{isZh ? "合作伙伴" : "Partners"}</TabsTrigger>
-            <TabsTrigger value="clubs" className="gap-1.5"><UsersRound className="w-3.5 h-3.5" />{isZh ? "社团管理" : "Clubs"}</TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" />{t("marketingMgmt.trafficAnalytics")}</TabsTrigger>
-          </TabsList>
+        {/* Group-level navigation */}
+        <div className="flex flex-wrap gap-2">
+          {groups.map((group) => {
+            const isActive = group === activeGroup;
+            return (
+              <button
+                key={group.key}
+                onClick={() => setActiveTab(group.items[0].key)}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all border",
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                {group.icon}
+                {group.label}
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="social"><SocialMediaTab /></TabsContent>
-          <TabsContent value="ecommerce"><EcommerceTab /></TabsContent>
-          <TabsContent value="campaigns"><CampaignsTab /></TabsContent>
-          <TabsContent value="reviews"><DianpingReviewsTab /></TabsContent>
-          <TabsContent value="events"><EventsTab /></TabsContent>
-          <TabsContent value="customers"><CustomerAnalysisTab /></TabsContent>
-          <TabsContent value="partners"><PartnersTab /></TabsContent>
-          <TabsContent value="clubs"><ClubsTab /></TabsContent>
-          <TabsContent value="analytics"><TrafficAnalyticsTab /></TabsContent>
-        </Tabs>
+        {/* Sub-tab navigation within active group */}
+        {activeGroup && activeGroup.items.length > 1 && (
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
+            {activeGroup.items.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setActiveTab(item.key)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all",
+                  activeTab === item.key
+                    ? "bg-background text-foreground shadow-sm font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
+        <div>{contentMap[activeTab]}</div>
       </div>
     </AppLayout>
   );
