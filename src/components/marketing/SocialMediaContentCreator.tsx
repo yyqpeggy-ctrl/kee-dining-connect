@@ -6,11 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2, Maximize2, Volume2, VolumeX, SkipBack, SkipForward, Subtitles, AudioLines } from "lucide-react";
+import { Image, ImagePlus, Video, Lightbulb, Sparkles, Clock, TrendingUp, Send, Wand2, Palette, Film, Hash, CalendarClock, Eye, ThumbsUp, Target, Upload, Play, Pause, Scissors, Music2, Type, RotateCcw, Check, X, FileVideo, Trash2, ChevronRight, Loader2, RefreshCw, Download, Pencil, Undo2, Maximize2, Volume2, VolumeX, SkipBack, SkipForward, Subtitles, AudioLines, GripVertical, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { trimAndMerge, autoTrimSegments, extractBestFrame, type VideoSubtitle, type SubtitleStyle, type TransitionType } from "@/lib/videoEditor";
+import { trimAndMerge, autoTrimSegments, extractBestFrame, getVideoDuration, type TrimSegment, type VideoSubtitle, type SubtitleStyle, type TransitionType } from "@/lib/videoEditor";
 
 // Default fallback subtitles when AI generation fails
 const defaultSubtitles: VideoSubtitle[] = [
@@ -174,6 +174,11 @@ const SocialMediaContentCreator = () => {
   const [ffmpegProgress, setFfmpegProgress] = useState(0);
   const [isFFmpegLoading, setIsFFmpegLoading] = useState(false);
   const [selectedTransition, setSelectedTransition] = useState<TransitionType>("fade");
+  const [editableSegments, setEditableSegments] = useState<TrimSegment[]>([]);
+  const [showSegmentEditor, setShowSegmentEditor] = useState(false);
+  const [isGeneratingSegments, setIsGeneratingSegments] = useState(false);
+  const [segmentsConfirmed, setSegmentsConfirmed] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const togglePlay = useCallback(() => {
     const vid = videoRef.current;
@@ -845,6 +850,74 @@ const SocialMediaContentCreator = () => {
     setSubtitlesConfirmed(false);
   };
 
+  // Generate segments for preview/editing
+  const generateSegments = async () => {
+    if (uploadedVideos.length < 2) {
+      toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
+      return;
+    }
+    setIsGeneratingSegments(true);
+    try {
+      const videoUrls = uploadedVideos.map(v => v.url);
+      const segments = await autoTrimSegments(videoUrls, targetDuration);
+      setEditableSegments(segments);
+      setShowSegmentEditor(true);
+      setSegmentsConfirmed(false);
+      toast.success(isZh ? `AI 已生成 ${segments.length} 个片段，您可以调整顺序和时长` : `AI generated ${segments.length} segments. Adjust order & duration.`);
+    } catch (e: any) {
+      toast.error(isZh ? `生成片段失败: ${e.message}` : `Segment generation failed: ${e.message}`);
+    } finally {
+      setIsGeneratingSegments(false);
+    }
+  };
+
+  // Segment manipulation
+  const moveSegment = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= editableSegments.length) return;
+    setEditableSegments(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, item);
+      return arr;
+    });
+    setSegmentsConfirmed(false);
+  };
+
+  const updateSegmentTime = (idx: number, field: "startTime" | "endTime", value: number) => {
+    setEditableSegments(prev => prev.map((s, i) => i === idx ? { ...s, [field]: Math.max(0, value) } : s));
+    setSegmentsConfirmed(false);
+  };
+
+  const removeSegment = (idx: number) => {
+    setEditableSegments(prev => prev.filter((_, i) => i !== idx));
+    setSegmentsConfirmed(false);
+  };
+
+  const addSegment = () => {
+    if (uploadedVideos.length === 0) return;
+    const url = uploadedVideos[0].url;
+    setEditableSegments(prev => [...prev, { videoUrl: url, startTime: 0, endTime: 3 }]);
+    setSegmentsConfirmed(false);
+  };
+
+  const handleSegmentDragStart = (idx: number) => setDragIdx(idx);
+  const handleSegmentDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragIdx !== null && dragIdx !== idx) {
+      moveSegment(dragIdx, idx);
+      setDragIdx(idx);
+    }
+  };
+  const handleSegmentDragEnd = () => setDragIdx(null);
+
+  // Get video name from URL
+  const getVideoNameFromUrl = (url: string) => {
+    const vid = uploadedVideos.find(v => v.url === url);
+    return vid ? vid.name : "Unknown";
+  };
+
+  const totalSegmentDuration = editableSegments.reduce((acc, s) => acc + Math.max(0, s.endTime - s.startTime), 0);
+
   const startAIEdit = async () => {
     if (uploadedVideos.length < 2) {
       toast.error(isZh ? "请上传两个长视频素材" : "Please upload two long videos");
@@ -859,6 +932,13 @@ const SocialMediaContentCreator = () => {
       return;
     }
 
+    // If no segments generated yet, generate them first
+    let segments = editableSegments;
+    if (segments.length === 0) {
+      const videoUrls = uploadedVideos.map(v => v.url);
+      segments = await autoTrimSegments(videoUrls, targetDuration);
+    }
+
     const template = videoTemplates.find(t => t.id === selectedVideoTemplate);
     const style = videoStyles.find(s => s.id === selectedVideoStyle);
     const taskId = crypto.randomUUID();
@@ -871,7 +951,7 @@ const SocialMediaContentCreator = () => {
       platform: template?.platform || "",
       status: "processing",
       progress: 0,
-      instructions: `Style: ${selectedVideoStyle} | Target: ${targetDuration}s`,
+      instructions: `Style: ${selectedVideoStyle} | Target: ${targetDuration}s | ${segments.length} segments | Transition: ${selectedTransition}`,
     };
 
     setEditTasks(prev => [...prev, mergedTask]);
@@ -882,15 +962,9 @@ const SocialMediaContentCreator = () => {
     setEditInstructions(`Style: ${selectedVideoStyle}`);
     fetchAISuggestions();
 
-    toast.info(isZh ? `🎬 开始剪辑：目标时长 ${targetDuration}秒...` : `🎬 Starting edit: target ${targetDuration}s...`);
+    toast.info(isZh ? `🎬 开始剪辑：${segments.length} 个片段，${selectedTransition} 转场...` : `🎬 Starting edit: ${segments.length} segments, ${selectedTransition} transition...`);
 
     try {
-      // Auto-generate trim segments based on target duration
-      const videoUrls = uploadedVideos.map(v => v.url);
-      console.log("[VideoEditor] Starting trim with", videoUrls.length, "videos, target:", targetDuration, "s");
-      const segments = await autoTrimSegments(videoUrls, targetDuration);
-      console.log("[VideoEditor] Segments:", segments);
-
       // Use the already-generated (and possibly user-edited) subtitles
       const burnSubtitles = generatedSubtitles;
       console.log("[Subtitles] Using", burnSubtitles.length, "subtitles (user-reviewed)");
@@ -910,7 +984,7 @@ const SocialMediaContentCreator = () => {
 
       // Auto-generate cover
       generateVideoCover(taskId);
-      toast.success(isZh ? `✅ 视频已剪辑完成！时长约 ${targetDuration}秒` : `✅ Video edited! Duration ~${targetDuration}s`);
+      toast.success(isZh ? `✅ 视频已剪辑完成！` : `✅ Video edited!`);
     } catch (err: any) {
       console.error("FFmpeg edit error:", err);
       setEditTasks(prev => prev.map(t =>
@@ -1725,12 +1799,146 @@ const SocialMediaContentCreator = () => {
                       )}
                     </div>
 
+                    {/* Segment Editor */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Film className="w-3.5 h-3.5" />
+                          {isZh ? "🎞️ 片段编排" : "🎞️ Clip Arrangement"}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {segmentsConfirmed && (
+                            <Badge className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20">
+                              <Check className="w-3 h-3 mr-0.5" />{isZh ? "已确认" : "Confirmed"}
+                            </Badge>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 text-xs h-7"
+                            onClick={generateSegments}
+                            disabled={isGeneratingSegments || uploadedVideos.length < 2}
+                          >
+                            {isGeneratingSegments ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" />{isZh ? "生成中..." : "Generating..."}</>
+                            ) : (
+                              <><Sparkles className="w-3 h-3" />{isZh ? "AI 生成片段" : "AI Generate"}</>
+                            )}
+                          </Button>
+                          {editableSegments.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs"
+                              onClick={() => setShowSegmentEditor(!showSegmentEditor)}
+                            >
+                              {showSegmentEditor ? (isZh ? "收起" : "Collapse") : (isZh ? "展开编辑" : "Expand")}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {editableSegments.length > 0 && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="text-[10px]">
+                            {editableSegments.length} {isZh ? "个片段" : "clips"}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            ≈ {totalSegmentDuration.toFixed(1)}s
+                          </Badge>
+                        </div>
+                      )}
+
+                      {showSegmentEditor && editableSegments.length > 0 && (
+                        <div className="space-y-1.5 border border-border rounded-lg p-3 bg-muted/20 max-h-80 overflow-y-auto">
+                          <p className="text-[10px] text-muted-foreground mb-2">
+                            {isZh ? "拖拽调整顺序，修改起止时间。确认后再开始剪辑" : "Drag to reorder, adjust start/end times. Confirm before editing."}
+                          </p>
+                          {editableSegments.map((seg, idx) => (
+                            <div
+                              key={idx}
+                              draggable
+                              onDragStart={() => handleSegmentDragStart(idx)}
+                              onDragOver={(e) => handleSegmentDragOver(e, idx)}
+                              onDragEnd={handleSegmentDragEnd}
+                              className={`flex items-center gap-2 p-2 rounded-md border transition-all ${dragIdx === idx ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-background"} cursor-grab active:cursor-grabbing`}
+                            >
+                              <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-[10px] font-mono text-muted-foreground w-4 shrink-0">{idx + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] text-foreground truncate font-medium">
+                                  {getVideoNameFromUrl(seg.videoUrl)}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={seg.startTime}
+                                    onChange={e => updateSegmentTime(idx, "startTime", parseFloat(e.target.value) || 0)}
+                                    className="w-16 h-5 text-[10px] px-1 rounded border border-input bg-background text-foreground text-center"
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">→</span>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={seg.endTime}
+                                    onChange={e => updateSegmentTime(idx, "endTime", parseFloat(e.target.value) || 0)}
+                                    className="w-16 h-5 text-[10px] px-1 rounded border border-input bg-background text-foreground text-center"
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    ({(seg.endTime - seg.startTime).toFixed(1)}s)
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-0.5 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => moveSegment(idx, idx - 1)} disabled={idx === 0}>
+                                  <ArrowUp className="w-2.5 h-2.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => moveSegment(idx, idx + 1)} disabled={idx === editableSegments.length - 1}>
+                                  <ArrowDown className="w-2.5 h-2.5" />
+                                </Button>
+                              </div>
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeSegment(idx)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-2 pt-1">
+                            <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={addSegment}>
+                              <Plus className="w-3 h-3" /> {isZh ? "添加片段" : "Add Clip"}
+                            </Button>
+                            <div className="flex-1" />
+                            <Button
+                              size="sm"
+                              className="text-xs h-7 gap-1"
+                              onClick={() => {
+                                setSegmentsConfirmed(true);
+                                setShowSegmentEditor(false);
+                                toast.success(isZh ? "片段编排已确认" : "Clip arrangement confirmed");
+                              }}
+                            >
+                              <Check className="w-3 h-3" />{isZh ? "确认编排" : "Confirm Clips"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-3">
                       <Button className="gap-1.5" size="lg" onClick={startAIEdit} disabled={uploadedVideos.length < 2 || !selectedVideoStyle || !selectedVideoTemplate || isFFmpegLoading}>
                         {isFFmpegLoading ? (
                           <><Loader2 className="w-4 h-4 animate-spin" />{isZh ? `剪辑中 ${ffmpegProgress}%...` : `Editing ${ffmpegProgress}%...`}</>
                         ) : (
-                          <><Scissors className="w-4 h-4" />{isZh ? `一键剪辑 → ${targetDuration < 60 ? targetDuration + "秒" : (targetDuration / 60) + "分钟"}短视频` : `Edit → ${targetDuration < 60 ? targetDuration + "s" : (targetDuration / 60) + "min"} Video`}</>
+                          <><Scissors className="w-4 h-4" />{isZh
+                            ? editableSegments.length > 0
+                              ? `开始剪辑 (${editableSegments.length} 片段 · ${totalSegmentDuration.toFixed(0)}s)`
+                              : `一键剪辑 → ${targetDuration < 60 ? targetDuration + "秒" : (targetDuration / 60) + "分钟"}短视频`
+                            : editableSegments.length > 0
+                              ? `Edit (${editableSegments.length} clips · ${totalSegmentDuration.toFixed(0)}s)`
+                              : `Edit → ${targetDuration < 60 ? targetDuration + "s" : (targetDuration / 60) + "min"} Video`
+                          }</>
                         )}
                       </Button>
                       {(uploadedVideos.length < 2 || !selectedVideoStyle) && (
