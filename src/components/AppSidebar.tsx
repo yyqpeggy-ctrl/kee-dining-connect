@@ -37,6 +37,7 @@ const AppSidebar = () => {
         { to: "/tables", icon: UtensilsCrossed, label: t("nav.tables") },
         { to: "/orders", icon: ClipboardList, label: t("nav.orders") },
         { to: "/kitchen", icon: CookingPot, label: t("nav.kitchen") },
+        { to: "/menu", icon: BookOpen, label: t("nav.menu") },
         { to: "/delivery", icon: Bike, label: t("nav.delivery") },
       ],
     },
@@ -54,7 +55,6 @@ const AppSidebar = () => {
         { to: "/hr", icon: Users, label: t("nav.hr") },
         { to: "/finance", icon: DollarSign, label: t("nav.finance") },
         { to: "/legal", icon: Scale, label: t("nav.legal") },
-        { to: "/menu", icon: BookOpen, label: t("nav.menu") },
       ],
     },
     {
