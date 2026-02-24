@@ -108,18 +108,36 @@ Requirements:
     const images = message?.images || [];
     const textContent = message?.content || "";
 
-    if (images.length === 0) {
+    console.log("AI response keys:", JSON.stringify(Object.keys(data)));
+    console.log("Message keys:", message ? JSON.stringify(Object.keys(message)) : "no message");
+    console.log("Images count:", images.length);
+
+    // Also check for inline base64 images in content if images array is empty
+    let imageUrl = "";
+    if (images.length > 0) {
+      imageUrl = images[0].image_url?.url || "";
+    }
+
+    // Check content array for image parts
+    if (!imageUrl && Array.isArray(message?.content)) {
+      const imgPart = message.content.find((p: any) => p.type === "image_url");
+      if (imgPart) {
+        imageUrl = imgPart.image_url?.url || "";
+      }
+    }
+
+    if (!imageUrl) {
+      console.error("No image in response. Full response:", JSON.stringify(data).substring(0, 500));
       return new Response(
         JSON.stringify({ error: isZh ? "AI 未能生成图片，请重试" : "AI failed to generate image, please retry" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Return the base64 image directly
     return new Response(
       JSON.stringify({
-        image_url: images[0].image_url.url,
-        description: textContent,
+        image_url: imageUrl,
+        description: typeof textContent === "string" ? textContent : "",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
