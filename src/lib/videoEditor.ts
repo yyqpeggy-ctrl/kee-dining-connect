@@ -69,16 +69,33 @@ function loadVideoAt(url: string, startTime: number): Promise<HTMLVideoElement> 
     video.crossOrigin = "anonymous";
     video.src = url;
 
-    video.onloadeddata = () => {
-      video.currentTime = startTime;
-    };
-
-    video.onseeked = () => {
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
       resolve(video);
     };
 
+    video.onloadeddata = () => {
+      if (startTime <= 0.1) {
+        // Already at start, no need to seek – resolve immediately
+        done();
+      } else {
+        video.currentTime = startTime;
+      }
+    };
+
+    video.onseeked = () => {
+      done();
+    };
+
     video.onerror = () => reject(new Error(`Failed to load video: ${url}`));
-    setTimeout(() => reject(new Error("Video load timeout")), 15000);
+    setTimeout(() => {
+      if (!resolved) {
+        console.warn("[loadVideoAt] Timeout, resolving with current state");
+        done();
+      }
+    }, 15000);
   });
 }
 
@@ -360,11 +377,23 @@ function playSegmentOnCanvas(
       gainNode.gain.value = 0;
     }
 
+    // Start muted to satisfy autoplay policy, then unmute
+    // (createMediaElementSource routes audio through WebAudio API regardless)
+    video.muted = true;
     video.play().then(() => {
+      // Unmute after play starts – audio goes through WebAudio gain node
+      video.muted = false;
       drawFrame();
     }).catch(() => {
-      console.warn("[playSegmentOnCanvas] play() failed, skipping segment");
-      resolve();
+      // Final fallback: try playing muted and just capture video frames
+      console.warn("[playSegmentOnCanvas] Unmuted play failed, trying muted");
+      video.muted = true;
+      video.play().then(() => {
+        drawFrame();
+      }).catch(() => {
+        console.warn("[playSegmentOnCanvas] play() failed completely, skipping segment");
+        resolve();
+      });
     });
 
     // Safety timeout
@@ -514,8 +543,8 @@ export async function trimAndMerge(
         }
       }
 
-      // Unmute for audio capture (after createMediaElementSource)
-      video.muted = false;
+      // Audio routing: muted state is handled by playSegmentOnCanvas
+      // createMediaElementSource captures audio regardless of muted state
       video.volume = 1;
 
       // Build subtitle getter that maps current playback to output timeline percentage
