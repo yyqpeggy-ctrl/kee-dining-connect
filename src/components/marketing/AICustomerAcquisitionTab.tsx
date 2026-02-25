@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Target, Users, TrendingUp, Sparkles, UserPlus, Filter, BarChart3, Zap, RefreshCw, Copy, Send, Star, ArrowUpRight, Edit, Trash2, X, Globe, MapPin, Sliders } from "lucide-react";
+import { Brain, Target, Users, TrendingUp, Sparkles, UserPlus, Filter, BarChart3, Zap, RefreshCw, Copy, Send, Star, ArrowUpRight, Edit, Trash2, X, Globe, MapPin, Sliders, Eye, Clock } from "lucide-react";
 import ChannelAnalyticsChart from "./ChannelAnalyticsChart";
+import LeadActivityTimeline from "./LeadActivityTimeline";
 import { useStore } from "@/contexts/StoreContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ const AICustomerAcquisitionTab = () => {
   // Lead form state
   const [showLeadDialog, setShowLeadDialog] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [leadForm, setLeadForm] = useState({ name: "", phone: "", wechat: "", email: "", source: "manual", score: 50, status: "new", tags: "", notes: "" });
 
   // Filter state
@@ -512,6 +514,7 @@ const AICustomerAcquisitionTab = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => setDetailLead(lead)} title={isZh ? "查看跟进" : "View Timeline"}><Eye className="w-3.5 h-3.5 text-primary" /></Button>
                             <Button size="sm" variant="ghost" onClick={() => openEditDialog(lead)}><Edit className="w-3.5 h-3.5" /></Button>
                             <Button size="sm" variant="ghost" onClick={() => handleDeleteLead(lead.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
                           </div>
@@ -596,6 +599,24 @@ const AICustomerAcquisitionTab = () => {
               {editingLead ? (isZh ? "保存修改" : "Save Changes") : (isZh ? "添加线索" : "Add Lead")}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Lead Detail / Activity Timeline Dialog */}
+      <Dialog open={!!detailLead} onOpenChange={(open) => !open && setDetailLead(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              {detailLead?.name} — {isZh ? "跟进记录与转化时间线" : "Follow-up & Conversion Timeline"}
+            </DialogTitle>
+          </DialogHeader>
+          {detailLead && (
+            <LeadActivityTimeline
+              leadId={detailLead.id}
+              leadName={detailLead.name}
+              leadStatus={detailLead.status}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
