@@ -5,46 +5,60 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link2, Package, Receipt, FileText, ArrowRight, TrendingUp, AlertTriangle, CheckCircle, Clock, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { useStore } from "@/contexts/StoreContext";
 
 const CrossModuleDashboard = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language === "zh";
   const navigate = useNavigate();
+  const { storeId, isHQ, storeName } = useStore();
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ["finance-transactions-cross"],
+    queryKey: ["finance-transactions-cross", storeId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("finance_transactions")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);
+      if (!isHQ) {
+        query = query.eq("store_id", storeId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
   const { data: procurements = [] } = useQuery({
-    queryKey: ["procurement-orders-cross"],
+    queryKey: ["procurement-orders-cross", storeId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("procurement_orders")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(10);
+      if (!isHQ) {
+        query = query.eq("store_id", storeId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
   const { data: assets = [] } = useQuery({
-    queryKey: ["fixed-assets-cross"],
+    queryKey: ["fixed-assets-cross", storeId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("fixed_assets")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(10);
+      if (!isHQ) {
+        query = query.eq("store_id", storeId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -54,9 +68,6 @@ const CrossModuleDashboard = () => {
   const totalAssetValue = assets.reduce((s, a) => s + Number(a.original_value), 0);
   const totalDepreciation = assets.reduce((s, a) => s + Number(a.accumulated_depreciation), 0);
   const pendingProcurements = procurements.filter(p => p.status !== "paid" && p.status !== "cancelled").length;
-  const depreciationEntries = transactions.filter(t => t.category === "depreciation");
-  const assetPurchaseEntries = transactions.filter(t => t.category === "asset_purchase");
-  const revenueEntries = transactions.filter(t => t.category === "revenue");
   const pendingReview = transactions.filter(t => t.status === "pending").length;
 
   const categoryIcon = (cat: string) => {
@@ -81,16 +92,19 @@ const CrossModuleDashboard = () => {
   };
 
   const statusColor = (s: string) => {
-    const map: Record<string, string> = {
-      pending: "text-warning",
-      reviewed: "text-success",
-      approved: "text-primary",
-    };
+    const map: Record<string, string> = { pending: "text-warning", reviewed: "text-success", approved: "text-primary" };
     return map[s] || "text-muted-foreground";
   };
 
   return (
     <div className="space-y-6">
+      {/* Store context hint */}
+      <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2">
+        {isZh
+          ? `📊 当前视图: ${isHQ ? "全部门店汇总" : storeName(true) + "独立数据"}，数据来源于资产、采购、财务等联动模块。`
+          : `📊 Current view: ${isHQ ? "All stores consolidated" : storeName(false) + " standalone"} data from linked modules.`}
+      </div>
+
       {/* Cross-Module KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
@@ -183,9 +197,9 @@ const CrossModuleDashboard = () => {
                       <p className="text-xs font-medium">{isZh ? tx.description_zh : tx.description_en}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <Badge variant="outline" className="text-[9px] px-1 py-0">{categoryLabel(tx.category)}</Badge>
+                        {isHQ && <Badge variant="outline" className="text-[9px] px-1 py-0 border-muted-foreground/30">{isZh ? tx.store_name_zh : tx.store_name_en}</Badge>}
                         {tx.linked_asset_id && <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">{isZh ? "资产" : "Asset"}</Badge>}
                         {tx.linked_procurement_id && <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning/30 text-warning">{isZh ? "采购" : "PO"}</Badge>}
-                        {tx.linked_depreciation_id && <Badge variant="outline" className="text-[9px] px-1 py-0 border-info/30 text-info">{isZh ? "折旧" : "Dep."}</Badge>}
                       </div>
                     </div>
                   </div>
@@ -238,12 +252,6 @@ const CrossModuleDashboard = () => {
                       </div>
                       <span className="text-sm font-semibold">¥{Number(po.total_amount).toLocaleString()}</span>
                     </div>
-                    {po.compliance_checked && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <CheckCircle className="w-3 h-3 text-success" />
-                        <span className="text-[9px] text-success">{isZh ? "合规已审" : "Compliance Checked"}</span>
-                      </div>
-                    )}
                   </div>
                 );
               })
@@ -257,6 +265,7 @@ const CrossModuleDashboard = () => {
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-warning" />
           {isZh ? "智能预警" : "Smart Alerts"}
+          {!isHQ && <span className="text-xs text-muted-foreground font-normal ml-1">— {storeName(isZh)}</span>}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {pendingReview > 0 && (
@@ -277,16 +286,7 @@ const CrossModuleDashboard = () => {
               </div>
             </div>
           )}
-          {assets.filter(a => a.status === "maintenance").length > 0 && (
-            <div className="flex items-start gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs font-medium">{isZh ? `${assets.filter(a => a.status === "maintenance").length}项资产维修中` : `${assets.filter(a => a.status === "maintenance").length} assets under maintenance`}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{isZh ? "维修费用将自动计入管理费用" : "Repair costs will be auto-recorded in admin expenses"}</p>
-              </div>
-            </div>
-          )}
-          {pendingReview === 0 && pendingProcurements === 0 && assets.filter(a => a.status === "maintenance").length === 0 && (
+          {pendingReview === 0 && pendingProcurements === 0 && (
             <div className="flex items-start gap-3 p-3 bg-success/10 rounded-lg border border-success/20">
               <CheckCircle className="w-4 h-4 text-success mt-0.5 shrink-0" />
               <div>
