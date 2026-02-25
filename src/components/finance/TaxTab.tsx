@@ -9,20 +9,20 @@ import { useTranslation } from "react-i18next";
 import TaxReportsTab from "./TaxReportsTab";
 
 const taxCalendar = [
-  { tax: "增值税", period: "2024年2月", deadline: "2024-03-15", status: "待申报", amount: 43400 },
-  { tax: "企业所得税", period: "2024年Q1", deadline: "2024-04-15", status: "待申报", amount: 145716 },
-  { tax: "个人所得税", period: "2024年2月", deadline: "2024-03-15", status: "已申报", amount: 28500 },
-  { tax: "城建税", period: "2024年2月", deadline: "2024-03-15", status: "已申报", amount: 3038 },
-  { tax: "教育费附加", period: "2024年2月", deadline: "2024-03-15", status: "已申报", amount: 1302 },
-  { tax: "印花税", period: "2024年2月", deadline: "2024-03-15", status: "已缴纳", amount: 650 },
+  { tax: "增值税", taxEn: "VAT", period: "2026年2月", periodEn: "Feb 2026", deadline: "2026-03-15", status: "待申报", amount: 43400 },
+  { tax: "企业所得税", taxEn: "CIT", period: "2026年Q1", periodEn: "Q1 2026", deadline: "2026-04-15", status: "待申报", amount: 145716 },
+  { tax: "个人所得税", taxEn: "IIT", period: "2026年2月", periodEn: "Feb 2026", deadline: "2026-03-15", status: "已申报", amount: 28500 },
+  { tax: "城建税", taxEn: "Urban Maintenance", period: "2026年2月", periodEn: "Feb 2026", deadline: "2026-03-15", status: "已申报", amount: 3038 },
+  { tax: "教育费附加", taxEn: "Education Surcharge", period: "2026年2月", periodEn: "Feb 2026", deadline: "2026-03-15", status: "已申报", amount: 1302 },
+  { tax: "印花税", taxEn: "Stamp Duty", period: "2026年2月", periodEn: "Feb 2026", deadline: "2026-03-15", status: "已缴纳", amount: 650 },
 ];
 
 const taxHistory = [
-  { period: "2024年1月", vat: 38200, income: 0, personal: 26800, total: 68560, status: "已完成" },
-  { period: "2023年12月", vat: 42100, income: 0, personal: 29200, total: 75120, status: "已完成" },
-  { period: "2023年11月", vat: 35600, income: 0, personal: 25100, total: 63890, status: "已完成" },
-  { period: "2023年Q4", vat: 0, income: 138500, personal: 0, total: 138500, status: "已完成" },
-  { period: "2023年10月", vat: 39800, income: 0, personal: 27500, total: 70650, status: "已完成" },
+  { period: "2026年1月", periodEn: "Jan 2026", vat: 38200, income: 0, personal: 26800, total: 68560, status: "已完成" },
+  { period: "2025年12月", periodEn: "Dec 2025", vat: 42100, income: 0, personal: 29200, total: 75120, status: "已完成" },
+  { period: "2025年11月", periodEn: "Nov 2025", vat: 35600, income: 0, personal: 25100, total: 63890, status: "已完成" },
+  { period: "2025年Q4", periodEn: "Q4 2025", vat: 0, income: 138500, personal: 0, total: 138500, status: "已完成" },
+  { period: "2025年10月", periodEn: "Oct 2025", vat: 39800, income: 0, personal: 27500, total: 70650, status: "已完成" },
 ];
 
 const invoiceStats = {
@@ -119,8 +119,8 @@ const TaxTab = () => {
             <TableBody>
               {taxCalendar.map((item, idx) => (
                 <TableRow key={idx}>
-                  <TableCell className="font-medium">{item.tax}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.period}</TableCell>
+                  <TableCell className="font-medium">{isZh ? item.tax : item.taxEn}</TableCell>
+                  <TableCell className="text-muted-foreground">{isZh ? item.period : item.periodEn}</TableCell>
                   <TableCell>
                     <span className={item.status === "待申报" ? "text-warning" : "text-muted-foreground"}>
                       {item.deadline}
@@ -215,7 +215,7 @@ const TaxTab = () => {
           <TableBody>
             {taxHistory.map((item, idx) => (
               <TableRow key={idx}>
-                <TableCell className="font-medium">{item.period}</TableCell>
+                <TableCell className="font-medium">{isZh ? item.period : item.periodEn}</TableCell>
                 <TableCell className="text-right">{item.vat > 0 ? `¥${item.vat.toLocaleString()}` : "-"}</TableCell>
                 <TableCell className="text-right">{item.income > 0 ? `¥${item.income.toLocaleString()}` : "-"}</TableCell>
                 <TableCell className="text-right">{item.personal > 0 ? `¥${item.personal.toLocaleString()}` : "-"}</TableCell>
