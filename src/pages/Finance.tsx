@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator, Link2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
@@ -11,23 +12,19 @@ import ReportsTab from "@/components/finance/ReportsTab";
 import TaxTab from "@/components/finance/TaxTab";
 import TransactionsTab from "@/components/finance/TransactionsTab";
 import CrossModuleDashboard from "@/components/finance/CrossModuleDashboard";
-
-const monthlyData = [
-  { month: "1月", revenue: 580000, expense: 420000, profit: 160000 },
-  { month: "2月", revenue: 620000, expense: 450000, profit: 170000 },
-  { month: "3月", revenue: 750000, expense: 520000, profit: 230000 },
-  { month: "4月", revenue: 680000, expense: 480000, profit: 200000 },
-  { month: "5月", revenue: 820000, expense: 560000, profit: 260000 },
-  { month: "6月", revenue: 890000, expense: 610000, profit: 280000 },
-];
+import { computeIncomeStatement, StoreId, journalEntries } from "@/data/financeData";
 
 const Finance = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === "zh";
-  const { storeName } = useStore();
-  const totalRevenue = monthlyData.reduce((sum, m) => sum + m.revenue, 0);
-  const totalExpense = monthlyData.reduce((sum, m) => sum + m.expense, 0);
-  const totalProfit = totalRevenue - totalExpense;
+  const { storeName, storeId: globalStoreId } = useStore();
+  const selectedStore = globalStoreId as StoreId;
+
+  // Compute KPI from actual journal entries filtered by store
+  const income = useMemo(() => computeIncomeStatement(selectedStore), [selectedStore]);
+  const totalRevenue = income.totalRevenue;
+  const totalExpense = income.sections.slice(1).reduce((s, sec) => s + sec.total, 0);
+  const totalProfit = income.netProfit;
 
   return (
     <AppLayout>

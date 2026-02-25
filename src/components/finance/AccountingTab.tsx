@@ -5,15 +5,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "react-i18next";
-import { journalEntries, accountSummary } from "@/data/financeData";
+import { useMemo } from "react";
+import { journalEntries, getAccountSummary, StoreId } from "@/data/financeData";
+import { useStore } from "@/contexts/StoreContext";
 
 const AccountingTab = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
+  const { storeId: globalStoreId, storeName, isHQ } = useStore();
+  const selectedStore = globalStoreId as StoreId;
 
-  const totalAssets = accountSummary.filter(a => a.typeKey === "asset").reduce((s, a) => s + a.balance, 0);
-  const totalLiabilities = accountSummary.filter(a => a.typeKey === "liability").reduce((s, a) => s + a.balance, 0);
-  const totalEquity = accountSummary.filter(a => a.typeKey === "equity").reduce((s, a) => s + a.balance, 0);
+  const filteredEntries = useMemo(() => {
+    if (selectedStore === "all") return journalEntries;
+    return journalEntries.filter(e => e.storeId === selectedStore);
+  }, [selectedStore]);
+
+  const storeAccounts = useMemo(() => getAccountSummary(selectedStore), [selectedStore]);
+
+  const totalAssets = storeAccounts.filter(a => a.typeKey === "asset").reduce((s, a) => s + a.balance, 0);
+  const totalLiabilities = storeAccounts.filter(a => a.typeKey === "liability").reduce((s, a) => s + a.balance, 0);
+  const totalEquity = storeAccounts.filter(a => a.typeKey === "equity").reduce((s, a) => s + a.balance, 0);
 
   const typeColors: Record<string, string> = { asset: "bg-success", liability: "bg-warning", equity: "bg-primary" };
   const typeTextColors: Record<string, string> = { asset: "text-success", liability: "text-warning", equity: "text-primary" };
@@ -34,9 +45,16 @@ const AccountingTab = () => {
         </div>
       </div>
 
+      {/* Store indicator */}
+      <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2">
+        {isZh
+          ? `📊 当前显示: ${isHQ ? "全部门店汇总" : storeName(true) + "独立账务"}，共 ${filteredEntries.length} 条凭证`
+          : `📊 Showing: ${isHQ ? "All stores consolidated" : storeName(false) + " standalone"}, ${filteredEntries.length} entries`}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-2 glass-card rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-4">{t("financeMgmt.journalEntries")} ({journalEntries.length})</h3>
+          <h3 className="text-sm font-semibold mb-4">{t("financeMgmt.journalEntries")} ({filteredEntries.length})</h3>
           <div className="max-h-[600px] overflow-y-auto">
             <Table>
               <TableHeader>
@@ -50,7 +68,7 @@ const AccountingTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {journalEntries.map((entry) => (
+                {filteredEntries.map((entry) => (
                   <TableRow key={entry.id} className="cursor-pointer hover:bg-muted/50">
                     <TableCell className="font-medium text-xs">{entry.id}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{entry.date}</TableCell>
@@ -79,9 +97,12 @@ const AccountingTab = () => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-4">{t("financeMgmt.accountBalance")}</h3>
+          <h3 className="text-sm font-semibold mb-4">
+            {t("financeMgmt.accountBalance")}
+            {!isHQ && <span className="text-primary text-xs ml-2">— {storeName(isZh)}</span>}
+          </h3>
           <div className="space-y-1 max-h-[450px] overflow-y-auto">
-            {accountSummary.map((account) => (
+            {storeAccounts.map((account) => (
               <div key={isZh ? account.nameZh : account.nameEn} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${typeColors[account.typeKey]}`} />
