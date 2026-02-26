@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
-import { Users, UserPlus, Clock, Award, Phone, MoreHorizontal, Search, TrendingUp } from "lucide-react";
+import { Users, UserPlus, Clock, Award, Phone, MoreHorizontal, Search, TrendingUp, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { useState } from "react";
+import PayrollAutomation from "@/components/hr/PayrollAutomation";
 
 interface Employee {
   id: string;
@@ -80,57 +82,74 @@ const HR = () => {
         </motion.div>
       </div>
 
-      <div className="flex items-center gap-4 mb-5">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder={t("hrMgmt.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50" />
-        </div>
-        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
-          {deptKeys.map((key) => (
-            <button key={key} onClick={() => setSelectedDept(key)} className={`px-3 py-1.5 text-xs rounded-md transition-all ${selectedDept === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              {t(`hrMgmt.departments.${key}`)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Tabs defaultValue="payroll" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50">
+          <TabsTrigger value="payroll" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
+            <Zap className="w-3.5 h-3.5" />{isZh ? "★薪资自动化" : "★Payroll Auto"}
+          </TabsTrigger>
+          <TabsTrigger value="employees" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
+            <Users className="w-3.5 h-3.5" />{isZh ? "员工管理" : "Employees"}
+          </TabsTrigger>
+        </TabsList>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.employee")}</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.role")}</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.store")}</th>
-                <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.contactInfo")}</th>
-                <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.attendance")}</th>
-                <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.status")}</th>
-                <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((emp, i) => (
-                <motion.tr key={emp.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-medium text-primary">{emp.avatar}</div>
-                      <div><p className="font-medium">{isZh ? emp.nameZh : emp.nameEn}</p><p className="text-[10px] text-muted-foreground">{emp.id}</p></div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4"><p>{isZh ? emp.roleZh : emp.roleEn}</p><p className="text-[10px] text-muted-foreground">{t(`hrMgmt.departments.${emp.departmentKey}`)}</p></td>
-                  <td className="py-3 px-4 text-muted-foreground">{isZh ? emp.storeZh : emp.storeEn}</td>
-                  <td className="py-3 px-4"><p className="flex items-center gap-1 text-xs"><Phone className="w-3 h-3" />{emp.phone}</p></td>
-                  <td className="py-3 px-4 text-center"><span className={`font-semibold ${emp.attendance >= 95 ? "text-success" : emp.attendance >= 90 ? "text-warning" : "text-destructive"}`}>{emp.attendance}%</span></td>
-                  <td className="py-3 px-4 text-center">
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${emp.status === "active" ? "bg-success/10 text-success" : emp.status === "leave" ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"}`}>{statusLabel(emp.status)}</span>
-                  </td>
-                  <td className="py-3 px-4 text-center"><button className="p-1.5 rounded-md hover:bg-muted transition-colors"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button></td>
-                </motion.tr>
+        <TabsContent value="payroll">
+          <PayrollAutomation />
+        </TabsContent>
+
+        <TabsContent value="employees">
+          <div className="flex items-center gap-4 mb-5">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input type="text" placeholder={t("hrMgmt.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            </div>
+            <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+              {deptKeys.map((key) => (
+                <button key={key} onClick={() => setSelectedDept(key)} className={`px-3 py-1.5 text-xs rounded-md transition-all ${selectedDept === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                  {t(`hrMgmt.departments.${key}`)}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+            </div>
+          </div>
+
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.employee")}</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.role")}</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.store")}</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.contactInfo")}</th>
+                    <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("hrMgmt.attendance")}</th>
+                    <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.status")}</th>
+                    <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((emp, i) => (
+                    <motion.tr key={emp.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-medium text-primary">{emp.avatar}</div>
+                          <div><p className="font-medium">{isZh ? emp.nameZh : emp.nameEn}</p><p className="text-[10px] text-muted-foreground">{emp.id}</p></div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4"><p>{isZh ? emp.roleZh : emp.roleEn}</p><p className="text-[10px] text-muted-foreground">{t(`hrMgmt.departments.${emp.departmentKey}`)}</p></td>
+                      <td className="py-3 px-4 text-muted-foreground">{isZh ? emp.storeZh : emp.storeEn}</td>
+                      <td className="py-3 px-4"><p className="flex items-center gap-1 text-xs"><Phone className="w-3 h-3" />{emp.phone}</p></td>
+                      <td className="py-3 px-4 text-center"><span className={`font-semibold ${emp.attendance >= 95 ? "text-success" : emp.attendance >= 90 ? "text-warning" : "text-destructive"}`}>{emp.attendance}%</span></td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${emp.status === "active" ? "bg-success/10 text-success" : emp.status === "leave" ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"}`}>{statusLabel(emp.status)}</span>
+                      </td>
+                      <td className="py-3 px-4 text-center"><button className="p-1.5 rounded-md hover:bg-muted transition-colors"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button></td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        </TabsContent>
+      </Tabs>
     </AppLayout>
   );
 };

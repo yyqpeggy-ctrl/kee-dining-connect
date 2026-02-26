@@ -448,6 +448,34 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: "pta-24", nodeType: "auto", label: "归档至数据中心", order: 23, config: { description: "全部文件（报表、申报表、凭证包、银行流水）自动归档至数据中心知识库，永久留存" } },
     ],
   },
+
+  // ===== ★ 薪资自动化全流程 =====
+  {
+    id: "payroll-auto",
+    nameZh: "★ 薪资计算到发放全自动化",
+    nameEn: "★ Payroll Calculation to Payment Automation",
+    descZh: "出勤导入→自动计算薪资→确认做账→银行付款→自动清账入账",
+    descEn: "Attendance→Auto-calc→Confirm Journal→Bank Pay→Auto-Reconcile",
+    category: "hr" as const,
+    status: "active" as const,
+    linkedModules: [MODULE.hr, MODULE.finance],
+    pending: 0,
+    completed: 0,
+    nodes: [
+      { id: "pay-1", nodeType: "auto", label: "导入出勤数据", order: 0, config: { description: "从考勤系统/Excel/CSV导入员工当月出勤记录（出勤天数、加班、请假、迟到）" } },
+      { id: "pay-2", nodeType: "auto", label: "自动计算薪资", order: 1, config: { description: "按基本工资、加班费(1.5倍)、请假扣款、迟到扣款自动计算应发工资" } },
+      { id: "pay-3", nodeType: "auto", label: "计算社保公积金", order: 2, config: { description: "自动计算个人社保(10.5%)和住房公积金(12%)代扣金额" } },
+      { id: "pay-4", nodeType: "auto", label: "计算个人所得税", order: 3, config: { description: "按7级超额累进税率自动计算个税（起征点5000元）" } },
+      { id: "pay-5", nodeType: "review", label: "人工审核薪资单", order: 4, config: { assignee: "hr_manager", description: "HR经理审核薪资计算结果，可修改调整" } },
+      { id: "pay-6", nodeType: "approval", label: "财务确认薪资单", order: 5, config: { assignee: "finance", description: "财务确认薪资单并自动生成会计凭证" } },
+      { id: "pay-7", nodeType: "auto", label: "自动生成会计凭证", order: 6, config: { description: "借:应付职工薪酬 贷:银行存款/其他应付款-社保/公积金/应交税费-个税" } },
+      { id: "pay-8", nodeType: "auto", label: "导出银行付款Excel", order: 7, config: { description: "生成网银格式的薪资付款文件（员工姓名、银行、账号、实发金额）" } },
+      { id: "pay-9", nodeType: "notification", label: "提醒导入网银", order: 8, config: { description: "通知出纳将付款Excel导入网银系统批量发薪" } },
+      { id: "pay-10", nodeType: "auto", label: "银行付款确认", order: 9, config: { description: "确认银行已完成薪资发放" } },
+      { id: "pay-11", nodeType: "auto", label: "自动清账入账", order: 10, config: { description: "银行付款确认后自动更新凭证状态，完成清账入账" } },
+      { id: "pay-12", nodeType: "auto", label: "归档薪资记录", order: 11, config: { description: "薪资单、凭证、付款记录自动归档至数据中心" } },
+    ],
+  },
 ];
 
 export const WORKFLOW_CATEGORIES = {
