@@ -11,7 +11,8 @@ import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import {
   FileSpreadsheet, Upload, CheckCircle, AlertTriangle, Download,
-  Calculator, ClipboardCheck, ArrowRightLeft, BarChart3
+  Calculator, ClipboardCheck, ArrowRightLeft, BarChart3, Brain, Loader2,
+  Lightbulb, TrendingDown, TrendingUp, ShieldAlert
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -51,6 +52,8 @@ const MonthEndStocktake = () => {
   const [importedData, setImportedData] = useState<StocktakeRow[] | null>(null);
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const { data: items = [] } = useQuery({
     queryKey: ["inventory-items"],
@@ -156,6 +159,26 @@ const MonthEndStocktake = () => {
 
   const overToleranceCount = importedData?.filter((r) => r.status === "over_tolerance").length || 0;
   const allWithinTolerance = importedData && overToleranceCount === 0;
+
+  const handleAiAnalysis = async () => {
+    if (!importedData) return;
+    setAiLoading(true);
+    setAiAnalysis(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-inventory-analysis", {
+        body: { stocktakeData: importedData, inventoryItems: items },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: data.error, variant: "destructive" });
+      } else {
+        setAiAnalysis(data);
+      }
+    } catch (err: any) {
+      toast({ title: isZh ? "AI分析失败" : "AI analysis failed", description: err.message, variant: "destructive" });
+    }
+    setAiLoading(false);
+  };
 
   // Confirm stocktake: update system stock to physical, create finance transaction
   const confirmStocktake = useMutation({
@@ -307,6 +330,7 @@ const MonthEndStocktake = () => {
 
       {/* Comparison Results */}
       {importedData && (
+        <>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl overflow-hidden">
           <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
             <h4 className="text-sm font-medium flex items-center gap-2">
@@ -371,10 +395,14 @@ const MonthEndStocktake = () => {
             </table>
           </div>
           <div className="p-4 border-t border-border flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={() => setImportedData(null)}>
+            <Button variant="outline" size="sm" onClick={() => { setImportedData(null); setAiAnalysis(null); }}>
               {isZh ? "取消" : "Cancel"}
             </Button>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleAiAnalysis} disabled={aiLoading} className="gap-1">
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                {isZh ? "AI智能分析" : "AI Analysis"}
+              </Button>
               {overToleranceCount > 0 && (
                 <p className="text-xs text-destructive self-center mr-2">
                   {isZh ? `${overToleranceCount}项超过±5%容差，请复核后再确认` : `${overToleranceCount} items over ±5%, please recheck`}
@@ -391,6 +419,118 @@ const MonthEndStocktake = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* AI Analysis Results */}
+        {aiAnalysis && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Brain className="w-4 h-4 text-primary" />
+                {isZh ? "AI 智能差异分析报告" : "AI Variance Analysis Report"}
+              </h4>
+            </div>
+
+            {/* Overall Summary */}
+            {aiAnalysis.overall_summary && (
+              <div className="p-4 border-b border-border">
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    aiAnalysis.overall_summary.risk_level === "high" ? "bg-destructive/10" :
+                    aiAnalysis.overall_summary.risk_level === "medium" ? "bg-amber-500/10" : "bg-success/10"
+                  }`}>
+                    <ShieldAlert className={`w-5 h-5 ${
+                      aiAnalysis.overall_summary.risk_level === "high" ? "text-destructive" :
+                      aiAnalysis.overall_summary.risk_level === "medium" ? "text-amber-500" : "text-success"
+                    }`} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant={aiAnalysis.overall_summary.risk_level === "high" ? "destructive" : "secondary"} className="text-[10px]">
+                        {isZh ? (aiAnalysis.overall_summary.risk_level === "high" ? "高风险" : aiAnalysis.overall_summary.risk_level === "medium" ? "中风险" : "低风险") : aiAnalysis.overall_summary.risk_level}
+                      </Badge>
+                      {aiAnalysis.overall_summary.total_loss_value_estimate > 0 && (
+                        <span className="text-xs text-destructive font-medium">
+                          {isZh ? "预估损失" : "Est. loss"}: ¥{aiAnalysis.overall_summary.total_loss_value_estimate?.toFixed(0)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{isZh ? aiAnalysis.overall_summary.summary_zh : (aiAnalysis.overall_summary.summary_en || aiAnalysis.overall_summary.summary_zh)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Item Analyses */}
+            {aiAnalysis.item_analyses?.length > 0 && (
+              <div className="p-4 border-b border-border">
+                <h5 className="text-xs font-semibold mb-3 flex items-center gap-1.5">
+                  <TrendingDown className="w-3.5 h-3.5 text-destructive" />
+                  {isZh ? "逐项差异原因分析" : "Item-by-Item Analysis"}
+                </h5>
+                <div className="space-y-2">
+                  {aiAnalysis.item_analyses.filter((a: any) => a.variance_direction !== "match").slice(0, 10).map((item: any, i: number) => (
+                    <div key={i} className={`flex items-start gap-2 p-2 rounded-lg text-xs ${
+                      item.risk_level === "high" ? "bg-destructive/5" : "bg-muted/30"
+                    }`}>
+                      <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                        item.risk_level === "high" ? "bg-destructive" : item.risk_level === "medium" ? "bg-amber-500" : "bg-muted-foreground"
+                      }`} />
+                      <div>
+                        <span className="font-medium">{item.item_name}</span>
+                        <span className="text-muted-foreground ml-1">— {item.likely_cause}</span>
+                        {item.recommendation && (
+                          <p className="text-muted-foreground/70 mt-0.5">💡 {item.recommendation}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pattern Insights */}
+            {aiAnalysis.pattern_insights?.length > 0 && (
+              <div className="p-4 border-b border-border">
+                <h5 className="text-xs font-semibold mb-3 flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                  {isZh ? "差异模式洞察" : "Pattern Insights"}
+                </h5>
+                <div className="space-y-2">
+                  {aiAnalysis.pattern_insights.map((p: any, i: number) => (
+                    <div key={i} className="p-2 bg-amber-500/5 rounded-lg text-xs">
+                      <p className="font-medium">{p.pattern}</p>
+                      <p className="text-muted-foreground mt-0.5">→ {p.suggestion}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Improvement Actions */}
+            {aiAnalysis.improvement_actions?.length > 0 && (
+              <div className="p-4">
+                <h5 className="text-xs font-semibold mb-3 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-primary" />
+                  {isZh ? "改进建议" : "Improvement Actions"}
+                </h5>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {aiAnalysis.improvement_actions.map((a: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg text-xs">
+                      <Badge variant="outline" className={`text-[9px] shrink-0 ${
+                        a.priority === "high" ? "border-destructive/30 text-destructive" :
+                        a.priority === "medium" ? "border-amber-500/30 text-amber-500" : "border-muted"
+                      }`}>
+                        {a.priority === "high" ? "🔴" : a.priority === "medium" ? "🟡" : "🟢"} {a.category}
+                      </Badge>
+                      <span>{a.action}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+        </>
       )}
 
       {/* Confirm Dialog */}
