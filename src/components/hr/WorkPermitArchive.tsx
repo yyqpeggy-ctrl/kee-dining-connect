@@ -242,6 +242,71 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
   const [policyTab, setPolicyTab] = useState("all");
   const [savedPolicies, setSavedPolicies] = useState<CityPolicy[]>([]);
   const [policyAlerts, setPolicyAlerts] = useState<{ city: string; count: number }[]>([]);
+  const [dbAlerts, setDbAlerts] = useState<any[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [manualCheckLoading, setManualCheckLoading] = useState(false);
+
+  // Load unread alerts from database
+  const loadAlerts = async () => {
+    setAlertsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("work_permit_policy_alerts")
+        .select("*")
+        .eq("is_read", false)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (!error && data) {
+        setDbAlerts(data);
+        // Group by city for badge count
+        const cityMap: Record<string, number> = {};
+        data.forEach((a: any) => {
+          cityMap[a.city] = (cityMap[a.city] || 0) + 1;
+        });
+        setPolicyAlerts(Object.entries(cityMap).map(([city, count]) => ({ city, count })));
+      }
+    } catch (err) {
+      console.error("Failed to load alerts:", err);
+    } finally {
+      setAlertsLoading(false);
+    }
+  };
+
+  // Mark alert as read
+  const handleDismissAlert = async (alertId: string) => {
+    await supabase.from("work_permit_policy_alerts").update({ is_read: true }).eq("id", alertId);
+    setDbAlerts(prev => prev.filter(a => a.id !== alertId));
+    setPolicyAlerts(prev => {
+      const updated = [...prev];
+      // Recalculate
+      const remaining = dbAlerts.filter(a => a.id !== alertId);
+      const cityMap: Record<string, number> = {};
+      remaining.forEach(a => { cityMap[a.city] = (cityMap[a.city] || 0) + 1; });
+      return Object.entries(cityMap).map(([city, count]) => ({ city, count }));
+    });
+  };
+
+  // Manual trigger policy check
+  const handleManualPolicyCheck = async () => {
+    setManualCheckLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-policy-updates", {
+        body: { cities: [{ city: selectedCity, province: CITY_LIST.find(c => c.city === selectedCity)?.province || "", en: CITY_LIST.find(c => c.city === selectedCity)?.en || "" }] },
+      });
+      if (error) throw error;
+      toast.success(isZh 
+        ? `${selectedCity}政策检查完成${data?.results?.[0]?.has_changes ? `，发现${data.results[0].change_count}条变更` : "，暂无新变更"}`
+        : `Policy check for ${selectedCity} complete${data?.results?.[0]?.has_changes ? `, found ${data.results[0].change_count} changes` : ", no new changes"}`
+      );
+      await loadAlerts();
+    } catch (err: any) {
+      toast.error(isZh ? `检查失败: ${err.message}` : `Check failed: ${err.message}`);
+    } finally {
+      setManualCheckLoading(false);
+    }
+  };
+
+  useEffect(() => { loadAlerts(); }, []);
 
   // Search policies for a city
   const handleSearchPolicies = async (city?: string) => {
@@ -471,6 +536,10 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
               ))}
             </SelectContent>
           </Select>
+          <Button size="sm" variant="outline" onClick={handleManualPolicyCheck} disabled={manualCheckLoading}>
+            {manualCheckLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+            {isZh ? "检查变更" : "Check Updates"}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setPolicyDialogOpen(true)}>
             <Globe className="w-3.5 h-3.5 mr-1" />{isZh ? "政策法规同步" : "Policy Sync"}
             {policyAlerts.length > 0 && (
@@ -484,6 +553,48 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
           </Button>
         </div>
       </div>
+
+      {/* Policy Change Alerts */}
+      {dbAlerts.length > 0 && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardHeader className="pb-2 pt-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BellRing className="w-4 h-4 text-destructive" />
+                <CardTitle className="text-sm">{isZh ? "政策变更提醒" : "Policy Change Alerts"}</CardTitle>
+                <Badge variant="destructive" className="text-[10px]">{dbAlerts.length} {isZh ? "条未读" : "unread"}</Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "每周一 9:00 自动检查" : "Auto-check every Monday 9:00 AM"}</p>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ScrollArea className="max-h-[200px]">
+              <div className="space-y-2">
+                {dbAlerts.map((alert: any) => (
+                  <div key={alert.id} className="flex items-start justify-between p-2 rounded-md bg-background border">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Badge variant="outline" className="text-[9px]">{alert.city}</Badge>
+                        <Badge className={`text-[9px] ${alert.alert_type === "urgent_change" ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}`}>
+                          {alert.alert_type === "urgent_change" ? (isZh ? "紧急变更" : "Urgent") : (isZh ? "新政策" : "New Policy")}
+                        </Badge>
+                        <span className="text-[9px] text-muted-foreground">{new Date(alert.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-xs font-medium truncate">{alert.title}</p>
+                      {alert.description && <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{alert.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 ml-2 shrink-0">
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleDismissAlert(alert.id)}>
+                        <CheckCircle className="w-3.5 h-3.5 text-success" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Application Timeline */}
       {applications.map((app, idx) => (
