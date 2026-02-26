@@ -529,6 +529,37 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: "fp-22", nodeType: "auto", label: "全量档案归档", order: 21, config: { description: "将本次申请/续签的全部材料（申请表、证照扫描件、审批记录、税收优惠备案、合规备忘）自动归档至数据中心，建立版本链与时间线" } },
     ],
   },
+
+  // ===== 库存月末盘点流程 (Cambridge Accounting) =====
+  {
+    id: "wf-inventory-stocktake",
+    nameZh: "★ 库存月末盘点与成本结转",
+    nameEn: "★ Month-End Stocktake & Cost Posting",
+    descZh: "基于Cambridge会计准则的库存管理：采购入库→订单耗用→月末盘点→Excel导入对比→差异确认→成本入账",
+    descEn: "Cambridge accounting inventory: Purchase→Usage→Stocktake→Excel import comparison→Variance confirm→Cost posting",
+    category: "supply_chain",
+    status: "active",
+    linkedModules: [MODULE.inventory, MODULE.finance, MODULE.procurement, MODULE.menu, MODULE.orders],
+    pending: 2,
+    completed: 15,
+    nodes: [
+      { id: "st-1", nodeType: "auto", label: "月初/月末触发", order: 0, config: { description: "每月1日自动触发上月盘点流程" } },
+      { id: "st-2", nodeType: "auto", label: "采购入库记账", order: 1, config: { description: "采购订单确认收货 → 借:库存商品(Inventory Purchase A/C) / 贷:应付账款/银行存款(AP/Bank)\n按Cambridge标准：购买后直接进入库存购买账户" } },
+      { id: "st-3", nodeType: "auto", label: "订单耗用自动扣减", order: 2, config: { description: "订单完成时根据菜单配方自动扣减对应库存 → 借:营业成本(COGS) / 贷:库存商品(Inventory)\n酒水/蔬菜水果肉/调味品分类扣减" } },
+      { id: "st-4", nodeType: "auto", label: "生成系统期末库存表", order: 3, config: { description: "汇总当月各品类（酒水、蔬菜水果肉、调味品等）库存余额，生成系统期末库存报表" } },
+      { id: "st-5", nodeType: "auto", label: "导出盘点模板Excel", order: 4, config: { description: "导出含物料名称、类别、系统数量、单位的Excel模板，供门店人员打印后实地盘点使用" } },
+      { id: "st-6", nodeType: "approval", label: "门店实地盘点", order: 5, config: { assignee: "store_manager", description: "门店人员根据模板逐项清点实际库存（酒水按瓶、蔬菜水果肉按重量、调味品按瓶/包），填写实际数量" } },
+      { id: "st-7", nodeType: "auto", label: "导入盘点Excel", order: 6, config: { description: "上传填写好的实际盘点Excel，系统自动解析物料名称匹配和实际数量" } },
+      { id: "st-8", nodeType: "auto", label: "系统vs实盘自动对比", order: 7, config: { description: "逐项比对系统库存与实际盘点数量，计算差异值和差异率(%)" } },
+      { id: "st-9", nodeType: "condition", label: "全部差异≤±5%?", order: 8, config: { description: "判断所有品项差异率是否在±5%容差范围内；全部通过则可直接确认" } },
+      { id: "st-10", nodeType: "approval", label: "主管复核超差项", order: 9, config: { assignee: "department_head", description: "超过±5%容差的品项需主管复核确认原因（正常损耗/计量误差/异常损失），并决定是否调整" } },
+      { id: "st-11", nodeType: "approval", label: "财务确认入账", order: 10, config: { assignee: "finance", description: "财务审核盘点结果和差异原因，批准库存调整和成本结转入账" } },
+      { id: "st-12", nodeType: "auto", label: "更新系统库存至实盘数", order: 11, config: { description: "将系统库存数量更新为实际盘点数量，确保账实相符" } },
+      { id: "st-13", nodeType: "auto", label: "生成库存调整凭证", order: 12, config: { description: "盘亏: 借:库存盘亏损失(Inventory Loss) / 贷:库存商品(Inventory)\n盘盈: 借:库存商品(Inventory) / 贷:库存盘盈收益(Inventory Gain)" } },
+      { id: "st-14", nodeType: "auto", label: "月末成本结转", order: 13, config: { description: "结转当月营业成本 COGS = 期初库存 + 本月采购 - 期末库存(实盘)\n自动生成成本结转会计凭证" } },
+      { id: "st-15", nodeType: "notification", label: "盘点报告通知", order: 14, config: { description: "生成月度盘点报告（含差异分析、成本率、各品类汇总），发送给管理层和财务部门" } },
+    ],
+  },
 ];
 
 export const WORKFLOW_CATEGORIES = {
