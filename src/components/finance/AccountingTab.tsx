@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, FileText, Download } from "lucide-react";
+import { Plus, Search, Filter, FileText, Download, Upload, PackageCheck, FileSpreadsheet, Receipt } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { exportVouchersForYiqi, exportTrialBalance } from "./yiqiExport";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import {
+  exportVouchersForYiqi,
+  exportTrialBalance,
+  exportInputInvoices,
+  exportOutputInvoices,
+  exportAllForYiqi,
+} from "./yiqiExport";
 
 // Common account subjects for the restaurant business
 const accountSubjects = [
@@ -49,11 +57,24 @@ const AccountingTab = () => {
 
   const [localEntries, setLocalEntries] = useState<JournalEntry[]>([]);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showExportHub, setShowExportHub] = useState(false);
   const [newEntry, setNewEntry] = useState({
     accountKey: "",
     debit: "",
     credit: "",
     desc: "",
+  });
+
+  // Fetch invoices from DB for export
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["invoices-for-export", selectedStore],
+    queryFn: async () => {
+      let query = supabase.from("invoices").select("*").order("created_at", { ascending: false }).limit(500);
+      if (selectedStore !== "all") query = query.eq("store_id", selectedStore);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
   });
 
   const allEntries = useMemo(() => [...journalEntries, ...localEntries], [localEntries]);
@@ -120,11 +141,8 @@ const AccountingTab = () => {
           <Button variant="outline" size="sm" className="gap-2"><Filter className="w-4 h-4" />{t("common.filter")}</Button>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => { exportVouchersForYiqi(filteredEntries, isZh); toast.success(isZh ? "亿企代账格式凭证已导出" : "Yiqi format vouchers exported"); }}>
-            <Download className="w-4 h-4" />{isZh ? "导出亿企代账" : "Export Yiqi"}
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => { exportTrialBalance(storeAccounts, isZh); toast.success(isZh ? "科目余额表已导出" : "Trial balance exported"); }}>
-            <Download className="w-4 h-4" />{isZh ? "科目余额表" : "Trial Balance"}
+          <Button variant="default" size="sm" className="gap-2" onClick={() => setShowExportHub(true)}>
+            <PackageCheck className="w-4 h-4" />{isZh ? "亿企代账导出中心" : "YiQi Export Hub"}
           </Button>
           <Button variant="outline" size="sm" className="gap-2"><FileText className="w-4 h-4" />{t("financeMgmt.importVoucher")}</Button>
           <Button size="sm" className="gap-2" onClick={() => setShowNewDialog(true)}><Plus className="w-4 h-4" />{t("financeMgmt.newVoucher")}</Button>
@@ -303,6 +321,143 @@ const AccountingTab = () => {
             <Button variant="outline" onClick={() => setShowNewDialog(false)}>{isZh ? "取消" : "Cancel"}</Button>
             <Button onClick={handleCreateEntry}>{isZh ? "创建凭证" : "Create Entry"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 亿企代账导出中心 */}
+      <Dialog open={showExportHub} onOpenChange={setShowExportHub}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="w-5 h-5 text-primary" />
+              {isZh ? "亿企代账导出中心" : "YiQi DaiZhang Export Hub"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 mb-2">
+            {isZh
+              ? `📦 当前门店: ${isHQ ? "全部门店汇总" : storeName(true)}。导出的Excel文件可直接导入亿企代账、用友T+、金蝶KIS等主流财务软件。`
+              : `📦 Store: ${isHQ ? "All stores" : storeName(false)}. Exported Excel files are compatible with YiQi DaiZhang, Yonyou T+, Kingdee KIS.`}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* 一键全量导出 */}
+            <motion.div
+              initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+              className="col-span-2 border-2 border-primary/30 bg-primary/5 rounded-xl p-4 cursor-pointer hover:bg-primary/10 transition-colors"
+              onClick={() => {
+                const result = exportAllForYiqi(filteredEntries, invoices, storeAccounts, storeName(isZh));
+                toast.success(isZh
+                  ? `✅ 全量导入包已生成！凭证${result.voucherCount}条 · 进项${result.inputInvoiceCount}张 · 销项${result.outputInvoiceCount}张 · 科目${result.accountCount}个`
+                  : `✅ Full export: ${result.voucherCount} vouchers · ${result.inputInvoiceCount} input · ${result.outputInvoiceCount} output · ${result.accountCount} accounts`);
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <PackageCheck className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold">{isZh ? "⚡ 一键全量导出" : "⚡ One-Click Full Export"}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isZh ? "包含凭证、进项发票、销项发票、科目余额表、科目表、导入说明" : "Includes vouchers, invoices, trial balance, COA, and instructions"}
+                  </p>
+                </div>
+                <Badge variant="default" className="text-xs">{isZh ? "推荐" : "Recommended"}</Badge>
+              </div>
+            </motion.div>
+
+            {/* 凭证导出 */}
+            <motion.div
+              initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+              className="border border-border rounded-xl p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              onClick={() => {
+                const result = exportVouchersForYiqi(filteredEntries, isZh);
+                toast.success(isZh ? `凭证已导出 (${result.count}条)` : `Vouchers exported (${result.count})`);
+              }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{isZh ? "会计凭证" : "Vouchers"}</p>
+                  <p className="text-xs text-muted-foreground">{filteredEntries.length} {isZh ? "条" : "entries"}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "含科目编码映射，可直接导入亿企代账「凭证导入」" : "With subject codes, importable to YiQi"}</p>
+            </motion.div>
+
+            {/* 进项发票 */}
+            <motion.div
+              initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+              className="border border-border rounded-xl p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              onClick={() => {
+                const result = exportInputInvoices(invoices);
+                toast.success(isZh ? `进项发票已导出 (${result.count}张)` : `Input invoices exported (${result.count})`);
+              }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                  <Download className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{isZh ? "进项发票" : "Input Invoices"}</p>
+                  <p className="text-xs text-muted-foreground">{invoices.filter((i: any) => i.type === "input").length} {isZh ? "张" : "invoices"}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "含认证状态，可导入亿企代账「进项发票」模块" : "With verification status"}</p>
+            </motion.div>
+
+            {/* 销项发票 */}
+            <motion.div
+              initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="border border-border rounded-xl p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              onClick={() => {
+                const result = exportOutputInvoices(invoices);
+                toast.success(isZh ? `销项发票已导出 (${result.count}张)` : `Output invoices exported (${result.count})`);
+              }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                  <Upload className="w-4 h-4 text-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{isZh ? "销项发票" : "Output Invoices"}</p>
+                  <p className="text-xs text-muted-foreground">{invoices.filter((i: any) => i.type === "output").length} {isZh ? "张" : "invoices"}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "含收款状态，可导入亿企代账「销项发票」模块" : "With collection status"}</p>
+            </motion.div>
+
+            {/* 科目余额表 */}
+            <motion.div
+              initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+              className="border border-border rounded-xl p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              onClick={() => {
+                const result = exportTrialBalance(storeAccounts, isZh);
+                toast.success(isZh ? `科目余额表已导出 (${result.count}个科目)` : `Trial balance exported (${result.count} accounts)`);
+              }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                  <FileSpreadsheet className="w-4 h-4 text-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{isZh ? "科目余额表" : "Trial Balance"}</p>
+                  <p className="text-xs text-muted-foreground">{storeAccounts.length} {isZh ? "个科目" : "accounts"}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "期初/期末余额，可用于亿企代账「期初余额」录入" : "Opening/closing balances"}</p>
+            </motion.div>
+          </div>
+
+          <div className="border-t border-border pt-3 mt-1">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {isZh
+                ? "💡 提示：推荐使用「一键全量导出」，生成的Excel包含6个Sheet（凭证、进项发票、销项发票、科目余额表、科目表、导入说明），按说明分别导入亿企代账各模块即可。兼容用友T+、金蝶KIS、畅捷通等。"
+                : "💡 Tip: Use 'One-Click Full Export' for a complete Excel with 6 sheets. Follow the included instructions to import into YiQi DaiZhang modules. Compatible with Yonyou T+, Kingdee KIS, etc."}
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
