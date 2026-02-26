@@ -15,8 +15,9 @@ import {
   Database, Download, Upload, FileSpreadsheet, FileText, FileJson, File,
   Search, Plus, Trash2, Copy, Eye, Clock, CheckCircle2, AlertCircle,
   FolderOpen, BookOpen, LayoutTemplate, ArrowDownToLine, ArrowUpFromLine,
-  History, UploadCloud, Pencil, X as XIcon
+  History, UploadCloud, Pencil, X as XIcon, MessageSquare
 } from "lucide-react";
+import WechatExtractCenter from "@/components/wechat/WechatExtractCenter";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -907,6 +908,7 @@ const DataCenter = () => {
             <TabsTrigger value="export" className="gap-1.5"><Download className="w-3.5 h-3.5" />{isZh ? "数据导出" : "Export"}</TabsTrigger>
             <TabsTrigger value="history" className="gap-1.5"><Clock className="w-3.5 h-3.5" />{isZh ? "操作记录" : "History"}</TabsTrigger>
             <TabsTrigger value="knowledge" className="gap-1.5"><BookOpen className="w-3.5 h-3.5" />{isZh ? "知识库" : "Knowledge"}</TabsTrigger>
+            <TabsTrigger value="wechat" className="gap-1.5"><MessageSquare className="w-3.5 h-3.5" />{isZh ? "微信提取" : "WeChat Extract"}</TabsTrigger>
           </TabsList>
 
           {/* ===== Templates Tab ===== */}
@@ -1198,6 +1200,11 @@ const DataCenter = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ===== WeChat Extract Tab ===== */}
+          <TabsContent value="wechat">
+            <WechatExtractCenter />
           </TabsContent>
         </Tabs>
 
