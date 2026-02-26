@@ -1,5 +1,8 @@
 project_id = "zvbtgpxcdzsztatpmgzv"
 
+[functions.ocr-invoice]
+verify_jwt = false
+
 [functions.ocr-receipt]
 verify_jwt = false
 

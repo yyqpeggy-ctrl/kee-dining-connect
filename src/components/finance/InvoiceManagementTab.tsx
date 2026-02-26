@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, Download, Upload, FileText, Receipt, Eye, Trash2, CheckCircle, XCircle, AlertTriangle, Scan } from "lucide-react";
+import { Plus, Search, Filter, Download, Upload, FileText, Receipt, Eye, Trash2, CheckCircle, XCircle, AlertTriangle, Scan, Camera, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/contexts/StoreContext";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -50,6 +51,74 @@ const InvoiceManagementTab = () => {
     issue_date: new Date().toISOString().split("T")[0],
     notes: "",
   });
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrPreviewUrl, setOcrPreviewUrl] = useState<string | null>(null);
+  const ocrFileRef = useRef<HTMLInputElement>(null);
+
+  const handleOcrUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(isZh ? "文件不能超过10MB" : "File must be under 10MB");
+      return;
+    }
+
+    setOcrLoading(true);
+    setOcrPreviewUrl(URL.createObjectURL(file));
+
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpeg";
+      const { data, error } = await supabase.functions.invoke("ocr-invoice", {
+        body: { image_base64: base64, file_type: fileExt },
+      });
+
+      if (error) throw error;
+
+      const ocr = data?.ocr;
+      if (!ocr || ocr.parse_error) {
+        toast.error(isZh ? "OCR识别失败，请手动录入" : "OCR failed, please enter manually");
+        return;
+      }
+
+      // Auto-fill form from OCR
+      setNewInvoice(prev => ({
+        ...prev,
+        type: ocr.type || prev.type,
+        invoice_type: ocr.invoice_type || prev.invoice_type,
+        invoice_number: ocr.invoice_number || prev.invoice_number,
+        invoice_code: ocr.invoice_code || prev.invoice_code,
+        amount: ocr.amount != null ? String(ocr.amount) : prev.amount,
+        tax_rate: ocr.tax_rate != null ? String(ocr.tax_rate) : prev.tax_rate,
+        buyer_name: ocr.buyer_name || prev.buyer_name,
+        buyer_tax_id: ocr.buyer_tax_id || prev.buyer_tax_id,
+        seller_name: ocr.seller_name || prev.seller_name,
+        seller_tax_id: ocr.seller_tax_id || prev.seller_tax_id,
+        issue_date: ocr.issue_date || prev.issue_date,
+        notes: ocr.notes || prev.notes,
+      }));
+
+      const confidence = ocr.confidence || 0;
+      toast.success(
+        isZh
+          ? `✅ AI识别完成，置信度 ${confidence}%，请核对信息`
+          : `✅ OCR complete, confidence ${confidence}%, please verify`
+      );
+    } catch (e: any) {
+      console.error("OCR error:", e);
+      toast.error(isZh ? "OCR识别出错: " + (e.message || "未知错误") : "OCR error: " + (e.message || "Unknown"));
+    } finally {
+      setOcrLoading(false);
+    }
+  };
 
   const { data: invoices = [] } = useQuery({
     queryKey: ["invoices", storeId],
@@ -226,7 +295,10 @@ const InvoiceManagementTab = () => {
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}><Download className="w-4 h-4" />{isZh ? "导出台账" : "Export"}</Button>
-        <Button size="sm" className="gap-2 ml-auto" onClick={() => setShowCreateDialog(true)}><Plus className="w-4 h-4" />{isZh ? "录入发票" : "New Invoice"}</Button>
+        <Button size="sm" variant="secondary" className="gap-2" onClick={() => { setShowCreateDialog(true); setTimeout(() => ocrFileRef.current?.click(), 300); }}>
+          <Scan className="w-4 h-4" />{isZh ? "OCR识别" : "OCR Scan"}
+        </Button>
+        <Button size="sm" className="gap-2 ml-auto" onClick={() => { setOcrPreviewUrl(null); setShowCreateDialog(true); }}><Plus className="w-4 h-4" />{isZh ? "录入发票" : "New Invoice"}</Button>
       </div>
 
       {/* Store context */}
@@ -299,6 +371,50 @@ const InvoiceManagementTab = () => {
           <DialogHeader>
             <DialogTitle>{isZh ? "录入发票" : "New Invoice"}</DialogTitle>
           </DialogHeader>
+
+          {/* OCR Upload Section */}
+          <div className="border-2 border-dashed border-primary/30 rounded-xl p-4 bg-primary/5 hover:bg-primary/10 transition-colors">
+            <input
+              ref={ocrFileRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handleOcrUpload(file);
+                e.target.value = "";
+              }}
+            />
+            {ocrLoading ? (
+              <div className="flex flex-col items-center gap-3 py-2">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-sm font-medium text-primary">{isZh ? "AI正在识别发票..." : "AI recognizing invoice..."}</p>
+                <Progress value={65} className="w-48 h-2" />
+              </div>
+            ) : (
+              <div
+                className="flex flex-col items-center gap-2 cursor-pointer py-1"
+                onClick={() => ocrFileRef.current?.click()}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{isZh ? "📸 拍照/上传发票，AI自动识别填充" : "📸 Upload invoice image for AI OCR"}</p>
+                    <p className="text-xs text-muted-foreground">{isZh ? "支持JPG、PNG、PDF格式，最大10MB" : "Supports JPG, PNG, PDF, max 10MB"}</p>
+                  </div>
+                </div>
+                {ocrPreviewUrl && (
+                  <div className="mt-2 relative">
+                    <img src={ocrPreviewUrl} alt="Invoice preview" className="max-h-24 rounded-lg border border-border/50 object-contain" />
+                    <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px]">{isZh ? "已识别" : "Scanned"}</Badge>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
