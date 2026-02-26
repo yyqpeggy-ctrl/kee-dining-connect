@@ -465,6 +465,56 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_notifications: {
+        Row: {
+          category: string
+          city: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          policy_id: string | null
+          priority: string
+          read_at: string | null
+          read_by: string | null
+          title: string
+        }
+        Insert: {
+          category?: string
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          policy_id?: string | null
+          priority?: string
+          read_at?: string | null
+          read_by?: string | null
+          title: string
+        }
+        Update: {
+          category?: string
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          policy_id?: string | null
+          priority?: string
+          read_at?: string | null
+          read_by?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_notifications_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "work_permit_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_deductions: {
         Row: {
           created_at: string

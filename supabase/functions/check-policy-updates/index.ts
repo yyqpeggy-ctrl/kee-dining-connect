@@ -131,6 +131,17 @@ ${existingTitles.slice(0, 20).map((t: string) => `- ${t}`).join("\n")}
               is_read: false,
             });
 
+            // Insert in-app notification for HR
+            await supabase.from("hr_notifications").insert({
+              title: change.importance === "high" 
+                ? `🚨 紧急政策变更 - ${cityInfo.city}` 
+                : `📋 新政策通知 - ${cityInfo.city}`,
+              message: `[${change.category}] ${change.title}: ${change.description}`,
+              category: "policy_change",
+              priority: change.importance || "medium",
+              city: cityInfo.city,
+            });
+
             // Also insert as pending_review policy for HR to confirm
             await supabase.from("work_permit_policies").insert({
               city: cityInfo.city,
