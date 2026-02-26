@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
-import { Store, FileText, Download, CheckCircle, Clock, AlertTriangle, Building2, TrendingUp } from "lucide-react";
+import { Store, FileText, Download, CheckCircle, Clock, AlertTriangle, Building2, TrendingUp, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { useTranslation } from "react-i18next";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import { toast } from "sonner";
+import {
+  exportVATDeclaration,
+  exportCITDeclaration,
+  exportSurchargeDeclaration,
+  exportIITDeclaration,
+  exportAllTaxReports,
+  type VATDeclarationData,
+  type CITDeclarationData,
+  type SurchargeData,
+  type IITEmployee,
+} from "./taxExport";
 
 // Per-store tax report mock data
 const storesTaxData: Record<string, {
@@ -160,9 +172,74 @@ const TaxReportsTab = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="gap-2 text-xs">
+          <Button variant="default" size="sm" className="gap-2 text-xs" onClick={() => {
+            const period = isZh ? "2026年2月" : "Feb 2026";
+            const mockEmployees: IITEmployee[] = Array.from({ length: data.iitReport.employees }, (_, i) => ({
+              name: `员工${i + 1}`,
+              idNumber: `310***${String(i + 1).padStart(4, "0")}`,
+              salary: Math.round(data.iitReport.totalSalary / data.iitReport.employees),
+              socialInsurance: Math.round(data.iitReport.totalSalary / data.iitReport.employees * 0.105),
+              housingFund: Math.round(data.iitReport.totalSalary / data.iitReport.employees * 0.07),
+              specialDeduction: 2000,
+              taxableIncome: Math.round(data.iitReport.totalTax / data.iitReport.employees / 0.03),
+              taxAmount: Math.round(data.iitReport.totalTax / data.iitReport.employees),
+            }));
+            const vatData: VATDeclarationData = {
+              storeNameZh: data.storeNameZh,
+              period,
+              outputTax: data.vatReport.outputTax,
+              inputTax: data.vatReport.inputTax,
+              payable: data.vatReport.payable,
+              outputInvoiceCount: data.invoiceSummary.outputCount,
+              inputInvoiceCount: data.invoiceSummary.inputCount,
+              outputAmount: data.invoiceSummary.outputAmount,
+              inputAmount: data.invoiceSummary.inputAmount,
+              taxRate: 0.06,
+              lastPeriodCredit: 0,
+            };
+            const citData: CITDeclarationData = {
+              storeNameZh: data.storeNameZh,
+              period,
+              revenue: data.invoiceSummary.outputAmount,
+              cost: data.invoiceSummary.inputAmount,
+              totalProfit: data.citReport.taxableIncome,
+              taxableIncome: data.citReport.taxableIncome,
+              taxRate: data.citReport.taxRate,
+              taxDue: data.citReport.taxDue,
+              prepaid: data.citReport.prepaid,
+              balance: data.citReport.taxDue - data.citReport.prepaid,
+            };
+            const surData: SurchargeData = {
+              storeNameZh: data.storeNameZh,
+              period,
+              vatPayable: data.vatReport.payable,
+              cityMaintenanceRate: 0.07,
+              eduSurchargeRate: 0.03,
+              localEduRate: 0.02,
+              cityMaintenance: data.surcharges.cityMaintenance,
+              eduSurcharge: data.surcharges.eduSurcharge,
+              localEdu: data.surcharges.localEdu,
+              stampDuty: data.surcharges.stampDuty,
+            };
+            exportAllTaxReports(vatData, citData, surData, mockEmployees, data.storeNameZh, period);
+            toast.success(isZh ? `✅ ${data.storeNameZh}报税全量数据包已导出，可直接导入亿企代账` : `✅ Full tax export for ${data.storeNameEn} ready for YiQi import`);
+          }}>
+            <PackageCheck className="w-3 h-3" />
+            {isZh ? "⚡ 一键导出报税包" : "⚡ Export Tax Package"}
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => {
+            const period = isZh ? "2026年2月" : "Feb 2026";
+            exportVATDeclaration({
+              storeNameZh: data.storeNameZh, period,
+              outputTax: data.vatReport.outputTax, inputTax: data.vatReport.inputTax, payable: data.vatReport.payable,
+              outputInvoiceCount: data.invoiceSummary.outputCount, inputInvoiceCount: data.invoiceSummary.inputCount,
+              outputAmount: data.invoiceSummary.outputAmount, inputAmount: data.invoiceSummary.inputAmount,
+              taxRate: 0.06, lastPeriodCredit: 0,
+            });
+            toast.success(isZh ? "增值税申报表已导出" : "VAT declaration exported");
+          }}>
             <Download className="w-3 h-3" />
-            {isZh ? "导出报税报表" : "Export Tax Report"}
+            {isZh ? "增值税申报表" : "VAT Report"}
           </Button>
         </div>
       </div>
