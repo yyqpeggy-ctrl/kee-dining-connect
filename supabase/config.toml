@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.ai-workpermit-checklist]
 verify_jwt = false
+
+[functions.ai-policy-search]
+verify_jwt = false
+
+[functions.check-policy-updates]
+verify_jwt = false
