@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.auto-finance-cycle]
 verify_jwt = false
+
+[functions.ai-workpermit-checklist]
+verify_jwt = false
