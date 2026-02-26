@@ -476,6 +476,59 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: "pay-12", nodeType: "auto", label: "归档薪资记录", order: 11, config: { description: "薪资单、凭证、付款记录自动归档至数据中心" } },
     ],
   },
+
+  // ===== ★ 外籍员工工作许可与签证全流程 =====
+  {
+    id: "wf-foreign-employee-permit",
+    nameZh: "★ 外籍员工工作许可与签证管理",
+    nameEn: "★ Foreign Employee Work Permit & Visa",
+    descZh: "外籍员工初次工作许可/签证申请、续签全流程管理，材料自动归档与AI分析，含税收优惠政策与合规提醒",
+    descEn: "Foreign employee work permit/visa initial application & renewal lifecycle with auto document archiving, AI analysis, tax benefits & compliance",
+    category: "hr",
+    status: "active",
+    linkedModules: [MODULE.hr, MODULE.legal, MODULE.finance, MODULE.dataCenter],
+    pending: 2,
+    completed: 18,
+    nodes: [
+      // Phase 1: 初次申请 / 续签发起
+      { id: "fp-1", nodeType: "auto", label: "发起工作许可申请", order: 0, config: { description: "HR录入外籍员工基本信息（国籍、学历、工作经验），系统自动判断初次申请或续签，生成对应材料清单" } },
+      { id: "fp-2", nodeType: "auto", label: "AI生成材料清单", order: 1, config: { description: "根据员工国籍、岗位类别、历史申请记录，AI自动生成所需材料清单。续签时自动标注可复用材料（如学历认证）和需更新材料（如体检报告）" } },
+      { id: "fp-3", nodeType: "notification", label: "通知员工准备材料", order: 2, config: { description: "自动推送材料清单给员工，包含每项材料的详细说明、办理地点、预估时间和注意事项" } },
+
+      // Phase 2: 材料收集与归档
+      { id: "fp-4", nodeType: "review", label: "材料上传与OCR识别", order: 3, config: { assignee: "hr", description: "HR上传员工提交的材料（护照、学历认证、体检报告、无犯罪记录等），OCR自动识别关键信息并归档" } },
+      { id: "fp-5", nodeType: "auto", label: "AI材料完整性分析", order: 4, config: { description: "AI逐项核对材料清单，检查完整性、有效期、格式合规性。自动标注缺失材料和即将过期材料" } },
+      { id: "fp-6", nodeType: "condition", label: "材料是否齐全", order: 5, config: { description: "材料齐全且合规→进入审批；材料不全→返回补充，系统自动发送催办通知" } },
+
+      // Phase 3: 内部审批
+      { id: "fp-7", nodeType: "approval", label: "HR经理审核", order: 6, config: { assignee: "hr", description: "审核材料真实性、岗位匹配度、合同期限合理性" } },
+      { id: "fp-8", nodeType: "approval", label: "法务合规审核", order: 7, config: { assignee: "department_head", description: "审核劳动合同条款、外国人就业政策合规性、特殊工种资质要求" } },
+      { id: "fp-9", nodeType: "approval", label: "总经理审批", order: 8, config: { assignee: "gm", description: "最终审批，确认聘用外籍员工的必要性与合规性" } },
+
+      // Phase 4: 外部申请提交
+      { id: "fp-10", nodeType: "auto", label: "生成申请材料包", order: 9, config: { description: "自动汇总所有材料生成申请包（含材料目录、申请表预填），可导出PDF供专业人员审核" } },
+      { id: "fp-11", nodeType: "notification", label: "通知专业人员提交", order: 10, config: { description: "通知负责外事的专业人员（或委托代理机构），附材料包和AI分析报告，供其判断和提交" } },
+      { id: "fp-12", nodeType: "review", label: "跟踪审批进度", order: 11, config: { assignee: "hr", description: "HR跟踪政府部门审批进度，更新状态（受理→审核中→补正→批准/驳回）" } },
+
+      // Phase 5: 许可证与签证办理
+      { id: "fp-13", nodeType: "auto", label: "工作许可证归档", order: 12, config: { description: "工作许可证批准后，扫描归档许可证原件，记录许可证号、有效期、工作地点限制等关键信息" } },
+      { id: "fp-14", nodeType: "auto", label: "签证/居留许可办理", order: 13, config: { description: "工作许可证获批后，系统自动生成签证/居留许可申请所需材料清单，跟踪办理进度" } },
+      { id: "fp-15", nodeType: "auto", label: "签证信息归档", order: 14, config: { description: "签证/居留许可获批后，归档签证页扫描件，自动更新员工档案中的签证信息和到期日" } },
+
+      // Phase 6: 税收优惠与注意事项
+      { id: "fp-16", nodeType: "auto", label: "税收优惠政策匹配", order: 15, config: { description: "根据员工国籍与税收协定，自动匹配适用的税收优惠政策：①住房补贴免税 ②子女教育费免税 ③语言培训费免税 ④探亲费免税 ⑤搬迁费免税（2027年前过渡期政策）" } },
+      { id: "fp-17", nodeType: "notification", label: "税收优惠提醒", order: 16, config: { description: "通知财务部门该外籍员工适用的税收优惠项目，提醒保留相关票据（房租发票、学费收据等）用于个税申报" } },
+      { id: "fp-18", nodeType: "auto", label: "合规注意事项归档", order: 17, config: { description: "自动生成外籍员工管理注意事项备忘：①工作地点限制 ②兼职禁止规定 ③住宿登记义务 ④临时外出报备 ⑤合同变更需重新办理许可 ⑥社保缴纳要求" } },
+
+      // Phase 7: 续签提醒与自动化
+      { id: "fp-19", nodeType: "timer", label: "到期预警（90天）", order: 18, config: { timeoutHours: 2160, description: "工作许可/签证到期前90天自动预警，触发续签准备流程" } },
+      { id: "fp-20", nodeType: "auto", label: "AI续签材料预生成", order: 19, config: { description: "AI分析历史申请材料，自动生成续签所需清单：标注可复用材料、需更新材料、新增要求，并预填申请表" } },
+      { id: "fp-21", nodeType: "notification", label: "通知启动续签", order: 20, config: { description: "向HR和员工推送续签提醒，附AI生成的材料清单与时间规划建议（建议提前60天准备，30天前提交）" } },
+
+      // Phase 8: 全量归档
+      { id: "fp-22", nodeType: "auto", label: "全量档案归档", order: 21, config: { description: "将本次申请/续签的全部材料（申请表、证照扫描件、审批记录、税收优惠备案、合规备忘）自动归档至数据中心，建立版本链与时间线" } },
+    ],
+  },
 ];
 
 export const WORKFLOW_CATEGORIES = {
