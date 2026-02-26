@@ -88,7 +88,7 @@ serve(async (req) => {
 
 请确保信息准确、实用，基于你所知的最新政策。每个分类至少提供1-2条政策信息。`;
 
-      const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
