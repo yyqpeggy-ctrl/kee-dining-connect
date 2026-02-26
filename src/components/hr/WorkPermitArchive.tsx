@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   FileText, Upload, FolderArchive, History, Sparkles, ChevronDown, ChevronRight,
   Download, Eye, Clock, CheckCircle, AlertTriangle, Plus, RotateCcw, FileCheck, Zap,
-  Loader2, Shield, DollarSign, CalendarDays, FileEdit, UserCheck, Printer
+  Loader2, Shield, DollarSign, CalendarDays, FileEdit, UserCheck, Printer,
+  MapPin, Globe, RefreshCw, Bell, BellRing, BookOpen, Search, ExternalLink, Building2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -162,6 +164,59 @@ const SAMPLE_APPLICATIONS: WorkPermitApplication[] = [
   },
 ];
 
+// ===== Policy Types =====
+interface CityPolicy {
+  title: string;
+  content: string;
+  summary_zh: string;
+  summary_en: string;
+  category: string;
+  effective_date?: string;
+  tags: string[];
+  source_name: string;
+  importance: string;
+}
+
+interface CityOverview {
+  processing_days_initial: number;
+  processing_days_renewal: number;
+  special_advantages: string[];
+  key_contacts: string;
+  notes: string;
+}
+
+interface PolicySearchResult {
+  policies: CityPolicy[];
+  city_overview: CityOverview;
+  city: string;
+  province: string;
+  cityEn: string;
+  searchedAt: string;
+}
+
+const CITY_LIST = [
+  { city: "上海", province: "上海市", en: "Shanghai" },
+  { city: "北京", province: "北京市", en: "Beijing" },
+  { city: "广州", province: "广东省", en: "Guangzhou" },
+  { city: "深圳", province: "广东省", en: "Shenzhen" },
+  { city: "成都", province: "四川省", en: "Chengdu" },
+  { city: "杭州", province: "浙江省", en: "Hangzhou" },
+  { city: "武汉", province: "湖北省", en: "Wuhan" },
+  { city: "南京", province: "江苏省", en: "Nanjing" },
+  { city: "苏州", province: "江苏省", en: "Suzhou" },
+  { city: "重庆", province: "重庆市", en: "Chongqing" },
+  { city: "天津", province: "天津市", en: "Tianjin" },
+  { city: "西安", province: "陕西省", en: "Xi'an" },
+  { city: "长沙", province: "湖南省", en: "Changsha" },
+  { city: "青岛", province: "山东省", en: "Qingdao" },
+  { city: "郑州", province: "河南省", en: "Zhengzhou" },
+  { city: "大连", province: "辽宁省", en: "Dalian" },
+  { city: "宁波", province: "浙江省", en: "Ningbo" },
+  { city: "厦门", province: "福建省", en: "Xiamen" },
+  { city: "昆明", province: "云南省", en: "Kunming" },
+  { city: "合肥", province: "安徽省", en: "Hefei" },
+];
+
 const WorkPermitArchive = ({ employee, isZh }: Props) => {
   const [applications, setApplications] = useState<WorkPermitApplication[]>(SAMPLE_APPLICATIONS);
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
@@ -176,6 +231,59 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
   const [selectedTemplate, setSelectedTemplate] = useState<AIChecklistItem | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [templateEdits, setTemplateEdits] = useState<Record<string, string>>({});
+
+  // Policy sync state
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState("上海");
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policyResult, setPolicyResult] = useState<PolicySearchResult | null>(null);
+  const [policyTab, setPolicyTab] = useState("all");
+  const [savedPolicies, setSavedPolicies] = useState<CityPolicy[]>([]);
+  const [policyAlerts, setPolicyAlerts] = useState<{ city: string; count: number }[]>([]);
+
+  // Search policies for a city
+  const handleSearchPolicies = async (city?: string) => {
+    const targetCity = city || selectedCity;
+    setPolicyLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-policy-search", {
+        body: { city: targetCity, action: "search_policies" },
+      });
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      setPolicyResult(data as PolicySearchResult);
+      toast.success(isZh ? `已获取${targetCity}最新政策信息` : `Fetched latest policies for ${targetCity}`);
+    } catch (err: any) {
+      console.error("Policy search error:", err);
+      toast.error(isZh ? `政策搜索失败: ${err.message}` : `Policy search failed: ${err.message}`);
+    } finally {
+      setPolicyLoading(false);
+    }
+  };
+
+  const handleSavePolicy = (policy: CityPolicy) => {
+    setSavedPolicies(prev => [...prev, policy]);
+    toast.success(isZh ? "政策已确认入库" : "Policy confirmed and saved");
+  };
+
+  const getCategoryLabel = (cat: string) => {
+    const map: Record<string, { zh: string; en: string; color: string }> = {
+      work_permit: { zh: "工作许可", en: "Work Permit", color: "bg-primary/10 text-primary border-primary/20" },
+      visa: { zh: "签证居留", en: "Visa", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+      talent: { zh: "人才引进", en: "Talent", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+      tax: { zh: "税收优惠", en: "Tax Benefits", color: "bg-success/10 text-success border-success/20" },
+      compliance: { zh: "合规要求", en: "Compliance", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+      update: { zh: "最新变化", en: "Updates", color: "bg-destructive/10 text-destructive border-destructive/20" },
+    };
+    const m = map[cat] || { zh: cat, en: cat, color: "bg-muted text-muted-foreground" };
+    return <Badge className={`${m.color} text-[9px]`}>{isZh ? m.zh : m.en}</Badge>;
+  };
+
+  const getImportanceBadge = (imp: string) => {
+    if (imp === "high") return <Badge variant="destructive" className="text-[9px]">{isZh ? "重要" : "High"}</Badge>;
+    if (imp === "medium") return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px]">{isZh ? "一般" : "Medium"}</Badge>;
+    return <Badge variant="outline" className="text-[9px]">{isZh ? "参考" : "Low"}</Badge>;
+  };
 
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; labelEn: string; variant: string }> = {
@@ -309,10 +417,25 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
           <FolderArchive className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold">{isZh ? "工作许可档案" : "Work Permit Archive"}</h3>
           <Badge variant="secondary" className="text-[10px]">{applications.length} {isZh ? "次申请" : "applications"}</Badge>
+          {savedPolicies.length > 0 && (
+            <Badge className="bg-success/10 text-success border-success/20 text-[10px]">
+              {savedPolicies.length} {isZh ? "条政策" : "policies"}
+            </Badge>
+          )}
         </div>
-        <Button size="sm" onClick={handleInitiateApplication}>
-          <Sparkles className="w-3.5 h-3.5 mr-1" />{isZh ? "AI 智能发起申请" : "AI Smart Application"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setPolicyDialogOpen(true)}>
+            <Globe className="w-3.5 h-3.5 mr-1" />{isZh ? "政策法规同步" : "Policy Sync"}
+            {policyAlerts.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 h-4 w-4 p-0 text-[9px] flex items-center justify-center rounded-full">
+                {policyAlerts.reduce((s, a) => s + a.count, 0)}
+              </Badge>
+            )}
+          </Button>
+          <Button size="sm" onClick={handleInitiateApplication}>
+            <Sparkles className="w-3.5 h-3.5 mr-1" />{isZh ? "AI 智能发起申请" : "AI Smart Application"}
+          </Button>
+        </div>
       </div>
 
       {/* Application Timeline */}
@@ -840,6 +963,187 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
             <Button className="w-full" onClick={handleUpload}>
               <Upload className="w-3.5 h-3.5 mr-1" />{isZh ? "上传并归档" : "Upload & Archive"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Policy Sync Dialog ===== */}
+      <Dialog open={policyDialogOpen} onOpenChange={setPolicyDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary" />
+              {isZh ? "各城市工作许可政策法规同步" : "City Work Permit Policy Sync"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* City Selector & Search */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Select value={selectedCity} onValueChange={setSelectedCity}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CITY_LIST.map(c => (
+                      <SelectItem key={c.city} value={c.city}>
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="w-3 h-3" />
+                          {c.city} ({c.province}) — {c.en}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => handleSearchPolicies()} disabled={policyLoading}>
+                {policyLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Search className="w-4 h-4 mr-1" />}
+                {isZh ? "AI 搜索最新政策" : "AI Search Policies"}
+              </Button>
+            </div>
+
+            {/* Loading State */}
+            {policyLoading && (
+              <div className="flex flex-col items-center py-10">
+                <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
+                <p className="text-sm text-muted-foreground">{isZh ? `正在搜索${selectedCity}最新政策法规...` : `Searching ${selectedCity} policies...`}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "AI 分析工作许可、签证、税收、合规等政策" : "Analyzing work permit, visa, tax, compliance policies"}</p>
+              </div>
+            )}
+
+            {/* Results */}
+            {policyResult && !policyLoading && (
+              <div className="space-y-4">
+                {/* City Overview */}
+                {policyResult.city_overview && (
+                  <div className="bg-primary/5 border border-primary/10 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-bold">{policyResult.city} {isZh ? "政策概览" : "Policy Overview"}</span>
+                        <Badge variant="outline" className="text-[9px]">{policyResult.province}</Badge>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {isZh ? "更新于" : "Updated"}: {new Date(policyResult.searchedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                      <div className="bg-background rounded p-2 text-center">
+                        <p className="text-lg font-bold text-foreground">{policyResult.city_overview.processing_days_initial}</p>
+                        <p className="text-[9px] text-muted-foreground">{isZh ? "初次申请(工作日)" : "Initial (days)"}</p>
+                      </div>
+                      <div className="bg-background rounded p-2 text-center">
+                        <p className="text-lg font-bold text-foreground">{policyResult.city_overview.processing_days_renewal}</p>
+                        <p className="text-[9px] text-muted-foreground">{isZh ? "续签(工作日)" : "Renewal (days)"}</p>
+                      </div>
+                      <div className="bg-background rounded p-2 text-center col-span-2">
+                        <p className="text-[11px] text-muted-foreground">{policyResult.city_overview.key_contacts}</p>
+                        <p className="text-[9px] text-muted-foreground">{isZh ? "办理机构" : "Authority"}</p>
+                      </div>
+                    </div>
+                    {policyResult.city_overview.special_advantages?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {policyResult.city_overview.special_advantages.map((a, i) => (
+                          <Badge key={i} className="bg-success/10 text-success border-success/20 text-[9px]">{a}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    {policyResult.city_overview.notes && (
+                      <p className="text-[10px] text-muted-foreground">{policyResult.city_overview.notes}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Policy Filter Tabs */}
+                <Tabs value={policyTab} onValueChange={setPolicyTab}>
+                  <TabsList className="h-8 flex-wrap">
+                    <TabsTrigger value="all" className="text-[10px]">
+                      {isZh ? "全部" : "All"} ({policyResult.policies.length})
+                    </TabsTrigger>
+                    {["work_permit", "visa", "talent", "tax", "compliance", "update"].map(cat => {
+                      const count = policyResult.policies.filter(p => p.category === cat).length;
+                      if (count === 0) return null;
+                      const labels: Record<string, string> = { work_permit: isZh ? "工作许可" : "Permit", visa: isZh ? "签证" : "Visa", talent: isZh ? "人才" : "Talent", tax: isZh ? "税收" : "Tax", compliance: isZh ? "合规" : "Compliance", update: isZh ? "变更" : "Updates" };
+                      return <TabsTrigger key={cat} value={cat} className="text-[10px]">{labels[cat]} ({count})</TabsTrigger>;
+                    })}
+                  </TabsList>
+
+                  <TabsContent value={policyTab} className="mt-3">
+                    <ScrollArea className="h-[350px]">
+                      <div className="space-y-2.5 pr-2">
+                        {policyResult.policies
+                          .filter(p => policyTab === "all" || p.category === policyTab)
+                          .map((policy, i) => (
+                            <motion.div key={i} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                              <Card className="border">
+                                <CardContent className="p-3">
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        {getCategoryLabel(policy.category)}
+                                        {getImportanceBadge(policy.importance)}
+                                        {policy.effective_date && (
+                                          <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                                            <CalendarDays className="w-3 h-3" />{policy.effective_date}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-[11px] font-semibold">{policy.title}</p>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-[9px] shrink-0"
+                                      onClick={() => handleSavePolicy(policy)}
+                                    >
+                                      <CheckCircle className="w-3 h-3 mr-0.5" />
+                                      {isZh ? "确认入库" : "Save"}
+                                    </Button>
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground leading-relaxed">{policy.content}</p>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <div className="flex flex-wrap gap-1">
+                                      {policy.tags?.map((tag, ti) => (
+                                        <Badge key={ti} variant="outline" className="text-[8px] h-4">{tag}</Badge>
+                                      ))}
+                                    </div>
+                                    <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                                      <BookOpen className="w-3 h-3" />{policy.source_name}
+                                    </span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </motion.div>
+                          ))}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+
+                {/* Saved Policies Count */}
+                {savedPolicies.length > 0 && (
+                  <div className="bg-success/5 border border-success/10 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-success" />
+                      <span className="text-xs font-medium">{isZh ? `已确认入库 ${savedPolicies.length} 条政策` : `${savedPolicies.length} policies confirmed`}</span>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => toast.success(isZh ? "政策已导出" : "Policies exported")}>
+                      <Download className="w-3 h-3 mr-1" />{isZh ? "导出" : "Export"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!policyResult && !policyLoading && (
+              <div className="text-center py-12 border rounded-lg border-dashed">
+                <Globe className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">{isZh ? "选择城市后点击搜索，AI 将自动获取该城市最新外国人工作许可政策" : "Select a city and search to fetch latest policies via AI"}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "覆盖工作许可、签证、人才引进、税收优惠、合规要求等" : "Covers work permits, visas, talent policies, tax benefits, compliance"}</p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

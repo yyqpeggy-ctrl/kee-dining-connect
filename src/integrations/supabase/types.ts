@@ -1653,6 +1653,122 @@ export type Database = {
         }
         Relationships: []
       }
+      work_permit_policies: {
+        Row: {
+          ai_confidence: number | null
+          ai_search_query: string | null
+          category: string
+          city: string
+          created_at: string
+          district: string | null
+          effective_date: string | null
+          expiry_date: string | null
+          id: string
+          last_verified_at: string | null
+          policy_content: string
+          policy_summary_en: string | null
+          policy_summary_zh: string | null
+          policy_title: string
+          province: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_name: string | null
+          source_url: string | null
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_search_query?: string | null
+          category?: string
+          city: string
+          created_at?: string
+          district?: string | null
+          effective_date?: string | null
+          expiry_date?: string | null
+          id?: string
+          last_verified_at?: string | null
+          policy_content?: string
+          policy_summary_en?: string | null
+          policy_summary_zh?: string | null
+          policy_title: string
+          province?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_search_query?: string | null
+          category?: string
+          city?: string
+          created_at?: string
+          district?: string | null
+          effective_date?: string | null
+          expiry_date?: string | null
+          id?: string
+          last_verified_at?: string | null
+          policy_content?: string
+          policy_summary_en?: string | null
+          policy_summary_zh?: string | null
+          policy_title?: string
+          province?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      work_permit_policy_alerts: {
+        Row: {
+          alert_type: string
+          city: string
+          created_at: string
+          description: string | null
+          id: string
+          is_read: boolean
+          policy_id: string | null
+          title: string
+        }
+        Insert: {
+          alert_type?: string
+          city: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_read?: boolean
+          policy_id?: string | null
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          city?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_read?: boolean
+          policy_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_permit_policy_alerts_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "work_permit_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
