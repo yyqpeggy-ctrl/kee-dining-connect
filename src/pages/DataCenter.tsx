@@ -15,7 +15,7 @@ import {
   Database, Download, Upload, FileSpreadsheet, FileText, FileJson, File,
   Search, Plus, Trash2, Copy, Eye, Clock, CheckCircle2, AlertCircle,
   FolderOpen, BookOpen, LayoutTemplate, ArrowDownToLine, ArrowUpFromLine,
-  History, UploadCloud
+  History, UploadCloud, Pencil, X as XIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
@@ -62,7 +62,7 @@ interface KnowledgeDoc {
 }
 
 // ===== Template Definitions =====
-const dataTemplates: DataTemplate[] = [
+const defaultTemplates: DataTemplate[] = [
   {
     id: "inventory-items",
     name_zh: "库存物料",
@@ -200,6 +200,20 @@ const dataTemplates: DataTemplate[] = [
   },
 ];
 
+const emptyTemplateForm = (): DataTemplate => ({
+  id: `custom-${Date.now()}`,
+  name_zh: "",
+  name_en: "",
+  description_zh: "",
+  description_en: "",
+  module: "inventory",
+  type: "both",
+  format: ["xlsx", "csv"],
+  fields: [],
+});
+
+const emptyField = () => ({ key: "", label_zh: "", label_en: "", required: false, type: "text" });
+
 const knowledgeCategories = ["SOP", "Recipe", "Training", "Procurement", "Compliance", "Marketing", "General"];
 
 const importHistory: ImportRecord[] = [
@@ -258,6 +272,93 @@ const DataCenter = () => {
   const [newVersionNote, setNewVersionNote] = useState("");
   const [newVersionTargetDoc, setNewVersionTargetDoc] = useState<KnowledgeDoc | null>(null);
   const [isUploadingVersion, setIsUploadingVersion] = useState(false);
+
+  // Template CRUD state
+  const [customTemplates, setCustomTemplates] = useState<DataTemplate[]>([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<DataTemplate | null>(null);
+  const [templateForm, setTemplateForm] = useState<DataTemplate>(emptyTemplateForm());
+
+  const dataTemplates = [...defaultTemplates, ...customTemplates];
+
+  const openCreateTemplate = () => {
+    setEditingTemplate(null);
+    setTemplateForm(emptyTemplateForm());
+    setTemplateDialogOpen(true);
+  };
+
+  const openEditTemplate = (t: DataTemplate) => {
+    setEditingTemplate(t);
+    setTemplateForm({ ...t, fields: t.fields.map(f => ({ ...f })) });
+    setTemplateDialogOpen(true);
+  };
+
+  const handleSaveTemplate = () => {
+    if (!templateForm.name_zh.trim() && !templateForm.name_en.trim()) {
+      toast.error(isZh ? "请输入模板名称" : "Please enter template name");
+      return;
+    }
+    if (templateForm.fields.length === 0) {
+      toast.error(isZh ? "请至少添加一个字段" : "Please add at least one field");
+      return;
+    }
+    // Validate fields have keys
+    const invalidField = templateForm.fields.find(f => !f.key.trim());
+    if (invalidField) {
+      toast.error(isZh ? "所有字段必须填写字段Key" : "All fields must have a key");
+      return;
+    }
+
+    if (editingTemplate) {
+      // Update existing
+      const isDefault = defaultTemplates.some(d => d.id === editingTemplate.id);
+      if (isDefault) {
+        // For default templates, create a modified copy in custom
+        setCustomTemplates(prev => {
+          const existing = prev.findIndex(c => c.id === editingTemplate.id);
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = { ...templateForm };
+            return updated;
+          }
+          return [...prev, { ...templateForm }];
+        });
+      } else {
+        setCustomTemplates(prev => prev.map(c => c.id === editingTemplate.id ? { ...templateForm } : c));
+      }
+      toast.success(isZh ? "模板已更新" : "Template updated");
+    } else {
+      // Create new
+      setCustomTemplates(prev => [...prev, { ...templateForm }]);
+      toast.success(isZh ? "模板已创建" : "Template created");
+    }
+    setTemplateDialogOpen(false);
+  };
+
+  const handleDeleteTemplate = (t: DataTemplate) => {
+    const isDefault = defaultTemplates.some(d => d.id === t.id);
+    if (isDefault) {
+      toast.error(isZh ? "系统模板不可删除" : "System templates cannot be deleted");
+      return;
+    }
+    setCustomTemplates(prev => prev.filter(c => c.id !== t.id));
+    toast.success(isZh ? "模板已删除" : "Template deleted");
+  };
+
+  const addFieldToForm = () => {
+    setTemplateForm(prev => ({ ...prev, fields: [...prev.fields, emptyField()] }));
+  };
+
+  const removeFieldFromForm = (idx: number) => {
+    setTemplateForm(prev => ({ ...prev, fields: prev.fields.filter((_, i) => i !== idx) }));
+  };
+
+  const updateFieldInForm = (idx: number, updates: Partial<DataTemplate["fields"][0]>) => {
+    setTemplateForm(prev => ({
+      ...prev,
+      fields: prev.fields.map((f, i) => i === idx ? { ...f, ...updates } : f),
+    }));
+  };
 
   // Fetch knowledge docs from DB
   const fetchKnowledgeDocs = useCallback(async () => {
@@ -687,7 +788,7 @@ const DataCenter = () => {
                     <CardTitle>{isZh ? "数据模板库" : "Template Library"}</CardTitle>
                     <CardDescription>{isZh ? "提供标准化的数据导入导出模板，覆盖所有业务模块" : "Standardized import/export templates for all business modules"}</CardDescription>
                   </div>
-                  <div className="flex gap-2">
+                   <div className="flex gap-2">
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input className="pl-8 w-56" placeholder={isZh ? "搜索模板..." : "Search templates..."} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -701,6 +802,9 @@ const DataCenter = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Button size="sm" onClick={openCreateTemplate}>
+                      <Plus className="w-3.5 h-3.5 mr-1" />{isZh ? "新建模板" : "New Template"}
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -737,6 +841,14 @@ const DataCenter = () => {
                             <Button size="sm" variant="outline" onClick={() => handleDownloadTemplate(t)}>
                               <Download className="w-3.5 h-3.5 mr-1" />{isZh ? "模板" : "Template"}
                             </Button>
+                            <Button size="sm" variant="outline" onClick={() => openEditTemplate(t)}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" />{isZh ? "编辑" : "Edit"}
+                            </Button>
+                            {!defaultTemplates.some(d => d.id === t.id) && (
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTemplate(t)}>
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />{isZh ? "删除" : "Delete"}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CardContent>
@@ -1145,6 +1257,159 @@ const DataCenter = () => {
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== Create/Edit Template Dialog ===== */}
+        <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingTemplate
+                  ? (isZh ? `编辑模板 - ${editingTemplate.name_zh || editingTemplate.name_en}` : `Edit Template - ${editingTemplate.name_en || editingTemplate.name_zh}`)
+                  : (isZh ? "新建数据模板" : "Create Data Template")}
+              </DialogTitle>
+              <DialogDescription>
+                {isZh ? "定义模板名称、所属模块、导入导出类型和字段结构" : "Define template name, module, import/export type and field structure"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "中文名称" : "Chinese Name"} *</label>
+                  <Input className="mt-1" value={templateForm.name_zh} onChange={e => setTemplateForm(prev => ({ ...prev, name_zh: e.target.value }))} placeholder={isZh ? "如：员工考勤" : "e.g. Attendance"} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "英文名称" : "English Name"} *</label>
+                  <Input className="mt-1" value={templateForm.name_en} onChange={e => setTemplateForm(prev => ({ ...prev, name_en: e.target.value }))} placeholder="e.g. Employee Attendance" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "中文描述" : "Description (ZH)"}</label>
+                  <Textarea className="mt-1" rows={2} value={templateForm.description_zh} onChange={e => setTemplateForm(prev => ({ ...prev, description_zh: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "英文描述" : "Description (EN)"}</label>
+                  <Textarea className="mt-1" rows={2} value={templateForm.description_en} onChange={e => setTemplateForm(prev => ({ ...prev, description_en: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "所属模块" : "Module"}</label>
+                  <Select value={templateForm.module} onValueChange={v => setTemplateForm(prev => ({ ...prev, module: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(moduleLabels).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{isZh ? v.zh : v.en}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "类型" : "Type"}</label>
+                  <Select value={templateForm.type} onValueChange={v => setTemplateForm(prev => ({ ...prev, type: v as "import" | "export" | "both" }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="both">{isZh ? "双向（导入+导出）" : "Both (Import+Export)"}</SelectItem>
+                      <SelectItem value="import">{isZh ? "仅导入" : "Import Only"}</SelectItem>
+                      <SelectItem value="export">{isZh ? "仅导出" : "Export Only"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">{isZh ? "支持格式" : "Formats"}</label>
+                  <div className="flex gap-2 mt-2">
+                    {["xlsx", "csv", "json", "pdf"].map(fmt => (
+                      <label key={fmt} className="flex items-center gap-1 text-xs text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={templateForm.format.includes(fmt)}
+                          onChange={e => {
+                            setTemplateForm(prev => ({
+                              ...prev,
+                              format: e.target.checked
+                                ? [...prev.format, fmt]
+                                : prev.format.filter(f => f !== fmt),
+                            }));
+                          }}
+                          className="rounded"
+                        />
+                        {fmt.toUpperCase()}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Fields */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-foreground">{isZh ? "字段定义" : "Field Definitions"}</label>
+                  <Button size="sm" variant="outline" onClick={addFieldToForm}>
+                    <Plus className="w-3.5 h-3.5 mr-1" />{isZh ? "添加字段" : "Add Field"}
+                  </Button>
+                </div>
+                {templateForm.fields.length === 0 ? (
+                  <div className="text-center py-6 border-2 border-dashed border-border rounded-lg">
+                    <p className="text-sm text-muted-foreground">{isZh ? "暂无字段，点击上方按钮添加" : "No fields yet. Click Add Field above."}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {templateForm.fields.map((field, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/20">
+                        <Input
+                          className="flex-1 h-8 text-xs"
+                          placeholder={isZh ? "字段Key (如 name)" : "Field key (e.g. name)"}
+                          value={field.key}
+                          onChange={e => updateFieldInForm(idx, { key: e.target.value })}
+                        />
+                        <Input
+                          className="flex-1 h-8 text-xs"
+                          placeholder={isZh ? "中文标签" : "Label (ZH)"}
+                          value={field.label_zh}
+                          onChange={e => updateFieldInForm(idx, { label_zh: e.target.value })}
+                        />
+                        <Input
+                          className="flex-1 h-8 text-xs"
+                          placeholder={isZh ? "英文标签" : "Label (EN)"}
+                          value={field.label_en}
+                          onChange={e => updateFieldInForm(idx, { label_en: e.target.value })}
+                        />
+                        <Select value={field.type || "text"} onValueChange={v => updateFieldInForm(idx, { type: v })}>
+                          <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="number">Number</SelectItem>
+                            <SelectItem value="boolean">Boolean</SelectItem>
+                            <SelectItem value="date">Date</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={field.required || false}
+                            onChange={e => updateFieldInForm(idx, { required: e.target.checked })}
+                            className="rounded"
+                          />
+                          {isZh ? "必填" : "Req"}
+                        </label>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => removeFieldFromForm(idx)}>
+                          <XIcon className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>{isZh ? "取消" : "Cancel"}</Button>
+              <Button onClick={handleSaveTemplate}>
+                {editingTemplate ? (isZh ? "保存修改" : "Save Changes") : (isZh ? "创建模板" : "Create Template")}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
