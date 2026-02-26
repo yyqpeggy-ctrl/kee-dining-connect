@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.ai-voice-task]
 verify_jwt = false
+
+[functions.auto-finance-cycle]
+verify_jwt = false

@@ -393,6 +393,61 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: "ms-8", nodeType: "auto", label: "生成盘点报表", order: 7, config: { description: "生成盘点报表并归档至数据中心，同步损益至财务" } },
     ],
   },
+
+  // ===== 16. 采购-付款-做账-报税 全自动化主流程 (★核心流程) =====
+  {
+    id: "wf-procurement-to-tax-automation",
+    nameZh: "★ 采购到报税全自动化主流程",
+    nameEn: "★ Procurement-to-Tax Full Automation",
+    descZh: "AI智能联动：采购下单→供应商发货→收货验收→月度账单核对→自动付款→银行流水回导→自动做账→报表生成→报税申报→亿企代账导出，全链路智能自动化",
+    descEn: "AI-driven full automation: PO→Shipping→Receipt→Bill Reconciliation→Auto Payment→Bank Import→Auto Accounting→Reports→Tax Filing→YiQi Export",
+    category: "finance",
+    status: "active",
+    linkedModules: [MODULE.procurement, MODULE.finance, MODULE.inventory, MODULE.dataCenter, MODULE.legal],
+    pending: 5,
+    completed: 312,
+    nodes: [
+      // Phase 1: 智能采购下单
+      { id: "pta-1", nodeType: "auto", label: "AI智能采购建议", order: 0, config: { description: "AI根据库存消耗、菜单销量预测、活动排期自动生成采购建议，经理确认后自动创建采购订单" } },
+      { id: "pta-2", nodeType: "auto", label: "自动发送采购订单", order: 1, config: { description: "采购单创建后自动通过微信/邮件/短信发送给供应商，包含品名、数量、交货日期与合同约定价格" } },
+      { id: "pta-3", nodeType: "notification", label: "通知供应商备货", order: 2, config: { description: "自动推送微信模板消息通知供应商确认订单并安排发货" } },
+
+      // Phase 2: 收货验收与核对
+      { id: "pta-4", nodeType: "auto", label: "OCR收货单扫描", order: 3, config: { description: "供应商送货后，OCR自动识别收货单据内容（品名、数量、金额），AI验签检测" } },
+      { id: "pta-5", nodeType: "auto", label: "三方自动核对", order: 4, config: { description: "系统自动执行三方核对：采购单 vs 收货单 vs 供应商月度账单，差异自动标记并预警" } },
+      { id: "pta-6", nodeType: "condition", label: "核对结果判断", order: 5, config: { description: "全部匹配→自动进入付款流程；存在差异→转人工审核确认" } },
+      { id: "pta-7", nodeType: "review", label: "差异人工复核", order: 6, config: { assignee: "store_manager", description: "核对差异明细（数量不符、价格偏差、缺漏项），确认或拒绝" } },
+
+      // Phase 3: 智能付款
+      { id: "pta-8", nodeType: "auto", label: "按合同账期自动排款", order: 7, config: { description: "根据合同约定账期（如月结30天、到货7天）或特别指定的付款日期，自动安排付款计划" } },
+      { id: "pta-9", nodeType: "approval", label: "付款审批", order: 8, config: { assignee: "finance", description: "财务确认付款金额、供应商银行信息，审批后生成付款指令" } },
+      { id: "pta-10", nodeType: "auto", label: "生成银行付款Excel", order: 9, config: { description: "按银行网银导入模板汇总生成批量付款Excel文件（含收款人、开户行、账号、金额）" } },
+      { id: "pta-11", nodeType: "notification", label: "提醒导入银行系统", order: 10, config: { description: "推送通知财务人员：付款Excel已生成，请下载后导入网银系统执行批量转账" } },
+
+      // Phase 4: 银行流水回导与自动做账
+      { id: "pta-12", nodeType: "auto", label: "导入银行流水", order: 11, config: { description: "银行转账完成后，导入银行回单/流水文件，系统自动匹配已付款的采购单" } },
+      { id: "pta-13", nodeType: "auto", label: "AI自动生成会计凭证", order: 12, config: { description: "根据银行流水自动生成复合会计凭证（借：原材料/固定资产 贷：银行存款），自动匹配科目编码" } },
+      { id: "pta-14", nodeType: "auto", label: "自动更新账簿", order: 13, config: { description: "凭证自动过账至总账和明细账，更新科目余额表、应付账款明细" } },
+
+      // Phase 5: 报表生成
+      { id: "pta-15", nodeType: "auto", label: "自动生成三大报表", order: 14, config: { description: "月末自动生成利润表、资产负债表、现金流量表，按门店独立和合并两个维度" } },
+      { id: "pta-16", nodeType: "auto", label: "生成内部管理报表", order: 15, config: { description: "按数据中心导入的报表模板，自动生成各子公司独立报表和集团合并报表" } },
+
+      // Phase 6: 报税准备
+      { id: "pta-17", nodeType: "auto", label: "AI自动计税", order: 16, config: { description: "自动计算增值税（销项-进项）、企业所得税（25%）、个人所得税、附加税费" } },
+      { id: "pta-18", nodeType: "auto", label: "生成纳税申报表", order: 17, config: { description: "自动生成增值税申报表（主表+附表一二）、企业所得税预缴表(A类)、个税扣缴表" } },
+
+      // Phase 7: 人工审核确认
+      { id: "pta-19", nodeType: "review", label: "财务经理审核", order: 18, config: { assignee: "finance", description: "审核全部报表与纳税申报数据，可修改调整后确认" } },
+      { id: "pta-20", nodeType: "approval", label: "总经理最终确认", order: 19, config: { assignee: "gm", description: "总经理审阅月度/季度财务报告与纳税情况，签字确认" } },
+
+      // Phase 8: 亿企代账导出与申报
+      { id: "pta-21", nodeType: "auto", label: "一键导出亿企代账包", order: 20, config: { description: "在国家规定报税期间，一键导出凭证、发票台账、科目余额表、纳税申报包等全量文件" } },
+      { id: "pta-22", nodeType: "notification", label: "提醒导入亿企代账", order: 21, config: { description: "推送通知：数据包已生成，请导入亿企代账软件进行最终申报。附操作指引链接" } },
+      { id: "pta-23", nodeType: "auto", label: "生成内部合并报表", order: 22, config: { description: "自动出具各子公司独立财务报表和集团合并报表，按数据中心模板格式化输出" } },
+      { id: "pta-24", nodeType: "auto", label: "归档至数据中心", order: 23, config: { description: "全部文件（报表、申报表、凭证包、银行流水）自动归档至数据中心知识库，永久留存" } },
+    ],
+  },
 ];
 
 export const WORKFLOW_CATEGORIES = {
