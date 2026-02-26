@@ -278,13 +278,128 @@ const DataCenter = () => {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DataTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState<DataTemplate>(emptyTemplateForm());
+  const templateImportRef = useRef<HTMLInputElement>(null);
 
   const dataTemplates = [...defaultTemplates, ...customTemplates];
 
-  const openCreateTemplate = () => {
-    setEditingTemplate(null);
-    setTemplateForm(emptyTemplateForm());
-    setTemplateDialogOpen(true);
+  // Auto-detect field type from sample values
+  const detectFieldType = (values: any[]): string => {
+    const samples = values.filter(v => v !== null && v !== undefined && v !== "").slice(0, 20);
+    if (samples.length === 0) return "text";
+    const allNumbers = samples.every(v => !isNaN(Number(v)));
+    if (allNumbers) return "number";
+    const allBooleans = samples.every(v => ["true", "false", "0", "1", "yes", "no", "是", "否"].includes(String(v).toLowerCase()));
+    if (allBooleans) return "boolean";
+    const allDates = samples.every(v => !isNaN(Date.parse(String(v))) && String(v).length >= 8);
+    if (allDates) return "date";
+    return "text";
+  };
+
+  // Import template from file - auto-detect fields from headers
+  const handleImportTemplate = async (file: File) => {
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      let headers: string[] = [];
+      let sampleRows: Record<string, any>[] = [];
+
+      if (ext === "xlsx" || ext === "xls") {
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer);
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+        if (rows.length > 0) {
+          headers = Object.keys(rows[0]);
+          sampleRows = rows.slice(0, 20);
+        }
+      } else if (ext === "csv" || ext === "tsv" || ext === "txt") {
+        const text = await file.text();
+        const result = Papa.parse(text, { header: true, skipEmptyLines: true, delimiter: ext === "tsv" ? "\t" : undefined });
+        if (result.data.length > 0) {
+          headers = result.meta.fields || Object.keys(result.data[0] as any);
+          sampleRows = (result.data as Record<string, any>[]).slice(0, 20);
+        }
+      } else if (ext === "json") {
+        const text = await file.text();
+        let parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) parsed = [parsed];
+        if (parsed.length > 0) {
+          headers = Object.keys(parsed[0]);
+          sampleRows = parsed.slice(0, 20);
+        }
+      } else {
+        // Try as CSV for unknown formats
+        const text = await file.text();
+        const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+        if (result.data.length > 0 && result.meta.fields && result.meta.fields.length > 1) {
+          headers = result.meta.fields;
+          sampleRows = (result.data as Record<string, any>[]).slice(0, 20);
+        } else {
+          toast.error(isZh ? "无法识别该文件格式，请使用 Excel/CSV/JSON" : "Cannot detect file format. Use Excel/CSV/JSON.");
+          return;
+        }
+      }
+
+      if (headers.length === 0) {
+        toast.error(isZh ? "文件为空或无法识别表头" : "File is empty or headers not detected");
+        return;
+      }
+
+      // Auto-generate template from detected headers
+      const baseName = file.name.replace(/\.[^.]+$/, "");
+      const fields = headers.map(h => ({
+        key: h.replace(/\s+/g, "_").toLowerCase(),
+        label_zh: h,
+        label_en: h,
+        required: false,
+        type: detectFieldType(sampleRows.map(r => r[h])),
+      }));
+
+      const detectedFormats = ["xlsx", "csv"];
+      if (ext === "json") detectedFormats.push("json");
+
+      const newTemplate: DataTemplate = {
+        id: `imported-${Date.now()}`,
+        name_zh: baseName,
+        name_en: baseName,
+        description_zh: `从文件 ${file.name} 自动识别生成，共 ${fields.length} 个字段`,
+        description_en: `Auto-detected from ${file.name}, ${fields.length} fields`,
+        module: "inventory",
+        type: "both",
+        format: detectedFormats,
+        fields,
+      };
+
+      // Open dialog for user to review/edit before saving
+      setEditingTemplate(null);
+      setTemplateForm(newTemplate);
+      setTemplateDialogOpen(true);
+      toast.success(isZh ? `已识别 ${fields.length} 个字段，请确认后保存` : `Detected ${fields.length} fields. Review and save.`);
+    } catch (e: any) {
+      console.error("Import template error:", e);
+      toast.error(isZh ? `导入失败: ${e.message}` : `Import failed: ${e.message}`);
+    }
+  };
+
+  // Export template definition as JSON
+  const handleExportTemplateDefinition = (t: DataTemplate) => {
+    const exportData = {
+      name_zh: t.name_zh,
+      name_en: t.name_en,
+      description_zh: t.description_zh,
+      description_en: t.description_en,
+      module: t.module,
+      type: t.type,
+      format: t.format,
+      fields: t.fields,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `template_${t.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(isZh ? "模板定义已导出" : "Template definition exported");
   };
 
   const openEditTemplate = (t: DataTemplate) => {
@@ -817,8 +932,19 @@ const DataCenter = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button size="sm" onClick={openCreateTemplate}>
-                      <Plus className="w-3.5 h-3.5 mr-1" />{isZh ? "新建模板" : "New Template"}
+                    <input
+                      ref={templateImportRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv,.tsv,.json,.txt"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportTemplate(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button size="sm" onClick={() => templateImportRef.current?.click()}>
+                      <Upload className="w-3.5 h-3.5 mr-1" />{isZh ? "导入模板" : "Import Template"}
                     </Button>
                   </div>
                 </div>
@@ -858,6 +984,9 @@ const DataCenter = () => {
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleCloneTemplate(t)}>
                               <Copy className="w-3.5 h-3.5 mr-1" />{isZh ? "克隆" : "Clone"}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleExportTemplateDefinition(t)}>
+                              <ArrowDownToLine className="w-3.5 h-3.5 mr-1" />{isZh ? "导出" : "Export"}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => openEditTemplate(t)}>
                               <Pencil className="w-3.5 h-3.5 mr-1" />{isZh ? "编辑" : "Edit"}
