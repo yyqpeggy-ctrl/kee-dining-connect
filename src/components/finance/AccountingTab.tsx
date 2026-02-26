@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, FileText, Download, Upload, PackageCheck, FileSpreadsheet, Receipt } from "lucide-react";
+import { Plus, Search, Filter, FileText, Download, Upload, PackageCheck, FileSpreadsheet, Receipt, Trash2, Copy } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,8 @@ const accountSubjects = [
   { zh: "应收账款-企业客户", en: "AR - Corporate Clients", type: "income" },
   { zh: "应收账款-平台结算", en: "AR - Platform Settlement", type: "income" },
   { zh: "预收账款-储值卡", en: "Deferred Revenue - Stored Value", type: "income" },
+  { zh: "银行存款", en: "Bank Deposit", type: "asset" },
+  { zh: "库存现金", en: "Cash on Hand", type: "asset" },
   { zh: "原材料采购-进口食材", en: "Raw Materials - Imported", type: "expense" },
   { zh: "原材料采购-本地食材", en: "Raw Materials - Local", type: "expense" },
   { zh: "原材料采购-酒水", en: "Raw Materials - Beverages", type: "expense" },
@@ -49,6 +51,22 @@ const accountSubjects = [
   { zh: "财务费用-银行手续费", en: "Finance - Bank Charges", type: "expense" },
 ];
 
+interface VoucherLine {
+  id: string;
+  accountKey: string;
+  debit: string;
+  credit: string;
+  desc: string;
+}
+
+const emptyLine = (): VoucherLine => ({
+  id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  accountKey: "",
+  debit: "",
+  credit: "",
+  desc: "",
+});
+
 const AccountingTab = () => {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language === 'zh';
@@ -58,12 +76,10 @@ const AccountingTab = () => {
   const [localEntries, setLocalEntries] = useState<JournalEntry[]>([]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showExportHub, setShowExportHub] = useState(false);
-  const [newEntry, setNewEntry] = useState({
-    accountKey: "",
-    debit: "",
-    credit: "",
-    desc: "",
-  });
+  
+  // Multi-line voucher state
+  const [voucherDesc, setVoucherDesc] = useState("");
+  const [voucherLines, setVoucherLines] = useState<VoucherLine[]>([emptyLine(), emptyLine()]);
 
   // Fetch invoices from DB for export
   const { data: invoices = [] } = useQuery({
@@ -93,41 +109,73 @@ const AccountingTab = () => {
   const typeColors: Record<string, string> = { asset: "bg-success", liability: "bg-warning", equity: "bg-primary" };
   const typeTextColors: Record<string, string> = { asset: "text-success", liability: "text-warning", equity: "text-primary" };
 
-  const handleCreateEntry = () => {
-    const account = accountSubjects.find(a => a.zh === newEntry.accountKey);
-    if (!account) {
-      toast.error(isZh ? "请选择会计科目" : "Please select an account subject");
+  // Voucher line helpers
+  const updateLine = (id: string, field: keyof VoucherLine, value: string) => {
+    setVoucherLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
+  };
+  const addLine = () => setVoucherLines(prev => [...prev, emptyLine()]);
+  const removeLine = (id: string) => {
+    if (voucherLines.length <= 2) {
+      toast.error(isZh ? "至少需要两行分录" : "At least 2 lines required");
       return;
     }
-    const debit = parseFloat(newEntry.debit) || 0;
-    const credit = parseFloat(newEntry.credit) || 0;
-    if (debit === 0 && credit === 0) {
-      toast.error(isZh ? "借方或贷方金额不能同时为0" : "Debit or credit amount is required");
-      return;
-    }
+    setVoucherLines(prev => prev.filter(l => l.id !== id));
+  };
+  const duplicateLine = (id: string) => {
+    const src = voucherLines.find(l => l.id === id);
+    if (src) setVoucherLines(prev => [...prev, { ...src, id: emptyLine().id, debit: "", credit: "" }]);
+  };
+
+  // Totals for balance check
+  const totalDebit = voucherLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);
+  const totalCredit = voucherLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
+
+  const handleCreateCompoundEntry = () => {
     if (isHQ) {
       toast.error(isZh ? "请先选择具体门店再新建凭证" : "Please select a specific store first");
       return;
     }
+    // Validate lines
+    const validLines = voucherLines.filter(l => l.accountKey && ((parseFloat(l.debit) || 0) > 0 || (parseFloat(l.credit) || 0) > 0));
+    if (validLines.length < 2) {
+      toast.error(isZh ? "至少需要两行有效分录" : "At least 2 valid lines required");
+      return;
+    }
+    if (!isBalanced) {
+      toast.error(isZh ? `借贷不平衡！借方合计 ¥${totalDebit.toFixed(2)}，贷方合计 ¥${totalCredit.toFixed(2)}` : `Debit/Credit imbalanced! Debit: ¥${totalDebit.toFixed(2)}, Credit: ¥${totalCredit.toFixed(2)}`);
+      return;
+    }
+
     const today = new Date().toISOString().split("T")[0];
-    const id = `JE-NEW-${Date.now()}`;
-    const entry: JournalEntry = {
-      id,
-      date: today,
-      type: account.type as "income" | "expense",
-      accountZh: account.zh,
-      accountEn: account.en,
-      debit,
-      credit,
-      descZh: newEntry.desc || (isZh ? `${storeName(true)} - ${account.zh}` : `${storeName(false)} - ${account.en}`),
-      descEn: newEntry.desc || `${storeName(false)} - ${account.en}`,
-      status: "pending",
-      storeId: selectedStore,
-    };
-    setLocalEntries(prev => [entry, ...prev]);
+    const voucherId = `JE-${Date.now().toString(36).toUpperCase()}`;
+    
+    const newEntries: JournalEntry[] = validLines.map((line, idx) => {
+      const account = accountSubjects.find(a => a.zh === line.accountKey);
+      const debit = parseFloat(line.debit) || 0;
+      const credit = parseFloat(line.credit) || 0;
+      return {
+        id: `${voucherId}-${idx + 1}`,
+        date: today,
+        type: (account?.type === "income" ? "income" : "expense") as "income" | "expense",
+        accountZh: account?.zh || line.accountKey,
+        accountEn: account?.en || line.accountKey,
+        debit,
+        credit,
+        descZh: line.desc || voucherDesc || `${storeName(true)} - ${account?.zh || ""}`,
+        descEn: line.desc || voucherDesc || `${storeName(false)} - ${account?.en || ""}`,
+        status: "pending",
+        storeId: selectedStore,
+      };
+    });
+
+    setLocalEntries(prev => [...newEntries, ...prev]);
     setShowNewDialog(false);
-    setNewEntry({ accountKey: "", debit: "", credit: "", desc: "" });
-    toast.success(isZh ? `凭证 ${id} 已创建，关联门店: ${storeName(true)}` : `Voucher ${id} created for ${storeName(false)}`);
+    setVoucherLines([emptyLine(), emptyLine()]);
+    setVoucherDesc("");
+    toast.success(isZh
+      ? `✅ 复合凭证 ${voucherId} 已创建（${validLines.length}行分录），借贷合计 ¥${totalDebit.toFixed(2)}`
+      : `✅ Compound voucher ${voucherId} created (${validLines.length} lines), total ¥${totalDebit.toFixed(2)}`);
   };
 
   return (
@@ -235,91 +283,155 @@ const AccountingTab = () => {
         </motion.div>
       </div>
 
-      {/* New Voucher Dialog */}
+      {/* Multi-line Compound Voucher Dialog */}
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isZh ? "新建会计凭证" : "New Journal Entry"}</DialogTitle>
+            <DialogTitle>{isZh ? "新建复合凭证" : "New Compound Voucher"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Store info - auto filled */}
-            <div className="bg-muted/40 rounded-lg p-3 text-sm">
-              <span className="text-muted-foreground">{isZh ? "关联门店：" : "Store: "}</span>
-              <span className="font-medium text-primary">
-                {isHQ
-                  ? (isZh ? "⚠️ 总部视图，请先切换到具体门店" : "⚠️ HQ view, please switch to a specific store")
-                  : storeName(isZh)}
-              </span>
-            </div>
-
-            {/* Account subject */}
-            <div className="space-y-1.5">
-              <Label>{isZh ? "会计科目" : "Account Subject"}</Label>
-              <Select value={newEntry.accountKey} onValueChange={v => setNewEntry(p => ({ ...p, accountKey: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder={isZh ? "选择科目..." : "Select account..."} />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{isZh ? "— 收入类 —" : "— Revenue —"}</div>
-                  {accountSubjects.filter(a => a.type === "income").map(a => (
-                    <SelectItem key={a.zh} value={a.zh}>{isZh ? a.zh : a.en}</SelectItem>
-                  ))}
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">{isZh ? "— 支出类 —" : "— Expenses —"}</div>
-                  {accountSubjects.filter(a => a.type === "expense").map(a => (
-                    <SelectItem key={a.zh} value={a.zh}>{isZh ? a.zh : a.en}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Debit & Credit */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>{isZh ? "借方金额 (¥)" : "Debit (¥)"}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={newEntry.debit}
-                  onChange={e => setNewEntry(p => ({ ...p, debit: e.target.value }))}
-                />
+            {/* Store info */}
+            <div className="bg-muted/40 rounded-lg p-3 text-sm flex items-center justify-between">
+              <div>
+                <span className="text-muted-foreground">{isZh ? "关联门店：" : "Store: "}</span>
+                <span className="font-medium text-primary">
+                  {isHQ
+                    ? (isZh ? "⚠️ 总部视图，请先切换到具体门店" : "⚠️ HQ view, please switch to a specific store")
+                    : storeName(isZh)}
+                </span>
               </div>
-              <div className="space-y-1.5">
-                <Label>{isZh ? "贷方金额 (¥)" : "Credit (¥)"}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={newEntry.credit}
-                  onChange={e => setNewEntry(p => ({ ...p, credit: e.target.value }))}
-                />
+              <div className="text-xs text-muted-foreground">
+                {isZh ? "日期" : "Date"}: {new Date().toISOString().split("T")[0]}
               </div>
             </div>
 
-            {/* Description */}
+            {/* Voucher-level description */}
             <div className="space-y-1.5">
-              <Label>{isZh ? "摘要说明" : "Description"}</Label>
+              <Label>{isZh ? "凭证摘要（整张凭证）" : "Voucher Summary"}</Label>
               <Input
-                placeholder={isZh ? "如：当日营收、供应商付款等" : "e.g. daily revenue, supplier payment..."}
-                value={newEntry.desc}
-                onChange={e => setNewEntry(p => ({ ...p, desc: e.target.value }))}
+                placeholder={isZh ? "如：12月工资发放、供应商结算等" : "e.g. December payroll, supplier settlement..."}
+                value={voucherDesc}
+                onChange={e => setVoucherDesc(e.target.value)}
               />
             </div>
 
-            {/* Auto-generated info preview */}
-            {newEntry.accountKey && (
-              <div className="bg-muted/30 rounded-lg p-3 text-xs space-y-1 border border-border/50">
-                <p className="font-semibold text-muted-foreground">{isZh ? "凭证预览" : "Preview"}</p>
-                <p>{isZh ? "日期" : "Date"}: {new Date().toISOString().split("T")[0]}</p>
-                <p>{isZh ? "科目" : "Account"}: {isZh ? newEntry.accountKey : accountSubjects.find(a => a.zh === newEntry.accountKey)?.en}</p>
-                <p>{isZh ? "状态" : "Status"}: {isZh ? "待审核" : "Pending Review"}</p>
-                {!isHQ && <p>{isZh ? "门店" : "Store"}: {storeName(isZh)}</p>}
+            {/* Line items table */}
+            <div className="border border-border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-8 text-center">#</TableHead>
+                    <TableHead className="min-w-[180px]">{isZh ? "会计科目" : "Account"}</TableHead>
+                    <TableHead className="w-28 text-right">{isZh ? "借方 (¥)" : "Debit (¥)"}</TableHead>
+                    <TableHead className="w-28 text-right">{isZh ? "贷方 (¥)" : "Credit (¥)"}</TableHead>
+                    <TableHead className="min-w-[120px]">{isZh ? "行摘要" : "Line Memo"}</TableHead>
+                    <TableHead className="w-16"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {voucherLines.map((line, idx) => (
+                    <TableRow key={line.id}>
+                      <TableCell className="text-center text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
+                      <TableCell className="p-1.5">
+                        <Select value={line.accountKey} onValueChange={v => updateLine(line.id, "accountKey", v)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder={isZh ? "选择科目..." : "Select..."} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{isZh ? "— 资产类 —" : "— Assets —"}</div>
+                            {accountSubjects.filter(a => a.type === "asset").map(a => (
+                              <SelectItem key={a.zh} value={a.zh} className="text-xs">{isZh ? a.zh : a.en}</SelectItem>
+                            ))}
+                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">{isZh ? "— 收入类 —" : "— Revenue —"}</div>
+                            {accountSubjects.filter(a => a.type === "income").map(a => (
+                              <SelectItem key={a.zh} value={a.zh} className="text-xs">{isZh ? a.zh : a.en}</SelectItem>
+                            ))}
+                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground mt-1">{isZh ? "— 支出/负债类 —" : "— Expenses/Liabilities —"}</div>
+                            {accountSubjects.filter(a => a.type === "expense").map(a => (
+                              <SelectItem key={a.zh} value={a.zh} className="text-xs">{isZh ? a.zh : a.en}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="p-1.5">
+                        <Input
+                          type="number" min="0" step="0.01"
+                          className="h-8 text-xs text-right"
+                          placeholder="0.00"
+                          value={line.debit}
+                          onChange={e => {
+                            updateLine(line.id, "debit", e.target.value);
+                            if (e.target.value && parseFloat(e.target.value) > 0) updateLine(line.id, "credit", "");
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="p-1.5">
+                        <Input
+                          type="number" min="0" step="0.01"
+                          className="h-8 text-xs text-right"
+                          placeholder="0.00"
+                          value={line.credit}
+                          onChange={e => {
+                            updateLine(line.id, "credit", e.target.value);
+                            if (e.target.value && parseFloat(e.target.value) > 0) updateLine(line.id, "debit", "");
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="p-1.5">
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder={isZh ? "可选" : "Optional"}
+                          value={line.desc}
+                          onChange={e => updateLine(line.id, "desc", e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell className="p-1.5">
+                        <div className="flex gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => duplicateLine(line.id)} title={isZh ? "复制行" : "Duplicate"}>
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeLine(line.id)} title={isZh ? "删除行" : "Remove"}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Add line button */}
+            <Button variant="outline" size="sm" className="w-full gap-2 border-dashed" onClick={addLine}>
+              <Plus className="w-3.5 h-3.5" />{isZh ? "添加分录行" : "Add Line"}
+            </Button>
+
+            {/* Balance summary */}
+            <div className={`rounded-lg p-3 text-sm border ${isBalanced ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-6">
+                  <span>
+                    <span className="text-muted-foreground">{isZh ? "借方合计：" : "Total Debit: "}</span>
+                    <span className="font-bold text-destructive">¥{totalDebit.toFixed(2)}</span>
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">{isZh ? "贷方合计：" : "Total Credit: "}</span>
+                    <span className="font-bold text-success">¥{totalCredit.toFixed(2)}</span>
+                  </span>
+                </div>
+                <Badge variant={isBalanced ? "secondary" : "destructive"} className="text-xs">
+                  {isBalanced
+                    ? (isZh ? "✓ 借贷平衡" : "✓ Balanced")
+                    : (isZh ? `✗ 差额 ¥${Math.abs(totalDebit - totalCredit).toFixed(2)}` : `✗ Diff ¥${Math.abs(totalDebit - totalCredit).toFixed(2)}`)}
+                </Badge>
               </div>
-            )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewDialog(false)}>{isZh ? "取消" : "Cancel"}</Button>
-            <Button onClick={handleCreateEntry}>{isZh ? "创建凭证" : "Create Entry"}</Button>
+            <Button onClick={handleCreateCompoundEntry} disabled={!isBalanced}>
+              {isZh ? `创建凭证（${voucherLines.filter(l => l.accountKey).length}行）` : `Create (${voucherLines.filter(l => l.accountKey).length} lines)`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
