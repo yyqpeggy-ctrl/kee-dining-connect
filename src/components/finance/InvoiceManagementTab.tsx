@@ -16,6 +16,7 @@ import { useStore } from "@/contexts/StoreContext";
 import { useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { exportInputInvoices, exportOutputInvoices } from "./yiqiExport";
 
 interface InvoiceItem {
   name: string;
@@ -50,6 +51,7 @@ const InvoiceManagementTab = () => {
     seller_tax_id: "",
     issue_date: new Date().toISOString().split("T")[0],
     notes: "",
+    is_red_ink: false, // 红字发票（负数发票）
   });
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrPreviewUrl, setOcrPreviewUrl] = useState<string | null>(null);
@@ -188,7 +190,8 @@ const InvoiceManagementTab = () => {
 
   const handleCreate = () => {
     if (isHQ) { toast.error(isZh ? "请先选择具体门店" : "Select a store first"); return; }
-    const amount = parseFloat(newInvoice.amount) || 0;
+    const rawAmount = parseFloat(newInvoice.amount) || 0;
+    const amount = newInvoice.is_red_ink ? -Math.abs(rawAmount) : rawAmount;
     const taxRate = parseFloat(newInvoice.tax_rate) || 0.06;
     const taxAmount = Math.round(amount * taxRate * 100) / 100;
     createMutation.mutate({
@@ -205,11 +208,11 @@ const InvoiceManagementTab = () => {
       seller_name: newInvoice.seller_name,
       seller_tax_id: newInvoice.seller_tax_id,
       issue_date: newInvoice.issue_date,
-      notes: newInvoice.notes,
+      notes: newInvoice.is_red_ink ? `[红字发票] ${newInvoice.notes}` : newInvoice.notes,
       store_id: storeId,
       store_name_zh: storeName(true),
       store_name_en: storeName(false),
-      status: "pending",
+      status: newInvoice.is_red_ink ? "voided" : "pending",
     });
   };
 
@@ -295,10 +298,19 @@ const InvoiceManagementTab = () => {
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}><Download className="w-4 h-4" />{isZh ? "导出台账" : "Export"}</Button>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+          const result = exportInputInvoices(invoices);
+          toast.success(isZh ? `亿企代账进项发票已导出 (${result.count}张)` : `YiQi input invoices exported (${result.count})`);
+        }}><Download className="w-4 h-4 text-primary" />{isZh ? "亿企进项" : "YiQi Input"}</Button>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+          const result = exportOutputInvoices(invoices);
+          toast.success(isZh ? `亿企代账销项发票已导出 (${result.count}张)` : `YiQi output invoices exported (${result.count})`);
+        }}><Download className="w-4 h-4 text-success" />{isZh ? "亿企销项" : "YiQi Output"}</Button>
         <Button size="sm" variant="secondary" className="gap-2" onClick={() => { setShowCreateDialog(true); setTimeout(() => ocrFileRef.current?.click(), 300); }}>
           <Scan className="w-4 h-4" />{isZh ? "OCR识别" : "OCR Scan"}
         </Button>
-        <Button size="sm" className="gap-2 ml-auto" onClick={() => { setOcrPreviewUrl(null); setShowCreateDialog(true); }}><Plus className="w-4 h-4" />{isZh ? "录入发票" : "New Invoice"}</Button>
+        <Button size="sm" className="gap-2 ml-auto" onClick={() => { setOcrPreviewUrl(null); setNewInvoice(p => ({ ...p, is_red_ink: false })); setShowCreateDialog(true); }}><Plus className="w-4 h-4" />{isZh ? "录入发票" : "New Invoice"}</Button>
+        <Button size="sm" variant="destructive" className="gap-2" onClick={() => { setOcrPreviewUrl(null); setNewInvoice(p => ({ ...p, is_red_ink: true })); setShowCreateDialog(true); }}><Receipt className="w-4 h-4" />{isZh ? "红字发票" : "Red Ink"}</Button>
       </div>
 
       {/* Store context */}
@@ -369,7 +381,9 @@ const InvoiceManagementTab = () => {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isZh ? "录入发票" : "New Invoice"}</DialogTitle>
+            <DialogTitle className={newInvoice.is_red_ink ? "text-destructive" : ""}>
+              {newInvoice.is_red_ink ? (isZh ? "🔴 录入红字发票（负数发票）" : "🔴 Red Ink Invoice (Negative)") : (isZh ? "录入发票" : "New Invoice")}
+            </DialogTitle>
           </DialogHeader>
 
           {/* OCR Upload Section */}
