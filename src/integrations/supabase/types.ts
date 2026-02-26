@@ -1593,6 +1593,63 @@ export type Database = {
         }
         Relationships: []
       }
+      wechat_extract_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          extracted_data: Json | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          processed_at: string | null
+          source_module: string
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          summary: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          processed_at?: string | null
+          source_module?: string
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          summary?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          processed_at?: string | null
+          source_module?: string
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          summary?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       wechat_groups: {
         Row: {
           created_at: string
