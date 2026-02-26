@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, ChefHat, CheckCircle2, XCircle, Package, FileSpreadsheet, ArrowLeftRight } from "lucide-react";
+import { Clock, ChefHat, CheckCircle2, XCircle, Package, FileSpreadsheet, ArrowLeftRight, CalendarClock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useStore } from "@/contexts/StoreContext";
 import ThreeWayReconciliation from "@/components/orders/ThreeWayReconciliation";
+import DataImportScheduler from "@/components/orders/DataImportScheduler";
 
 type OrderStatus = "pending" | "preparing" | "served" | "completed" | "cancelled";
 
@@ -109,9 +110,12 @@ const Orders = () => {
       <StoreIndicator />
 
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-5 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-3 mb-5 bg-muted/50">
           <TabsTrigger value="orders" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
             <Package className="w-3.5 h-3.5" />{isZh ? "订单管理" : "Orders"}
+          </TabsTrigger>
+          <TabsTrigger value="import" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
+            <CalendarClock className="w-3.5 h-3.5" />{isZh ? "数据导入" : "Data Import"}
           </TabsTrigger>
           <TabsTrigger value="reconciliation" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
             <ArrowLeftRight className="w-3.5 h-3.5" />{isZh ? "★三方核对" : "★Reconciliation"}
@@ -209,6 +213,10 @@ const Orders = () => {
               })}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="import">
+          <DataImportScheduler />
         </TabsContent>
 
         <TabsContent value="reconciliation">
