@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator, Link2, Target, Brain } from "lucide-react";
+import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator, Link2, Target, Brain, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
@@ -14,6 +14,7 @@ import TransactionsTab from "@/components/finance/TransactionsTab";
 import CrossModuleDashboard from "@/components/finance/CrossModuleDashboard";
 import BudgetTab from "@/components/finance/BudgetTab";
 import AIFinanceAdvisorTab from "@/components/finance/AIFinanceAdvisorTab";
+import InvoiceManagementTab from "@/components/finance/InvoiceManagementTab";
 import { computeIncomeStatement, StoreId, journalEntries } from "@/data/financeData";
 
 const Finance = () => {
@@ -22,7 +23,6 @@ const Finance = () => {
   const { storeName, storeId: globalStoreId } = useStore();
   const selectedStore = globalStoreId as StoreId;
 
-  // Compute KPI from actual journal entries filtered by store
   const income = useMemo(() => computeIncomeStatement(selectedStore), [selectedStore]);
   const totalRevenue = income.totalRevenue;
   const totalExpense = income.sections.slice(1).reduce((s, sec) => s + sec.total, 0);
@@ -46,10 +46,11 @@ const Finance = () => {
       <FinanceKPICards totalRevenue={totalRevenue} totalExpense={totalExpense} totalProfit={totalProfit} />
 
       <Tabs defaultValue="ai-advisor" className="w-full">
-        <TabsList className="grid w-full grid-cols-7 mb-6 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-8 mb-6 bg-muted/50">
           <TabsTrigger value="ai-advisor" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Brain className="w-3.5 h-3.5" />{isZh ? "AI顾问" : "AI Advisor"}</TabsTrigger>
           <TabsTrigger value="crossmodule" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Link2 className="w-3.5 h-3.5" />{t("financeMgmt.crossModule")}</TabsTrigger>
           <TabsTrigger value="accounting" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><BookOpen className="w-3.5 h-3.5" />{t("financeMgmt.accounting")}</TabsTrigger>
+          <TabsTrigger value="invoices" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><FileText className="w-3.5 h-3.5" />{isZh ? "发票管理" : "Invoices"}</TabsTrigger>
           <TabsTrigger value="budget" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Target className="w-3.5 h-3.5" />{isZh ? "预算管理" : "Budget"}</TabsTrigger>
           <TabsTrigger value="reports" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" />{t("financeMgmt.reports")}</TabsTrigger>
           <TabsTrigger value="tax" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Calculator className="w-3.5 h-3.5" />{t("financeMgmt.tax")}</TabsTrigger>
@@ -58,6 +59,7 @@ const Finance = () => {
         <TabsContent value="ai-advisor"><AIFinanceAdvisorTab /></TabsContent>
         <TabsContent value="crossmodule"><CrossModuleDashboard /></TabsContent>
         <TabsContent value="accounting"><AccountingTab /></TabsContent>
+        <TabsContent value="invoices"><InvoiceManagementTab /></TabsContent>
         <TabsContent value="budget"><BudgetTab /></TabsContent>
         <TabsContent value="reports"><ReportsTab /></TabsContent>
         <TabsContent value="tax"><TaxTab /></TabsContent>
