@@ -16,6 +16,7 @@ import StoreIndicator from "@/components/StoreIndicator";
 import { useStore } from "@/contexts/StoreContext";
 import { useState } from "react";
 import PayrollAutomation from "@/components/hr/PayrollAutomation";
+import WorkPermitArchive from "@/components/hr/WorkPermitArchive";
 
 interface Employee {
   id: string;
@@ -358,9 +359,9 @@ const VisaManagementTab = ({ employees, isZh }: { employees: Employee[]; isZh: b
                                   <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                                 <DialogHeader>
-                                  <DialogTitle>{isZh ? "签证详情" : "Visa Details"} — {isZh ? emp.nameZh : emp.nameEn}</DialogTitle>
+                                  <DialogTitle>{isZh ? "签证与工作许可档案" : "Visa & Work Permit Archive"} — {isZh ? emp.nameZh : emp.nameEn}</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-3">
@@ -377,13 +378,13 @@ const VisaManagementTab = ({ employees, isZh }: { employees: Employee[]; isZh: b
                                       <p className="text-sm mt-1">{emp.visa.notes}</p>
                                     </div>
                                   )}
-                                  <div className="flex gap-2">
-                                    <Button size="sm" className="flex-1" onClick={() => toast.info(isZh ? "续签流程启动中..." : "Renewal process starting...")}>
-                                      <CalendarDays className="w-3.5 h-3.5 mr-1" />{isZh ? "发起续签" : "Start Renewal"}
-                                    </Button>
-                                    <Button size="sm" variant="outline" onClick={() => toast.info(isZh ? "提醒设置功能开发中" : "Reminder setup coming soon")}>
-                                      <Clock className="w-3.5 h-3.5 mr-1" />{isZh ? "设置提醒" : "Set Reminder"}
-                                    </Button>
+
+                                  {/* Work Permit Archive */}
+                                  <div className="border-t pt-4">
+                                    <WorkPermitArchive
+                                      employee={{ id: emp.id, nameZh: emp.nameZh, nameEn: emp.nameEn, nationality: emp.nationality }}
+                                      isZh={isZh}
+                                    />
                                   </div>
                                 </div>
                               </DialogContent>
