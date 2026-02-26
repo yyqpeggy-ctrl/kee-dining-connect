@@ -8,11 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Zap, CheckCircle, Clock, AlertTriangle, ArrowRight, Download,
   FileSpreadsheet, Receipt, Calculator, Upload, Building2, Bot,
-  Play, RefreshCw, FileText, TrendingUp, Banknote
+  Play, RefreshCw, FileText, TrendingUp, Banknote, CalendarClock, Settings2
 } from "lucide-react";
 import { generateBankPaymentExcel } from "@/components/procurement/bankPaymentExport";
 import { exportAllForYiqi } from "./yiqiExport";
@@ -30,7 +33,7 @@ const STEPS = [
   { id: 1, icon: Bot, zhLabel: "AI采购建议", enLabel: "AI Procurement", zhDesc: "AI根据库存和销量生成采购建议", enDesc: "AI generates PO suggestions" },
   { id: 2, icon: FileText, zhLabel: "自动发送订单", enLabel: "Send Orders", zhDesc: "审批后自动发送给供应商", enDesc: "Auto-send to suppliers" },
   { id: 3, icon: Receipt, zhLabel: "收货验收核对", enLabel: "Receipt Verify", zhDesc: "OCR扫描+三方核对", enDesc: "OCR scan + 3-way match" },
-  { id: 4, icon: Banknote, zhLabel: "智能排款付款", enLabel: "Smart Payment", zhDesc: "按合同账期自动排款", enDesc: "Auto-schedule by contract terms" },
+  { id: 4, icon: Banknote, zhLabel: "智能排款付款", enLabel: "Smart Payment", zhDesc: "供应商周五/房租27号/工资8号", enDesc: "Suppliers Fri/Rent 27th/Salary 8th" },
   { id: 5, icon: Download, zhLabel: "生成银行付款单", enLabel: "Bank Excel", zhDesc: "导出网银模板Excel", enDesc: "Export bank import template" },
   { id: 6, icon: Upload, zhLabel: "导入银行流水", enLabel: "Import Statement", zhDesc: "回导银行付款回单", enDesc: "Import bank transaction records" },
   { id: 7, icon: FileSpreadsheet, zhLabel: "自动做账", enLabel: "Auto Accounting", zhDesc: "AI生成会计凭证", enDesc: "AI generates journal entries" },
@@ -48,6 +51,10 @@ const AutomationDashboard = () => {
   const queryClient = useQueryClient();
   const [activeStep, setActiveStep] = useState(0);
   const [runningStep, setRunningStep] = useState<number | null>(null);
+  const [manualPaymentMode, setManualPaymentMode] = useState(false);
+  const [manualPaymentDate, setManualPaymentDate] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "supplier" | "rent" | "salary">("all");
+  const [showScheduleRules, setShowScheduleRules] = useState(false);
 
   const { data: automationStatus } = useQuery<AutomationStatus>({
     queryKey: ["automation-status", storeId],
@@ -79,15 +86,24 @@ const AutomationDashboard = () => {
 
   const schedulePaymentsMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("auto-finance-cycle", {
-        body: { action: "schedule_payments", storeId },
-      });
+      const body: any = { action: "schedule_payments", storeId };
+      if (manualPaymentMode && manualPaymentDate) {
+        body.params = { manualDate: manualPaymentDate };
+      }
+      if (paymentFilter !== "all") {
+        body.params = { ...body.params, force: true };
+      }
+      const { data, error } = await supabase.functions.invoke("auto-finance-cycle", { body });
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
-      if (data.payments && data.payments.length > 0) {
-        generateBankPaymentExcel(data.payments.map((p: any) => ({
+      let payments = data.payments || [];
+      if (paymentFilter !== "all") {
+        payments = payments.filter((p: any) => p.paymentCategory === paymentFilter);
+      }
+      if (payments.length > 0) {
+        generateBankPaymentExcel(payments.map((p: any) => ({
           orderNumber: p.orderNumber,
           supplierName: p.supplierName,
           supplierBank: p.supplierBank,
@@ -96,11 +112,16 @@ const AutomationDashboard = () => {
           currency: "CNY",
           paymentDate: p.dueDate,
           storeName: p.storeName,
-          notes: `采购付款 ${p.orderNumber}`,
+          notes: `${p.paymentCategory === "rent" ? "房租" : p.paymentCategory === "salary" ? "工资" : "采购"}付款 ${p.orderNumber}`,
         })), isZh);
+        const totalAmt = payments.reduce((s: number, p: any) => s + p.amount, 0);
+        const summary = data.summary;
+        const details = isZh
+          ? `供应商${summary.supplier.count}笔(${summary.supplier.rule})，房租${summary.rent.count}笔(${summary.rent.rule})，工资${summary.salary.count}笔(${summary.salary.rule})`
+          : `Suppliers: ${summary.supplier.count}(Fridays), Rent: ${summary.rent.count}(27th), Salary: ${summary.salary.count}(8th next month)`;
         toast.success(isZh
-          ? `✅ 已生成${data.totalDue}笔付款单，合计¥${data.totalAmount.toFixed(2)}，请导入网银处理`
-          : `✅ Generated ${data.totalDue} payments totaling ¥${data.totalAmount.toFixed(2)}, import to bank`);
+          ? `✅ 已生成${payments.length}笔付款单，合计¥${totalAmt.toFixed(2)}\n${details}`
+          : `✅ Generated ${payments.length} payments ¥${totalAmt.toFixed(2)}\n${details}`);
       } else {
         toast.info(isZh ? "暂无到期应付款项" : "No payments due");
       }
@@ -252,6 +273,95 @@ const AutomationDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Payment Schedule Rules */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary" />
+              {isZh ? "付款时间规则" : "Payment Schedule Rules"}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowScheduleRules(!showScheduleRules)}>
+                <Settings2 className="w-3.5 h-3.5 mr-1" />
+                {isZh ? (showScheduleRules ? "收起" : "展开") : (showScheduleRules ? "Collapse" : "Expand")}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Rules summary - always visible */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border">
+              <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium">{isZh ? "一般供应商" : "General Suppliers"}</p>
+                <p className="text-[10px] text-muted-foreground">{isZh ? "每周五统一付款" : "Every Friday"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border">
+              <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium">{isZh ? "房租" : "Rent"}</p>
+                <p className="text-[10px] text-muted-foreground">{isZh ? "每月27号前" : "By 27th each month"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border">
+              <div className="w-2 h-2 rounded-full bg-chart-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium">{isZh ? "工资" : "Salary"}</p>
+                <p className="text-[10px] text-muted-foreground">{isZh ? "次月8号前" : "By 8th next month"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Expanded: manual override controls */}
+          {showScheduleRules && (
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch checked={manualPaymentMode} onCheckedChange={setManualPaymentMode} />
+                  <span className="text-xs font-medium">{isZh ? "手动指定付款日期" : "Manual payment date"}</span>
+                </div>
+                {manualPaymentMode && (
+                  <Input
+                    type="date"
+                    value={manualPaymentDate}
+                    onChange={e => setManualPaymentDate(e.target.value)}
+                    className="w-40 h-8 text-xs"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0">{isZh ? "筛选类型:" : "Filter:"}</span>
+                <Select value={paymentFilter} onValueChange={(v: any) => setPaymentFilter(v)}>
+                  <SelectTrigger className="h-8 text-xs w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{isZh ? "全部" : "All"}</SelectItem>
+                    <SelectItem value="supplier">{isZh ? "供应商(周五)" : "Suppliers(Fri)"}</SelectItem>
+                    <SelectItem value="rent">{isZh ? "房租(27号)" : "Rent(27th)"}</SelectItem>
+                    <SelectItem value="salary">{isZh ? "工资(8号)" : "Salary(8th)"}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => handleRunStep(5)} disabled={runningStep !== null}>
+                  <Download className="w-3.5 h-3.5 mr-1" />
+                  {isZh ? "立即生成付款单" : "Generate Now"}
+                </Button>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground">
+                {isZh
+                  ? "💡 开启手动模式可绕过内部付款日规则，在任意日期生成付款Excel文件。适用于紧急付款或特殊安排。"
+                  : "💡 Manual mode bypasses internal schedule rules, allowing payment generation on any date. Use for urgent or special payments."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pipeline Steps */}
       <Card>

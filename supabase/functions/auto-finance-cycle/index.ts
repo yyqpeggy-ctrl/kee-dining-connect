@@ -75,7 +75,7 @@ serve(async (req) => {
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // ===== Phase 2: 按合同账期自动排款 =====
+      // ===== Phase 2: 按内部规则自动排款 =====
       case "schedule_payments": {
         let orderQuery = supabase
           .from("procurement_orders")
@@ -93,31 +93,77 @@ serve(async (req) => {
           supplierName: string;
           amount: number;
           dueDate: string;
+          paymentCategory: string;
           supplierBank?: string;
           supplierAccount?: string;
           storeName: string;
         }> = [];
 
         const today = new Date();
+        const forceAll = params?.force === true;
+        const manualDate = params?.manualDate; // manual override date
+
+        // Internal payment schedule rules
+        const getNextPaymentDate = (category: string, refDate: Date): Date => {
+          const d = new Date(refDate);
+          switch (category) {
+            case "rent": {
+              // Rent: due by 27th of each month
+              const target = new Date(d.getFullYear(), d.getMonth(), 27);
+              if (d.getDate() > 27) target.setMonth(target.getMonth() + 1);
+              return target;
+            }
+            case "salary": {
+              // Salary: due by 8th of next month
+              const target = new Date(d.getFullYear(), d.getMonth() + 1, 8);
+              return target;
+            }
+            default: {
+              // General suppliers: every Friday
+              const dayOfWeek = d.getDay();
+              const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
+              const friday = new Date(d);
+              friday.setDate(friday.getDate() + daysUntilFriday);
+              return friday;
+            }
+          }
+        };
+
+        const categorizePayment = (order: any): string => {
+          const name = (order.supplier_name || "").toLowerCase();
+          const notes = (order.notes || "").toLowerCase();
+          const type = (order.type || "").toLowerCase();
+          if (name.includes("房租") || name.includes("rent") || notes.includes("房租") || notes.includes("rent")) return "rent";
+          if (name.includes("工资") || name.includes("salary") || name.includes("薪") || notes.includes("工资") || notes.includes("salary")) return "salary";
+          return "supplier";
+        };
+
         for (const order of (orders || [])) {
-          // Determine payment due date from contract or default 30-day terms
+          const category = categorizePayment(order);
           let dueDate: Date;
-          if (order.payment_due_date) {
+
+          if (manualDate) {
+            // Manual override: use the specified date
+            dueDate = new Date(manualDate);
+          } else if (order.payment_due_date) {
             dueDate = new Date(order.payment_due_date);
           } else {
-            dueDate = new Date(order.created_at);
-            dueDate.setDate(dueDate.getDate() + 30);
+            dueDate = getNextPaymentDate(category, today);
           }
 
-          // Only include orders where payment is due
-          if (dueDate <= today || params?.force) {
+          const unpaid = order.total_amount - order.paid_amount;
+          if (unpaid <= 0) continue;
+
+          // Include if due or forced
+          if (dueDate <= today || forceAll || manualDate) {
             const supplier = order.suppliers;
             paymentSchedule.push({
               orderId: order.id,
               orderNumber: order.order_number,
               supplierName: order.supplier_name,
-              amount: order.total_amount - order.paid_amount,
+              amount: unpaid,
               dueDate: dueDate.toISOString().slice(0, 10),
+              paymentCategory: category,
               supplierBank: supplier?.bank_name || "",
               supplierAccount: supplier?.bank_account || "",
               storeName: order.store_name_zh,
@@ -125,10 +171,22 @@ serve(async (req) => {
           }
         }
 
+        // Group by category for summary
+        const summary = {
+          supplier: paymentSchedule.filter(p => p.paymentCategory === "supplier"),
+          rent: paymentSchedule.filter(p => p.paymentCategory === "rent"),
+          salary: paymentSchedule.filter(p => p.paymentCategory === "salary"),
+        };
+
         return new Response(JSON.stringify({
           success: true, action, totalDue: paymentSchedule.length,
           totalAmount: paymentSchedule.reduce((s, p) => s + p.amount, 0),
           payments: paymentSchedule,
+          summary: {
+            supplier: { count: summary.supplier.length, total: summary.supplier.reduce((s, p) => s + p.amount, 0), rule: "每周五" },
+            rent: { count: summary.rent.length, total: summary.rent.reduce((s, p) => s + p.amount, 0), rule: "每月27号前" },
+            salary: { count: summary.salary.length, total: summary.salary.reduce((s, p) => s + p.amount, 0), rule: "次月8号前" },
+          },
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
