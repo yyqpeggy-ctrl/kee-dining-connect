@@ -345,6 +345,21 @@ const DataCenter = () => {
     toast.success(isZh ? "模板已删除" : "Template deleted");
   };
 
+  const handleCloneTemplate = (t: DataTemplate) => {
+    const cloned: DataTemplate = {
+      ...t,
+      id: `custom-${Date.now()}`,
+      name_zh: t.name_zh + (isZh ? " (副本)" : " (Copy)"),
+      name_en: t.name_en + " (Copy)",
+      fields: t.fields.map(f => ({ ...f })),
+      format: [...t.format],
+    };
+    setEditingTemplate(null);
+    setTemplateForm(cloned);
+    setTemplateDialogOpen(true);
+    toast.info(isZh ? "已基于模板创建副本，请修改后保存" : "Template cloned. Edit and save.");
+  };
+
   const addFieldToForm = () => {
     setTemplateForm(prev => ({ ...prev, fields: [...prev.fields, emptyField()] }));
   };
@@ -840,6 +855,9 @@ const DataCenter = () => {
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleDownloadTemplate(t)}>
                               <Download className="w-3.5 h-3.5 mr-1" />{isZh ? "模板" : "Template"}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleCloneTemplate(t)}>
+                              <Copy className="w-3.5 h-3.5 mr-1" />{isZh ? "克隆" : "Clone"}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => openEditTemplate(t)}>
                               <Pencil className="w-3.5 h-3.5 mr-1" />{isZh ? "编辑" : "Edit"}
