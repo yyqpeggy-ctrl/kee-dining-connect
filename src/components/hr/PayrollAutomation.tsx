@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/contexts/StoreContext";
@@ -8,14 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   Upload, Calculator, CheckCircle, FileSpreadsheet, Banknote, Users,
-  ArrowRight, Play, Download, ClipboardCheck, AlertTriangle, RefreshCw, Zap
+  ArrowRight, Play, Download, ClipboardCheck, AlertTriangle, RefreshCw, Zap,
+  Settings2, Plus, Trash2, Save
 } from "lucide-react";
 import { generateBankPaymentExcel } from "@/components/procurement/bankPaymentExport";
 
@@ -49,7 +53,68 @@ interface PayrollLine {
   netPay: number;
   bankAccount: string;
   bankName: string;
+  customItems: { label: string; amount: number }[];
 }
+
+// ===== Customizable Payroll Config =====
+interface PayrollBonusItem {
+  id: string;
+  label: string;
+  type: "fixed" | "percent_base";
+  value: number;
+  enabled: boolean;
+}
+
+interface PayrollDeductItem {
+  id: string;
+  label: string;
+  type: "fixed_per_event" | "fixed" | "percent_base";
+  value: number;
+  eventField?: "lateTimes" | "leaveDays";
+  enabled: boolean;
+}
+
+interface PayrollConfig {
+  standardWorkDays: number;
+  overtimeMultiplier: number;
+  socialInsuranceRate: number;
+  housingFundRate: number;
+  taxThreshold: number;
+  enableTax: boolean;
+  enableSocialInsurance: boolean;
+  enableHousingFund: boolean;
+  bonusItems: PayrollBonusItem[];
+  deductItems: PayrollDeductItem[];
+}
+
+const DEFAULT_CONFIG: PayrollConfig = {
+  standardWorkDays: 21.75,
+  overtimeMultiplier: 1.5,
+  socialInsuranceRate: 10.5,
+  housingFundRate: 12,
+  taxThreshold: 5000,
+  enableTax: true,
+  enableSocialInsurance: true,
+  enableHousingFund: true,
+  bonusItems: [
+    { id: "meal", label: "餐补/Meal Allowance", type: "fixed", value: 500, enabled: true },
+    { id: "transport", label: "交通补贴/Transport", type: "fixed", value: 300, enabled: false },
+    { id: "performance", label: "绩效奖金/Performance", type: "percent_base", value: 10, enabled: false },
+  ],
+  deductItems: [
+    { id: "late", label: "迟到扣款/Late Penalty", type: "fixed_per_event", value: 50, eventField: "lateTimes", enabled: true },
+    { id: "leave_deduct", label: "事假扣款/Leave Deduct", type: "fixed_per_event", value: 0, eventField: "leaveDays", enabled: true },
+  ],
+};
+
+const STORAGE_KEY = "payroll-config";
+const loadConfig = (): PayrollConfig => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+  } catch {}
+  return { ...DEFAULT_CONFIG };
+};
 
 // Mock employees with bank info
 const EMPLOYEES = [
@@ -60,8 +125,6 @@ const EMPLOYEES = [
   { id: "E005", name: "陈静", dept: "前厅", baseSalary: 5000, bank: "中国银行", account: "6216****7890" },
   { id: "E006", name: "赵伟", dept: "采购", baseSalary: 7500, bank: "招商银行", account: "6225****2345" },
 ];
-
-const STANDARD_WORK_DAYS = 21.75;
 
 // Chinese progressive income tax brackets
 const calcIncomeTax = (taxableIncome: number): number => {
@@ -96,10 +159,48 @@ const PayrollAutomation = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [bankPaid, setBankPaid] = useState(false);
   const [importText, setImportText] = useState("");
+  const [showConfig, setShowConfig] = useState(false);
+  const [config, setConfig] = useState<PayrollConfig>(loadConfig);
 
-  // Step 1: Import attendance (simulate CSV parse)
+  const saveConfig = useCallback((newConfig: PayrollConfig) => {
+    setConfig(newConfig);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
+    toast.success(isZh ? "✅ 薪资计算规则已保存" : "✅ Payroll rules saved");
+  }, [isZh]);
+
+  const addBonusItem = () => {
+    const newItem: PayrollBonusItem = {
+      id: `bonus_${Date.now()}`, label: isZh ? "新增补贴" : "New Bonus", type: "fixed", value: 0, enabled: true,
+    };
+    setConfig(c => ({ ...c, bonusItems: [...c.bonusItems, newItem] }));
+  };
+
+  const addDeductItem = () => {
+    const newItem: PayrollDeductItem = {
+      id: `deduct_${Date.now()}`, label: isZh ? "新增扣款" : "New Deduction", type: "fixed", value: 0, enabled: true,
+    };
+    setConfig(c => ({ ...c, deductItems: [...c.deductItems, newItem] }));
+  };
+
+  const updateBonus = (id: string, field: string, value: any) => {
+    setConfig(c => ({
+      ...c,
+      bonusItems: c.bonusItems.map(b => b.id === id ? { ...b, [field]: value } : b),
+    }));
+  };
+
+  const updateDeduct = (id: string, field: string, value: any) => {
+    setConfig(c => ({
+      ...c,
+      deductItems: c.deductItems.map(d => d.id === id ? { ...d, [field]: value } : d),
+    }));
+  };
+
+  const removeBonus = (id: string) => setConfig(c => ({ ...c, bonusItems: c.bonusItems.filter(b => b.id !== id) }));
+  const removeDeduct = (id: string) => setConfig(c => ({ ...c, deductItems: c.deductItems.filter(d => d.id !== id) }));
+
+  // Step 1: Import attendance
   const handleImportAttendance = () => {
-    // Simulate importing from a CSV/attendance system
     const mockAttendance: AttendanceRecord[] = EMPLOYEES.map(emp => ({
       employeeId: emp.id,
       name: emp.name,
@@ -113,7 +214,7 @@ const PayrollAutomation = () => {
     toast.success(isZh ? `✅ 已导入 ${mockAttendance.length} 名员工出勤数据` : `✅ Imported ${mockAttendance.length} attendance records`);
   };
 
-  // Step 2: Auto-calculate payroll
+  // Step 2: Auto-calculate payroll using config
   const handleCalculatePayroll = () => {
     if (attendance.length === 0) {
       toast.error(isZh ? "请先导入出勤数据" : "Import attendance first");
@@ -122,45 +223,66 @@ const PayrollAutomation = () => {
 
     const lines: PayrollLine[] = attendance.map(att => {
       const emp = EMPLOYEES.find(e => e.id === att.employeeId)!;
-      const dailyRate = emp.baseSalary / STANDARD_WORK_DAYS;
-      const overtimeRate = dailyRate / 8 * 1.5;
+      const dailyRate = emp.baseSalary / config.standardWorkDays;
+      const overtimeRate = dailyRate / 8 * config.overtimeMultiplier;
 
       const overtimePay = Math.round(att.overtimeHours * overtimeRate * 100) / 100;
-      const leaveDeduction = Math.round(att.leaveDays * dailyRate * 100) / 100;
-      const lateDeduction = att.lateTimes * 50; // ¥50 per late
 
-      const grossPay = Math.round((emp.baseSalary + overtimePay - leaveDeduction - lateDeduction) * 100) / 100;
+      // Custom bonus items
+      const customItems: { label: string; amount: number }[] = [];
+      let totalBonus = 0;
+      for (const bonus of config.bonusItems.filter(b => b.enabled)) {
+        const amt = bonus.type === "percent_base"
+          ? Math.round(emp.baseSalary * bonus.value / 100 * 100) / 100
+          : bonus.value;
+        customItems.push({ label: bonus.label, amount: amt });
+        totalBonus += amt;
+      }
 
-      // Social insurance ~10.5% employee side, housing fund 12%
-      const socialInsurance = Math.round(emp.baseSalary * 0.105 * 100) / 100;
-      const housingFund = Math.round(emp.baseSalary * 0.12 * 100) / 100;
+      // Custom deduct items
+      let totalCustomDeduct = 0;
+      for (const deduct of config.deductItems.filter(d => d.enabled)) {
+        let amt = 0;
+        if (deduct.type === "fixed_per_event" && deduct.eventField) {
+          const events = deduct.eventField === "lateTimes" ? att.lateTimes : att.leaveDays;
+          // If value is 0 for leave, use daily rate
+          amt = deduct.value === 0 && deduct.eventField === "leaveDays"
+            ? Math.round(events * dailyRate * 100) / 100
+            : events * deduct.value;
+        } else if (deduct.type === "percent_base") {
+          amt = Math.round(emp.baseSalary * deduct.value / 100 * 100) / 100;
+        } else {
+          amt = deduct.value;
+        }
+        if (amt > 0) customItems.push({ label: deduct.label, amount: -amt });
+        totalCustomDeduct += amt;
+      }
 
-      // Taxable = gross - social - housing - 5000 (threshold)
-      const taxableIncome = Math.max(0, grossPay - socialInsurance - housingFund - 5000);
-      const incomeTax = Math.round(calcIncomeTax(taxableIncome) * 100) / 100;
+      const grossPay = Math.round((emp.baseSalary + overtimePay + totalBonus - totalCustomDeduct) * 100) / 100;
+
+      const socialInsurance = config.enableSocialInsurance
+        ? Math.round(emp.baseSalary * config.socialInsuranceRate / 100 * 100) / 100 : 0;
+      const housingFund = config.enableHousingFund
+        ? Math.round(emp.baseSalary * config.housingFundRate / 100 * 100) / 100 : 0;
+
+      const taxableIncome = config.enableTax
+        ? Math.max(0, grossPay - socialInsurance - housingFund - config.taxThreshold) : 0;
+      const incomeTax = config.enableTax ? Math.round(calcIncomeTax(taxableIncome) * 100) / 100 : 0;
 
       const netPay = Math.round((grossPay - socialInsurance - housingFund - incomeTax) * 100) / 100;
 
       return {
-        employeeId: att.employeeId,
-        name: att.name,
-        department: att.department,
-        baseSalary: emp.baseSalary,
-        workDays: STANDARD_WORK_DAYS,
-        actualWorkDays: att.workDays,
-        overtimeHours: att.overtimeHours,
-        overtimePay,
+        employeeId: att.employeeId, name: att.name, department: att.department,
+        baseSalary: emp.baseSalary, workDays: config.standardWorkDays, actualWorkDays: att.workDays,
+        overtimeHours: att.overtimeHours, overtimePay,
         leaveDays: att.leaveDays,
-        leaveDeduction,
+        leaveDeduction: config.deductItems.find(d => d.eventField === "leaveDays" && d.enabled)
+          ? Math.round(att.leaveDays * dailyRate * 100) / 100 : 0,
         lateTimes: att.lateTimes,
-        lateDeduction,
-        socialInsurance,
-        housingFund,
-        incomeTax,
-        grossPay,
-        netPay,
-        bankAccount: emp.account,
-        bankName: emp.bank,
+        lateDeduction: (config.deductItems.find(d => d.eventField === "lateTimes" && d.enabled)?.value || 0) * att.lateTimes,
+        socialInsurance, housingFund, incomeTax, grossPay, netPay,
+        bankAccount: emp.account, bankName: emp.bank,
+        customItems,
       };
     });
 
@@ -168,7 +290,6 @@ const PayrollAutomation = () => {
     setStep(2);
     toast.success(isZh ? `✅ 已自动计算 ${lines.length} 人薪资` : `✅ Calculated payroll for ${lines.length} employees`);
   };
-
   const totalGross = useMemo(() => payroll.reduce((s, p) => s + p.grossPay, 0), [payroll]);
   const totalNet = useMemo(() => payroll.reduce((s, p) => s + p.netPay, 0), [payroll]);
   const totalTax = useMemo(() => payroll.reduce((s, p) => s + p.incomeTax, 0), [payroll]);
@@ -312,9 +433,160 @@ const PayrollAutomation = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)}>
+            <Settings2 className="w-4 h-4 mr-1" />{isZh ? "计算规则" : "Rules"}
+          </Button>
           <Input type="month" value={month} onChange={e => setMonth(e.target.value)} className="w-36 h-8 text-xs" />
         </div>
       </div>
+
+      {/* ===== Customizable Payroll Config Panel ===== */}
+      {showConfig && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-primary" />
+                {isZh ? "薪资计算规则配置" : "Payroll Calculation Rules"}
+              </CardTitle>
+              <Button size="sm" onClick={() => saveConfig(config)}>
+                <Save className="w-3.5 h-3.5 mr-1" />{isZh ? "保存规则" : "Save Rules"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Basic Parameters */}
+            <div>
+              <p className="text-xs font-semibold mb-3">{isZh ? "基础参数" : "Basic Parameters"}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-[10px]">{isZh ? "月标准工作日" : "Standard Work Days"}</Label>
+                  <Input type="number" step="0.01" value={config.standardWorkDays} onChange={e => setConfig(c => ({ ...c, standardWorkDays: parseFloat(e.target.value) || 21.75 }))} className="h-8 text-xs mt-1" />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{isZh ? "加班倍率" : "OT Multiplier"}</Label>
+                  <Input type="number" step="0.1" value={config.overtimeMultiplier} onChange={e => setConfig(c => ({ ...c, overtimeMultiplier: parseFloat(e.target.value) || 1.5 }))} className="h-8 text-xs mt-1" />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{isZh ? "个税起征点(¥)" : "Tax Threshold(¥)"}</Label>
+                  <Input type="number" value={config.taxThreshold} onChange={e => setConfig(c => ({ ...c, taxThreshold: parseFloat(e.target.value) || 5000 }))} className="h-8 text-xs mt-1" />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Social Insurance & Housing Fund */}
+            <div>
+              <p className="text-xs font-semibold mb-3">{isZh ? "社保与公积金" : "Social Insurance & Housing Fund"}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex items-center gap-3 p-2 rounded-md border bg-muted/20">
+                  <Switch checked={config.enableSocialInsurance} onCheckedChange={v => setConfig(c => ({ ...c, enableSocialInsurance: v }))} />
+                  <div className="flex-1">
+                    <Label className="text-[10px]">{isZh ? "社保(个人%)" : "Social Ins.(%)"}</Label>
+                    <Input type="number" step="0.1" value={config.socialInsuranceRate} onChange={e => setConfig(c => ({ ...c, socialInsuranceRate: parseFloat(e.target.value) || 0 }))} className="h-7 text-xs mt-1" disabled={!config.enableSocialInsurance} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md border bg-muted/20">
+                  <Switch checked={config.enableHousingFund} onCheckedChange={v => setConfig(c => ({ ...c, enableHousingFund: v }))} />
+                  <div className="flex-1">
+                    <Label className="text-[10px]">{isZh ? "公积金(个人%)" : "Housing Fund(%)"}</Label>
+                    <Input type="number" step="0.1" value={config.housingFundRate} onChange={e => setConfig(c => ({ ...c, housingFundRate: parseFloat(e.target.value) || 0 }))} className="h-7 text-xs mt-1" disabled={!config.enableHousingFund} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md border bg-muted/20">
+                  <Switch checked={config.enableTax} onCheckedChange={v => setConfig(c => ({ ...c, enableTax: v }))} />
+                  <div className="flex-1">
+                    <p className="text-[10px] font-medium">{isZh ? "个人所得税" : "Income Tax"}</p>
+                    <p className="text-[9px] text-muted-foreground">{isZh ? "7级超额累进税率" : "7-bracket progressive"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Bonus Items */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold">{isZh ? "补贴/奖金项目" : "Bonus / Allowance Items"}</p>
+                <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={addBonusItem}>
+                  <Plus className="w-3 h-3 mr-1" />{isZh ? "新增" : "Add"}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {config.bonusItems.map(bonus => (
+                  <div key={bonus.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/10">
+                    <Switch checked={bonus.enabled} onCheckedChange={v => updateBonus(bonus.id, "enabled", v)} />
+                    <Input value={bonus.label} onChange={e => updateBonus(bonus.id, "label", e.target.value)} className="h-7 text-xs flex-1" placeholder={isZh ? "名称" : "Label"} />
+                    <Select value={bonus.type} onValueChange={v => updateBonus(bonus.id, "type", v)}>
+                      <SelectTrigger className="h-7 text-[10px] w-28"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">{isZh ? "固定金额" : "Fixed ¥"}</SelectItem>
+                        <SelectItem value="percent_base">{isZh ? "基本工资%" : "% of Base"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input type="number" value={bonus.value} onChange={e => updateBonus(bonus.id, "value", parseFloat(e.target.value) || 0)} className="h-7 text-xs w-20" />
+                    <span className="text-[10px] text-muted-foreground w-6">{bonus.type === "percent_base" ? "%" : "¥"}</span>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeBonus(bonus.id)}>
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Deduction Items */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold">{isZh ? "扣款项目" : "Deduction Items"}</p>
+                <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={addDeductItem}>
+                  <Plus className="w-3 h-3 mr-1" />{isZh ? "新增" : "Add"}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {config.deductItems.map(deduct => (
+                  <div key={deduct.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/10">
+                    <Switch checked={deduct.enabled} onCheckedChange={v => updateDeduct(deduct.id, "enabled", v)} />
+                    <Input value={deduct.label} onChange={e => updateDeduct(deduct.id, "label", e.target.value)} className="h-7 text-xs flex-1" placeholder={isZh ? "名称" : "Label"} />
+                    <Select value={deduct.type} onValueChange={v => updateDeduct(deduct.id, "type", v)}>
+                      <SelectTrigger className="h-7 text-[10px] w-28"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">{isZh ? "固定金额" : "Fixed ¥"}</SelectItem>
+                        <SelectItem value="fixed_per_event">{isZh ? "按次计" : "Per Event"}</SelectItem>
+                        <SelectItem value="percent_base">{isZh ? "基本工资%" : "% of Base"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input type="number" value={deduct.value} onChange={e => updateDeduct(deduct.id, "value", parseFloat(e.target.value) || 0)} className="h-7 text-xs w-20" />
+                    {deduct.type === "fixed_per_event" && (
+                      <Select value={deduct.eventField || "lateTimes"} onValueChange={v => updateDeduct(deduct.id, "eventField", v)}>
+                        <SelectTrigger className="h-7 text-[10px] w-24"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lateTimes">{isZh ? "迟到次数" : "Late Times"}</SelectItem>
+                          <SelectItem value="leaveDays">{isZh ? "请假天数" : "Leave Days"}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeDeduct(deduct.id)}>
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reset */}
+            <div className="flex justify-between items-center pt-2">
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setConfig({ ...DEFAULT_CONFIG }); toast.info(isZh ? "已重置为默认规则" : "Reset to defaults"); }}>
+                <RefreshCw className="w-3 h-3 mr-1" />{isZh ? "重置为默认" : "Reset to Default"}
+              </Button>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "修改后请先保存规则，再重新计算薪资" : "Save rules first, then recalculate payroll"}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pipeline */}
       <div className="flex items-center gap-1 overflow-x-auto pb-2">
@@ -403,10 +675,20 @@ const PayrollAutomation = () => {
             </div>
           )}
 
-          {attendance.length > 0 && payroll.length === 0 && (
-            <Button onClick={handleCalculatePayroll} className="w-full">
-              <Calculator className="w-4 h-4 mr-1" />{isZh ? "自动计算薪资 →" : "Auto-Calculate Payroll →"}
-            </Button>
+          {attendance.length > 0 && (
+            <div className="flex gap-2">
+              <Button onClick={handleCalculatePayroll} className="flex-1">
+                <Calculator className="w-4 h-4 mr-1" />
+                {payroll.length > 0
+                  ? (isZh ? "重新计算薪资（按最新规则）" : "Recalculate (with latest rules)")
+                  : (isZh ? "自动计算薪资 →" : "Auto-Calculate Payroll →")}
+              </Button>
+              {payroll.length === 0 && (
+                <Button variant="outline" onClick={() => setShowConfig(true)}>
+                  <Settings2 className="w-4 h-4 mr-1" />{isZh ? "先配置规则" : "Configure Rules"}
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
