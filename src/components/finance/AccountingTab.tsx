@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, FileText } from "lucide-react";
+import { Plus, Search, Filter, FileText, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { exportVouchersForYiqi, exportTrialBalance } from "./yiqiExport";
 
 // Common account subjects for the restaurant business
 const accountSubjects = [
@@ -119,6 +120,12 @@ const AccountingTab = () => {
           <Button variant="outline" size="sm" className="gap-2"><Filter className="w-4 h-4" />{t("common.filter")}</Button>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { exportVouchersForYiqi(filteredEntries, isZh); toast.success(isZh ? "亿企代账格式凭证已导出" : "Yiqi format vouchers exported"); }}>
+            <Download className="w-4 h-4" />{isZh ? "导出亿企代账" : "Export Yiqi"}
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { exportTrialBalance(storeAccounts, isZh); toast.success(isZh ? "科目余额表已导出" : "Trial balance exported"); }}>
+            <Download className="w-4 h-4" />{isZh ? "科目余额表" : "Trial Balance"}
+          </Button>
           <Button variant="outline" size="sm" className="gap-2"><FileText className="w-4 h-4" />{t("financeMgmt.importVoucher")}</Button>
           <Button size="sm" className="gap-2" onClick={() => setShowNewDialog(true)}><Plus className="w-4 h-4" />{t("financeMgmt.newVoucher")}</Button>
         </div>

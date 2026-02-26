@@ -563,6 +563,102 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          amount: number
+          buyer_name: string | null
+          buyer_tax_id: string | null
+          created_at: string
+          created_by: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          invoice_code: string | null
+          invoice_number: string
+          invoice_type: string
+          issue_date: string
+          items: Json
+          linked_procurement_id: string | null
+          linked_voucher_id: string | null
+          notes: string | null
+          ocr_result: Json | null
+          ocr_status: string | null
+          seller_name: string | null
+          seller_tax_id: string | null
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          tax_amount: number
+          tax_rate: number
+          total_with_tax: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          buyer_name?: string | null
+          buyer_tax_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_code?: string | null
+          invoice_number?: string
+          invoice_type?: string
+          issue_date?: string
+          items?: Json
+          linked_procurement_id?: string | null
+          linked_voucher_id?: string | null
+          notes?: string | null
+          ocr_result?: Json | null
+          ocr_status?: string | null
+          seller_name?: string | null
+          seller_tax_id?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          tax_amount?: number
+          tax_rate?: number
+          total_with_tax?: number
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          buyer_name?: string | null
+          buyer_tax_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          invoice_code?: string | null
+          invoice_number?: string
+          invoice_type?: string
+          issue_date?: string
+          items?: Json
+          linked_procurement_id?: string | null
+          linked_voucher_id?: string | null
+          notes?: string | null
+          ocr_result?: Json | null
+          ocr_status?: string | null
+          seller_name?: string | null
+          seller_tax_id?: string | null
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          tax_amount?: number
+          tax_rate?: number
+          total_with_tax?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       knowledge_documents: {
         Row: {
           category: string
