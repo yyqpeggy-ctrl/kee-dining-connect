@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import AppSidebar from "./AppSidebar";
 import LanguageSwitcher from "./LanguageSwitcher";
 import VoiceAssistant from "./VoiceAssistant";
+import NotificationBell from "./NotificationBell";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, Shield } from "lucide-react";
@@ -35,6 +36,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             </Button>
           </div>
         )}
+        <NotificationBell />
         <LanguageSwitcher />
       </div>
       <main className="ml-[220px] px-6 pb-6">
