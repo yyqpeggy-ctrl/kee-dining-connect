@@ -14,6 +14,155 @@ export type Database = {
   }
   public: {
     Tables: {
+      amortization_items: {
+        Row: {
+          ai_category_reason: string | null
+          ai_confidence: number | null
+          amortization_months: number
+          amortized_total: number
+          collection_status: string
+          created_at: string
+          created_by: string | null
+          credit_account: string
+          debit_account: string
+          end_date: string | null
+          id: string
+          item_type: string
+          journal_status: string
+          monthly_amount: number
+          name_en: string
+          name_zh: string
+          notes: string | null
+          payment_status: string
+          remaining_amount: number
+          source_document_id: string | null
+          source_reference: string | null
+          source_type: string
+          start_date: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          total_amount: number
+          updated_at: string
+          verification_status: string
+        }
+        Insert: {
+          ai_category_reason?: string | null
+          ai_confidence?: number | null
+          amortization_months?: number
+          amortized_total?: number
+          collection_status?: string
+          created_at?: string
+          created_by?: string | null
+          credit_account?: string
+          debit_account?: string
+          end_date?: string | null
+          id?: string
+          item_type?: string
+          journal_status?: string
+          monthly_amount?: number
+          name_en?: string
+          name_zh?: string
+          notes?: string | null
+          payment_status?: string
+          remaining_amount?: number
+          source_document_id?: string | null
+          source_reference?: string | null
+          source_type?: string
+          start_date?: string
+          store_id: string
+          store_name_en?: string
+          store_name_zh?: string
+          total_amount?: number
+          updated_at?: string
+          verification_status?: string
+        }
+        Update: {
+          ai_category_reason?: string | null
+          ai_confidence?: number | null
+          amortization_months?: number
+          amortized_total?: number
+          collection_status?: string
+          created_at?: string
+          created_by?: string | null
+          credit_account?: string
+          debit_account?: string
+          end_date?: string | null
+          id?: string
+          item_type?: string
+          journal_status?: string
+          monthly_amount?: number
+          name_en?: string
+          name_zh?: string
+          notes?: string | null
+          payment_status?: string
+          remaining_amount?: number
+          source_document_id?: string | null
+          source_reference?: string | null
+          source_type?: string
+          start_date?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          total_amount?: number
+          updated_at?: string
+          verification_status?: string
+        }
+        Relationships: []
+      }
+      amortization_journal: {
+        Row: {
+          amortization_item_id: string
+          amount: number
+          created_at: string
+          credit_account: string
+          debit_account: string
+          id: string
+          linked_transaction_id: string | null
+          period: string
+          posted_at: string | null
+          posted_by: string | null
+          status: string
+          store_id: string
+        }
+        Insert: {
+          amortization_item_id: string
+          amount?: number
+          created_at?: string
+          credit_account?: string
+          debit_account?: string
+          id?: string
+          linked_transaction_id?: string | null
+          period: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          store_id: string
+        }
+        Update: {
+          amortization_item_id?: string
+          amount?: number
+          created_at?: string
+          credit_account?: string
+          debit_account?: string
+          id?: string
+          linked_transaction_id?: string | null
+          period?: string
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amortization_journal_amortization_item_id_fkey"
+            columns: ["amortization_item_id"]
+            isOneToOne: false
+            referencedRelation: "amortization_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_depreciation_records: {
         Row: {
           accumulated_total: number
@@ -1564,6 +1713,57 @@ export type Database = {
           spent?: number
           start_date?: string
           status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      store_lease_terms: {
+        Row: {
+          contract_number: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          landlord_name: string | null
+          lease_end: string
+          lease_months: number
+          lease_start: string
+          monthly_rent: number | null
+          notes: string | null
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          updated_at: string
+        }
+        Insert: {
+          contract_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          landlord_name?: string | null
+          lease_end: string
+          lease_months?: number
+          lease_start: string
+          monthly_rent?: number | null
+          notes?: string | null
+          store_id: string
+          store_name_en?: string
+          store_name_zh?: string
+          updated_at?: string
+        }
+        Update: {
+          contract_number?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          landlord_name?: string | null
+          lease_end?: string
+          lease_months?: number
+          lease_start?: string
+          monthly_rent?: number | null
+          notes?: string | null
           store_id?: string
           store_name_en?: string
           store_name_zh?: string

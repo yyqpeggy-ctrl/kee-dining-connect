@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator, Link2, Target, Brain, FileText, Zap } from "lucide-react";
+import { Calendar, Download, BookOpen, FileSpreadsheet, Receipt, Calculator, Link2, Target, Brain, FileText, Zap, Landmark } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
@@ -16,6 +16,7 @@ import BudgetTab from "@/components/finance/BudgetTab";
 import AIFinanceAdvisorTab from "@/components/finance/AIFinanceAdvisorTab";
 import InvoiceManagementTab from "@/components/finance/InvoiceManagementTab";
 import AutomationDashboard from "@/components/finance/AutomationDashboard";
+import AssetAmortizationTab from "@/components/finance/AssetAmortizationTab";
 import { computeIncomeStatement, StoreId, journalEntries } from "@/data/financeData";
 
 const Finance = () => {
@@ -47,8 +48,9 @@ const Finance = () => {
       <FinanceKPICards totalRevenue={totalRevenue} totalExpense={totalExpense} totalProfit={totalProfit} />
 
       <Tabs defaultValue="automation" className="w-full">
-        <TabsList className="grid w-full grid-cols-9 mb-6 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-10 mb-6 bg-muted/50">
           <TabsTrigger value="automation" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Zap className="w-3.5 h-3.5" />{isZh ? "★自动化" : "★Auto"}</TabsTrigger>
+          <TabsTrigger value="amortization" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Landmark className="w-3.5 h-3.5" />{isZh ? "摊销归集" : "Amortize"}</TabsTrigger>
           <TabsTrigger value="ai-advisor" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Brain className="w-3.5 h-3.5" />{isZh ? "AI顾问" : "AI Advisor"}</TabsTrigger>
           <TabsTrigger value="crossmodule" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Link2 className="w-3.5 h-3.5" />{t("financeMgmt.crossModule")}</TabsTrigger>
           <TabsTrigger value="accounting" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><BookOpen className="w-3.5 h-3.5" />{t("financeMgmt.accounting")}</TabsTrigger>
@@ -59,6 +61,7 @@ const Finance = () => {
           <TabsTrigger value="transactions" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs"><Receipt className="w-3.5 h-3.5" />{t("financeMgmt.transactions")}</TabsTrigger>
         </TabsList>
         <TabsContent value="automation"><AutomationDashboard /></TabsContent>
+        <TabsContent value="amortization"><AssetAmortizationTab /></TabsContent>
         <TabsContent value="ai-advisor"><AIFinanceAdvisorTab /></TabsContent>
         <TabsContent value="crossmodule"><CrossModuleDashboard /></TabsContent>
         <TabsContent value="accounting"><AccountingTab /></TabsContent>
