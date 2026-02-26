@@ -103,6 +103,185 @@ export type Database = {
         }
         Relationships: []
       }
+      data_import_records: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          period_label: string
+          processed_at: string | null
+          record_count: number | null
+          schedule_id: string | null
+          source_type: string
+          status: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          period_label?: string
+          processed_at?: string | null
+          record_count?: number | null
+          schedule_id?: string | null
+          source_type?: string
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          period_label?: string
+          processed_at?: string | null
+          record_count?: number | null
+          schedule_id?: string | null
+          source_type?: string
+          status?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_import_records_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "data_import_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_import_reminders: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          due_date: string
+          id: string
+          import_record_id: string | null
+          notified_at: string | null
+          schedule_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          due_date: string
+          id?: string
+          import_record_id?: string | null
+          notified_at?: string | null
+          schedule_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          import_record_id?: string | null
+          notified_at?: string | null
+          schedule_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_import_reminders_import_record_id_fkey"
+            columns: ["import_record_id"]
+            isOneToOne: false
+            referencedRelation: "data_import_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_import_reminders_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "data_import_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_import_schedules: {
+        Row: {
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          file_naming_rule: string
+          frequency: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          reminder_hour: number
+          source_label_en: string
+          source_label_zh: string
+          source_type: string
+          store_id: string
+          store_name_en: string
+          store_name_zh: string
+          updated_at: string
+          upload_folder: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          file_naming_rule?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          reminder_hour?: number
+          source_label_en?: string
+          source_label_zh?: string
+          source_type?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          updated_at?: string
+          upload_folder?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          file_naming_rule?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          reminder_hour?: number
+          source_label_en?: string
+          source_label_zh?: string
+          source_type?: string
+          store_id?: string
+          store_name_en?: string
+          store_name_zh?: string
+          updated_at?: string
+          upload_folder?: string
+        }
+        Relationships: []
+      }
       event_notifications: {
         Row: {
           channel: string
