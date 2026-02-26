@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, ChefHat, CheckCircle2, XCircle, Package } from "lucide-react";
+import { Clock, ChefHat, CheckCircle2, XCircle, Package, FileSpreadsheet, ArrowLeftRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import StoreIndicator from "@/components/StoreIndicator";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useStore } from "@/contexts/StoreContext";
+import ThreeWayReconciliation from "@/components/orders/ThreeWayReconciliation";
 
 type OrderStatus = "pending" | "preparing" | "served" | "completed" | "cancelled";
 
@@ -106,96 +108,113 @@ const Orders = () => {
 
       <StoreIndicator />
 
-      <div className="flex gap-1 mb-5 p-1 bg-muted/50 rounded-lg w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
-              activeTab === tab.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs defaultValue="orders" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-5 bg-muted/50">
+          <TabsTrigger value="orders" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
+            <Package className="w-3.5 h-3.5" />{isZh ? "订单管理" : "Orders"}
+          </TabsTrigger>
+          <TabsTrigger value="reconciliation" className="gap-1.5 data-[state=active]:bg-primary/20 text-xs">
+            <ArrowLeftRight className="w-3.5 h-3.5" />{isZh ? "★三方核对" : "★Reconciliation"}
+          </TabsTrigger>
+        </TabsList>
 
-      {isLoading ? (
-        <p className="text-center text-muted-foreground py-12">{isZh ? "加载中..." : "Loading..."}</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((order, i) => {
-            const config = statusConfig[order.status];
-            const Icon = config.icon;
-            const next = nextStatus[order.status];
-            return (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="glass-card rounded-xl p-4"
+        <TabsContent value="orders">
+          <div className="flex gap-1 mb-5 p-1 bg-muted/50 rounded-lg w-fit">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  activeTab === tab.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold font-display">{order.order_number}</span>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                      {order.table_name}
-                      {t("orderMgmt.table")}
-                    </span>
-                  </div>
-                  <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1 ${config.color}`}>
-                    <Icon className="w-3 h-3" />
-                    {config.label}
-                  </span>
-                </div>
-                <div className="space-y-1 mb-3">
-                  {(order.order_items || []).map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-secondary-foreground">
-                        {isZh ? item.name_zh : item.name_en}
-                        {item.quantity > 1 && ` x${item.quantity}`}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {isLoading ? (
+            <p className="text-center text-muted-foreground py-12">{isZh ? "加载中..." : "Loading..."}</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filtered.map((order, i) => {
+                const config = statusConfig[order.status];
+                const Icon = config.icon;
+                const next = nextStatus[order.status];
+                return (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="glass-card rounded-xl p-4"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold font-display">{order.order_number}</span>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                          {order.table_name}
+                          {t("orderMgmt.table")}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1 ${config.color}`}>
+                        <Icon className="w-3 h-3" />
+                        {config.label}
                       </span>
-                      <span className="text-muted-foreground">¥{Number(item.unit_price) * item.quantity}</span>
                     </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(order.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {next && (
-                      <Button
-                        size="sm"
-                        variant={next === "completed" ? "default" : "outline"}
-                        onClick={() => updateStatus.mutate({ id: order.id, status: next })}
-                        disabled={updateStatus.isPending}
-                        className="text-xs h-7"
-                      >
-                        {next === "completed" && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                        {isZh ? nextLabel[next]?.zh : nextLabel[next]?.en}
-                      </Button>
-                    )}
-                    {order.status !== "cancelled" && order.status !== "completed" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-xs h-7 text-destructive"
-                        onClick={() => updateStatus.mutate({ id: order.id, status: "cancelled" })}
-                        disabled={updateStatus.isPending}
-                      >
-                        {isZh ? "取消" : "Cancel"}
-                      </Button>
-                    )}
-                    <span className="text-sm font-bold text-primary">¥{Number(order.total)}</span>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
+                    <div className="space-y-1 mb-3">
+                      {(order.order_items || []).map((item) => (
+                        <div key={item.id} className="flex justify-between text-sm">
+                          <span className="text-secondary-foreground">
+                            {isZh ? item.name_zh : item.name_en}
+                            {item.quantity > 1 && ` x${item.quantity}`}
+                          </span>
+                          <span className="text-muted-foreground">¥{Number(item.unit_price) * item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(order.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {next && (
+                          <Button
+                            size="sm"
+                            variant={next === "completed" ? "default" : "outline"}
+                            onClick={() => updateStatus.mutate({ id: order.id, status: next })}
+                            disabled={updateStatus.isPending}
+                            className="text-xs h-7"
+                          >
+                            {next === "completed" && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                            {isZh ? nextLabel[next]?.zh : nextLabel[next]?.en}
+                          </Button>
+                        )}
+                        {order.status !== "cancelled" && order.status !== "completed" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-7 text-destructive"
+                            onClick={() => updateStatus.mutate({ id: order.id, status: "cancelled" })}
+                            disabled={updateStatus.isPending}
+                          >
+                            {isZh ? "取消" : "Cancel"}
+                          </Button>
+                        )}
+                        <span className="text-sm font-bold text-primary">¥{Number(order.total)}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reconciliation">
+          <ThreeWayReconciliation />
+        </TabsContent>
+      </Tabs>
     </AppLayout>
   );
 };
