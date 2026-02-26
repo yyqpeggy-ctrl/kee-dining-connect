@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { employee, historicalApplications, currentDocuments } = await req.json();
+    const { employee, historicalApplications, currentDocuments, cityPolicies, cityOverview } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -25,6 +25,13 @@ serve(async (req) => {
 - 学历认证如果在有效期内可复用，体检报告超过1年需重新办理
 - 工作许可到期前30天必须提交续签
 - 外国人来华工作许可分A/B/C类，根据学历、工作经验、薪资等判断
+
+【关键】你必须根据提供的城市政策信息，将当地特殊要求融入材料清单中：
+- 如果当地有特殊的材料要求或审批流程差异，需在checklist中增加对应材料项
+- 如果当地有人才引进优惠政策（如A类快速通道），需在specialNotes中体现
+- 如果当地有特殊的税收优惠政策，需在taxBenefits中体现
+- estimatedProcessingDays应参考当地实际审批时限而非全国平均值
+- 在每个checklist项的statusReason中注明是否受当地政策影响
 
 请用以下JSON格式返回（不要包含markdown代码块标记）：`;
 
@@ -152,7 +159,21 @@ ${currentDocuments && currentDocuments.length > 0
 
 今天日期：${new Date().toISOString().split("T")[0]}
 
-请自动判断申请类型，生成完整材料清单和预填模板，并评估风险和给出时间建议。`;
+${cityPolicies && cityPolicies.length > 0 ? `
+【该员工所在城市的最新政策法规】（请务必参考以下政策来调整材料清单和建议）：
+${cityPolicies.map((p: any) => `- [${p.category}] ${p.title}：${p.content}${p.effective_date ? `（生效日期：${p.effective_date}）` : ""}`).join("\n")}
+` : ""}
+
+${cityOverview ? `
+【城市审批概况】：
+- 初次申请预计审批时间：${cityOverview.processing_days_initial}个工作日
+- 续签预计审批时间：${cityOverview.processing_days_renewal}个工作日
+- 特殊优势：${cityOverview.special_advantages?.join("、") || "无"}
+- 负责机构：${cityOverview.key_contacts || "未知"}
+- 备注：${cityOverview.notes || "无"}
+` : ""}
+
+请自动判断申请类型，结合该城市的最新政策法规，生成完整材料清单和预填模板，并评估风险和给出时间建议。`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

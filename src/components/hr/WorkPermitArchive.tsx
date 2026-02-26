@@ -78,6 +78,8 @@ interface AIChecklistResult {
   checklist: AIChecklistItem[];
   specialNotes: string[];
   taxBenefits: { benefit: string; benefitEn: string; description: string; eligibility: string }[];
+  cityPoliciesApplied?: boolean;
+  cityName?: string;
 }
 
 interface EmployeeInfo {
@@ -332,9 +334,29 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
     setInitiateDialogOpen(true);
 
     try {
-      // Gather all historical docs from all applications
+      // Step 1: Auto-fetch city policies based on employee's location (default: 上海)
+      const employeeCity = selectedCity || "上海";
+      let cityPolicies: CityPolicy[] = [];
+      let cityOverview: CityOverview | null = null;
+
+      try {
+        const { data: policyData, error: policyError } = await supabase.functions.invoke("ai-policy-search", {
+          body: { city: employeeCity, action: "search_policies" },
+        });
+        if (!policyError && policyData && !policyData.error) {
+          cityPolicies = policyData.policies || [];
+          cityOverview = policyData.city_overview || null;
+          setPolicyResult(policyData as PolicySearchResult);
+          toast.info(isZh ? `已自动加载${employeeCity}政策法规 (${cityPolicies.length}条)` : `Auto-loaded ${cityPolicies.length} policies for ${employeeCity}`);
+        }
+      } catch (policyErr) {
+        console.warn("Policy fetch failed, continuing without policies:", policyErr);
+      }
+
+      // Step 2: Gather all historical docs from all applications
       const allDocs = applications.flatMap(a => a.documents);
 
+      // Step 3: Call AI checklist with policies included
       const { data, error } = await supabase.functions.invoke("ai-workpermit-checklist", {
         body: {
           employee: {
@@ -359,14 +381,28 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
             expiryDate: d.expiryDate,
             version: d.version,
           })),
+          cityPolicies: cityPolicies.map(p => ({
+            category: p.category,
+            title: p.title,
+            content: p.content,
+            effective_date: p.effective_date,
+            importance: p.importance,
+          })),
+          cityOverview,
         },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      setAiResult(data as AIChecklistResult);
-      toast.success(isZh ? "AI 已完成申请类型判断和材料分析" : "AI analysis complete");
+      const result = data as AIChecklistResult;
+      result.cityPoliciesApplied = cityPolicies.length > 0;
+      result.cityName = employeeCity;
+      setAiResult(result);
+      toast.success(isZh 
+        ? `AI 已完成分析${cityPolicies.length > 0 ? `（已融合${employeeCity}${cityPolicies.length}条政策）` : ""}` 
+        : `AI analysis complete${cityPolicies.length > 0 ? ` (integrated ${cityPolicies.length} ${employeeCity} policies)` : ""}`
+      );
     } catch (err: any) {
       console.error("AI checklist error:", err);
       toast.error(isZh ? `AI 分析失败: ${err.message}` : `AI analysis failed: ${err.message}`);
@@ -424,6 +460,17 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Select value={selectedCity} onValueChange={setSelectedCity}>
+            <SelectTrigger className="w-[100px] h-8 text-xs">
+              <MapPin className="w-3 h-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CITY_LIST.map(c => (
+                <SelectItem key={c.city} value={c.city} className="text-xs">{isZh ? c.city : c.en}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button size="sm" variant="outline" onClick={() => setPolicyDialogOpen(true)}>
             <Globe className="w-3.5 h-3.5 mr-1" />{isZh ? "政策法规同步" : "Policy Sync"}
             {policyAlerts.length > 0 && (
@@ -734,8 +781,8 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
           {aiLoading && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
-              <p className="text-sm text-muted-foreground">{isZh ? "AI 正在分析员工信息和历史材料..." : "AI analyzing employee data and history..."}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "自动判断申请类型，生成材料清单和模板" : "Auto-detecting type, generating checklist & templates"}</p>
+              <p className="text-sm text-muted-foreground">{isZh ? "AI 正在分析员工信息、历史材料和城市政策..." : "AI analyzing employee data, history & city policies..."}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{isZh ? "自动加载所在城市政策法规 → 判断申请类型 → 生成材料清单" : "Loading city policies → Detecting type → Generating checklist"}</p>
             </div>
           )}
 
@@ -772,7 +819,15 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
                     <p className="text-[9px] text-muted-foreground">{isZh ? "建议截止日" : "Deadline"}</p>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">{isZh ? "许可类别判断依据：" : "Category reason: "}{aiResult.categoryReason}</p>
+              <div className="flex items-center gap-2 mb-3">
+                {aiResult.cityPoliciesApplied && (
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                    <MapPin className="w-3 h-3 mr-0.5" />
+                    {isZh ? `已融合${aiResult.cityName}政策` : `${aiResult.cityName} policies applied`}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">{isZh ? "许可类别判断依据：" : "Category reason: "}{aiResult.categoryReason}</p>
               </div>
 
               {/* Tabs for checklist, tax, notes */}
@@ -787,6 +842,11 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
                   <TabsTrigger value="notes" className="text-xs">
                     <Shield className="w-3 h-3 mr-1" />{isZh ? "注意事项" : "Notes"} ({aiResult.specialNotes.length})
                   </TabsTrigger>
+                  {aiResult.cityPoliciesApplied && policyResult && (
+                    <TabsTrigger value="policies" className="text-xs">
+                      <MapPin className="w-3 h-3 mr-1" />{isZh ? "城市政策" : "Policies"} ({policyResult.policies.length})
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <TabsContent value="checklist" className="mt-3">
@@ -849,6 +909,38 @@ const WorkPermitArchive = ({ employee, isZh }: Props) => {
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-2">{isZh ? "风险评估：" : "Risk: "}{aiResult.riskNotes}</p>
                 </TabsContent>
+
+                {aiResult.cityPoliciesApplied && policyResult && (
+                  <TabsContent value="policies" className="mt-3 space-y-2">
+                    <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 mb-2">
+                      <p className="text-[10px] font-medium flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-primary" />
+                        {isZh ? `${policyResult.city}（${policyResult.province}）- 已融入材料清单` : `${policyResult.cityEn} (${policyResult.province}) - Integrated into checklist`}
+                      </p>
+                      {policyResult.city_overview && (
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <div className="text-[10px]"><span className="text-muted-foreground">{isZh ? "初申审批：" : "Initial: "}</span>{policyResult.city_overview.processing_days_initial}{isZh ? "工作日" : " days"}</div>
+                          <div className="text-[10px]"><span className="text-muted-foreground">{isZh ? "续签审批：" : "Renewal: "}</span>{policyResult.city_overview.processing_days_renewal}{isZh ? "工作日" : " days"}</div>
+                        </div>
+                      )}
+                    </div>
+                    <ScrollArea className="h-[250px]">
+                      {policyResult.policies.map((p, i) => (
+                        <div key={i} className="border rounded-lg p-2.5 mb-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            {getCategoryLabel(p.category)}
+                            {getImportanceBadge(p.importance)}
+                          </div>
+                          <p className="text-[11px] font-medium">{p.title}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1">{isZh ? p.summary_zh : p.summary_en}</p>
+                          {p.effective_date && (
+                            <p className="text-[9px] text-muted-foreground mt-0.5">{isZh ? "生效：" : "Effective: "}{p.effective_date}</p>
+                          )}
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </TabsContent>
+                )}
               </Tabs>
 
               {/* Professional Review Actions */}
