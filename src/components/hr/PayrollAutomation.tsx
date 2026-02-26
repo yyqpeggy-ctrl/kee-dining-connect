@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Upload, Calculator, CheckCircle, FileSpreadsheet, Banknote, Users,
   ArrowRight, Play, Download, ClipboardCheck, AlertTriangle, RefreshCw, Zap,
-  Settings2, Plus, Trash2, Save
+  Settings2, Plus, Trash2, Save, Clock
 } from "lucide-react";
 import { generateBankPaymentExcel } from "@/components/procurement/bankPaymentExport";
 
@@ -29,8 +29,10 @@ interface AttendanceRecord {
   department: string;
   workDays: number;
   overtimeHours: number;
+  holidayOvertimeHours: number;
   leaveDays: number;
   lateTimes: number;
+  compLeaveDaysUsed: number;
 }
 
 interface PayrollLine {
@@ -54,6 +56,15 @@ interface PayrollLine {
   bankAccount: string;
   bankName: string;
   customItems: { label: string; amount: number }[];
+}
+
+// ===== Comp Leave (调休) Conversion Rule =====
+interface CompLeaveRule {
+  id: string;
+  label: string;
+  overtimeType: "weekday" | "weekend" | "holiday";
+  hoursPerCompDay: number;
+  enabled: boolean;
 }
 
 // ===== Customizable Payroll Config =====
@@ -85,7 +96,15 @@ interface PayrollConfig {
   enableHousingFund: boolean;
   bonusItems: PayrollBonusItem[];
   deductItems: PayrollDeductItem[];
+  compLeaveRules: CompLeaveRule[];
+  enableCompLeave: boolean;
 }
+
+const DEFAULT_COMP_LEAVE_RULES: CompLeaveRule[] = [
+  { id: "weekday_ot", label: "工作日加班/Weekday OT", overtimeType: "weekday", hoursPerCompDay: 8, enabled: false },
+  { id: "weekend_ot", label: "周末加班/Weekend OT", overtimeType: "weekend", hoursPerCompDay: 8, enabled: true },
+  { id: "holiday_ot", label: "法定节假日加班/Holiday OT", overtimeType: "holiday", hoursPerCompDay: 4, enabled: true },
+];
 
 const DEFAULT_CONFIG: PayrollConfig = {
   standardWorkDays: 21.75,
@@ -105,6 +124,8 @@ const DEFAULT_CONFIG: PayrollConfig = {
     { id: "late", label: "迟到扣款/Late Penalty", type: "fixed_per_event", value: 50, eventField: "lateTimes", enabled: true },
     { id: "leave_deduct", label: "事假扣款/Leave Deduct", type: "fixed_per_event", value: 0, eventField: "leaveDays", enabled: true },
   ],
+  compLeaveRules: [...DEFAULT_COMP_LEAVE_RULES],
+  enableCompLeave: true,
 };
 
 const STORAGE_KEY = "payroll-config";
@@ -199,6 +220,47 @@ const PayrollAutomation = () => {
   const removeBonus = (id: string) => setConfig(c => ({ ...c, bonusItems: c.bonusItems.filter(b => b.id !== id) }));
   const removeDeduct = (id: string) => setConfig(c => ({ ...c, deductItems: c.deductItems.filter(d => d.id !== id) }));
 
+  const updateCompLeaveRule = (id: string, field: string, value: any) => {
+    setConfig(c => ({
+      ...c,
+      compLeaveRules: c.compLeaveRules.map(r => r.id === id ? { ...r, [field]: value } : r),
+    }));
+  };
+
+  const addCompLeaveRule = () => {
+    const newRule: CompLeaveRule = {
+      id: `comp_${Date.now()}`, label: isZh ? "自定义加班类型" : "Custom OT Type",
+      overtimeType: "weekday", hoursPerCompDay: 8, enabled: true,
+    };
+    setConfig(c => ({ ...c, compLeaveRules: [...c.compLeaveRules, newRule] }));
+  };
+
+  const removeCompLeaveRule = (id: string) => setConfig(c => ({ ...c, compLeaveRules: c.compLeaveRules.filter(r => r.id !== id) }));
+
+  // Calculate comp leave earned for an employee
+  const calcCompLeave = (att: AttendanceRecord) => {
+    if (!config.enableCompLeave) return { earned: 0, details: [] as { label: string; hours: number; days: number }[] };
+    const details: { label: string; hours: number; days: number }[] = [];
+    // Holiday OT → comp leave
+    const holidayRule = config.compLeaveRules.find(r => r.overtimeType === "holiday" && r.enabled);
+    if (holidayRule && att.holidayOvertimeHours > 0) {
+      const days = Math.round(att.holidayOvertimeHours / holidayRule.hoursPerCompDay * 100) / 100;
+      details.push({ label: holidayRule.label, hours: att.holidayOvertimeHours, days });
+    }
+    // Weekend OT → comp leave (use regular OT hours as approximation for demo)
+    const weekendRule = config.compLeaveRules.find(r => r.overtimeType === "weekend" && r.enabled);
+    if (weekendRule) {
+      // In real usage, weekend OT hours would be separate; here we use a portion of overtimeHours
+      const weekendHours = Math.floor(att.overtimeHours * 0.3);
+      if (weekendHours > 0) {
+        const days = Math.round(weekendHours / weekendRule.hoursPerCompDay * 100) / 100;
+        details.push({ label: weekendRule.label, hours: weekendHours, days });
+      }
+    }
+    const earned = details.reduce((s, d) => s + d.days, 0);
+    return { earned: Math.round(earned * 100) / 100, details };
+  };
+
   // Step 1: Import attendance
   const handleImportAttendance = () => {
     const mockAttendance: AttendanceRecord[] = EMPLOYEES.map(emp => ({
@@ -207,8 +269,10 @@ const PayrollAutomation = () => {
       department: emp.dept,
       workDays: Math.floor(20 + Math.random() * 3),
       overtimeHours: Math.floor(Math.random() * 20),
+      holidayOvertimeHours: Math.floor(Math.random() * 12),
       leaveDays: Math.floor(Math.random() * 3),
       lateTimes: Math.floor(Math.random() * 3),
+      compLeaveDaysUsed: Math.floor(Math.random() * 2),
     }));
     setAttendance(mockAttendance);
     toast.success(isZh ? `✅ 已导入 ${mockAttendance.length} 名员工出勤数据` : `✅ Imported ${mockAttendance.length} attendance records`);
@@ -576,6 +640,54 @@ const PayrollAutomation = () => {
               </div>
             </div>
 
+            <Separator />
+
+            {/* Comp Leave Rules */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <p className="text-xs font-semibold">{isZh ? "节假日加班换调休规则" : "Holiday OT → Comp Leave Rules"}</p>
+                  <Switch checked={config.enableCompLeave} onCheckedChange={v => setConfig(c => ({ ...c, enableCompLeave: v }))} />
+                </div>
+                <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={addCompLeaveRule} disabled={!config.enableCompLeave}>
+                  <Plus className="w-3 h-3 mr-1" />{isZh ? "新增规则" : "Add Rule"}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mb-2">
+                {isZh ? "设定不同类型加班折算调休天数的公式：加班小时数 ÷ 每天折算小时数 = 可换调休天数" : "Formula: OT Hours ÷ Hours per Comp Day = Comp Leave Days earned"}
+              </p>
+              {config.enableCompLeave && (
+                <div className="space-y-2">
+                  {config.compLeaveRules.map(rule => (
+                    <div key={rule.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/10">
+                      <Switch checked={rule.enabled} onCheckedChange={v => updateCompLeaveRule(rule.id, "enabled", v)} />
+                      <Input value={rule.label} onChange={e => updateCompLeaveRule(rule.id, "label", e.target.value)} className="h-7 text-xs flex-1" />
+                      <Select value={rule.overtimeType} onValueChange={v => updateCompLeaveRule(rule.id, "overtimeType", v)}>
+                        <SelectTrigger className="h-7 text-[10px] w-28"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekday">{isZh ? "工作日" : "Weekday"}</SelectItem>
+                          <SelectItem value="weekend">{isZh ? "周末" : "Weekend"}</SelectItem>
+                          <SelectItem value="holiday">{isZh ? "法定节假日" : "Holiday"}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-1">
+                        <Input type="number" step="0.5" value={rule.hoursPerCompDay} onChange={e => updateCompLeaveRule(rule.id, "hoursPerCompDay", parseFloat(e.target.value) || 8)} className="h-7 text-xs w-16" />
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{isZh ? "h/天" : "h/day"}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeCompLeaveRule(rule.id)}>
+                        <Trash2 className="w-3 h-3 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="p-2 rounded-md bg-muted/30 text-[10px] text-muted-foreground">
+                    {isZh
+                      ? "💡 示例：法定节假日加班4小时=1天调休 → 填写「4 h/天」；周末加班8小时=1天 → 填写「8 h/天」"
+                      : "💡 Example: Holiday OT 4h = 1 comp day → enter '4 h/day'; Weekend OT 8h = 1 day → enter '8 h/day'"}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Reset */}
             <div className="flex justify-between items-center pt-2">
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setConfig({ ...DEFAULT_CONFIG }); toast.info(isZh ? "已重置为默认规则" : "Reset to defaults"); }}>
@@ -649,26 +761,39 @@ const PayrollAutomation = () => {
             <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                   <TableRow>
                     <TableHead className="text-xs">{isZh ? "员工" : "Employee"}</TableHead>
                     <TableHead className="text-xs">{isZh ? "部门" : "Dept"}</TableHead>
                     <TableHead className="text-xs text-center">{isZh ? "出勤天数" : "Work Days"}</TableHead>
                     <TableHead className="text-xs text-center">{isZh ? "加班(h)" : "OT(h)"}</TableHead>
+                    <TableHead className="text-xs text-center">{isZh ? "节假日加班(h)" : "Holiday OT(h)"}</TableHead>
                     <TableHead className="text-xs text-center">{isZh ? "请假" : "Leave"}</TableHead>
+                    <TableHead className="text-xs text-center">{isZh ? "已用调休" : "Comp Used"}</TableHead>
                     <TableHead className="text-xs text-center">{isZh ? "迟到" : "Late"}</TableHead>
+                    {config.enableCompLeave && <TableHead className="text-xs text-center">{isZh ? "可换调休" : "Comp Earned"}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {attendance.map(a => (
+                  {attendance.map(a => {
+                    const comp = calcCompLeave(a);
+                    return (
                     <TableRow key={a.employeeId}>
                       <TableCell className="text-xs font-medium">{a.name}</TableCell>
                       <TableCell className="text-xs">{a.department}</TableCell>
                       <TableCell className="text-xs text-center">{a.workDays}</TableCell>
                       <TableCell className="text-xs text-center">{a.overtimeHours}</TableCell>
+                      <TableCell className="text-xs text-center">{a.holidayOvertimeHours > 0 ? <Badge variant="outline">{a.holidayOvertimeHours}</Badge> : "-"}</TableCell>
                       <TableCell className="text-xs text-center">{a.leaveDays > 0 ? <Badge variant="secondary">{a.leaveDays}</Badge> : "-"}</TableCell>
+                      <TableCell className="text-xs text-center">{a.compLeaveDaysUsed > 0 ? <Badge variant="secondary">{a.compLeaveDaysUsed}</Badge> : "-"}</TableCell>
                       <TableCell className="text-xs text-center">{a.lateTimes > 0 ? <Badge variant="destructive" className="text-[10px]">{a.lateTimes}</Badge> : "-"}</TableCell>
+                      {config.enableCompLeave && (
+                        <TableCell className="text-xs text-center">
+                          {comp.earned > 0 ? <Badge className="bg-primary text-primary-foreground text-[10px]">{comp.earned}{isZh ? "天" : "d"}</Badge> : "-"}
+                        </TableCell>
+                      )}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -768,6 +893,67 @@ const PayrollAutomation = () => {
                 <p className="text-sm font-bold text-primary">¥{totalNet.toFixed(2)}</p>
               </div>
             </div>
+
+            {/* Comp Leave Summary */}
+            {config.enableCompLeave && attendance.length > 0 && (
+              <Card className="border-primary/20">
+                <CardHeader className="pb-2 pt-3">
+                  <CardTitle className="text-xs flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-primary" />
+                    {isZh ? "调休结算明细" : "Comp Leave Summary"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-lg border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-[10px]">{isZh ? "员工" : "Employee"}</TableHead>
+                          <TableHead className="text-[10px] text-center">{isZh ? "节假日加班(h)" : "Holiday OT(h)"}</TableHead>
+                          <TableHead className="text-[10px] text-center">{isZh ? "本月新增调休" : "Earned"}</TableHead>
+                          <TableHead className="text-[10px] text-center">{isZh ? "本月已用调休" : "Used"}</TableHead>
+                          <TableHead className="text-[10px] text-center">{isZh ? "调休余额变动" : "Net Change"}</TableHead>
+                          <TableHead className="text-[10px]">{isZh ? "换算明细" : "Details"}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {attendance.map(a => {
+                          const comp = calcCompLeave(a);
+                          const netChange = Math.round((comp.earned - a.compLeaveDaysUsed) * 100) / 100;
+                          return (
+                            <TableRow key={a.employeeId}>
+                              <TableCell className="text-xs font-medium">{a.name}</TableCell>
+                              <TableCell className="text-xs text-center">{a.holidayOvertimeHours}</TableCell>
+                              <TableCell className="text-xs text-center">
+                                {comp.earned > 0 ? <Badge className="bg-primary text-primary-foreground text-[10px]">+{comp.earned}</Badge> : "0"}
+                              </TableCell>
+                              <TableCell className="text-xs text-center">
+                                {a.compLeaveDaysUsed > 0 ? <Badge variant="secondary" className="text-[10px]">-{a.compLeaveDaysUsed}</Badge> : "0"}
+                              </TableCell>
+                              <TableCell className="text-xs text-center font-semibold">
+                                <span className={netChange > 0 ? "text-primary" : netChange < 0 ? "text-destructive" : "text-muted-foreground"}>
+                                  {netChange > 0 ? `+${netChange}` : netChange}{isZh ? "天" : "d"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-[10px] text-muted-foreground">
+                                {comp.details.map((d, i) => (
+                                  <span key={i}>{d.hours}h÷{config.compLeaveRules.find(r => r.enabled && comp.details.indexOf(d) >= 0)?.hoursPerCompDay || 8}={d.days}{isZh ? "天" : "d"}{i < comp.details.length - 1 ? "; " : ""}</span>
+                                ))}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    {isZh
+                      ? `📌 当前规则：${config.compLeaveRules.filter(r => r.enabled).map(r => `${r.label} ${r.hoursPerCompDay}h=1天`).join("，") || "无启用规则"}`
+                      : `📌 Active rules: ${config.compLeaveRules.filter(r => r.enabled).map(r => `${r.label} ${r.hoursPerCompDay}h=1day`).join(", ") || "None"}`}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {!confirmed && (
               <div className="flex gap-2">
