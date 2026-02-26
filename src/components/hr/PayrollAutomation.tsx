@@ -76,7 +76,7 @@ interface PayrollDeductItem {
 
 interface PayrollConfig {
   standardWorkDays: number;
-  overtimeMultiplier: number;
+  overtimeHourlyRate: number;
   socialInsuranceRate: number;
   housingFundRate: number;
   taxThreshold: number;
@@ -89,7 +89,7 @@ interface PayrollConfig {
 
 const DEFAULT_CONFIG: PayrollConfig = {
   standardWorkDays: 21.75,
-  overtimeMultiplier: 1.5,
+  overtimeHourlyRate: 50,
   socialInsuranceRate: 10.5,
   housingFundRate: 12,
   taxThreshold: 5000,
@@ -224,9 +224,8 @@ const PayrollAutomation = () => {
     const lines: PayrollLine[] = attendance.map(att => {
       const emp = EMPLOYEES.find(e => e.id === att.employeeId)!;
       const dailyRate = emp.baseSalary / config.standardWorkDays;
-      const overtimeRate = dailyRate / 8 * config.overtimeMultiplier;
 
-      const overtimePay = Math.round(att.overtimeHours * overtimeRate * 100) / 100;
+      const overtimePay = Math.round(att.overtimeHours * config.overtimeHourlyRate * 100) / 100;
 
       // Custom bonus items
       const customItems: { label: string; amount: number }[] = [];
@@ -464,8 +463,8 @@ const PayrollAutomation = () => {
                   <Input type="number" step="0.01" value={config.standardWorkDays} onChange={e => setConfig(c => ({ ...c, standardWorkDays: parseFloat(e.target.value) || 21.75 }))} className="h-8 text-xs mt-1" />
                 </div>
                 <div>
-                  <Label className="text-[10px]">{isZh ? "加班倍率" : "OT Multiplier"}</Label>
-                  <Input type="number" step="0.1" value={config.overtimeMultiplier} onChange={e => setConfig(c => ({ ...c, overtimeMultiplier: parseFloat(e.target.value) || 1.5 }))} className="h-8 text-xs mt-1" />
+                  <Label className="text-[10px]">{isZh ? "加班时薪(¥/小时)" : "OT Hourly Rate(¥/hr)"}</Label>
+                  <Input type="number" step="1" value={config.overtimeHourlyRate} onChange={e => setConfig(c => ({ ...c, overtimeHourlyRate: parseFloat(e.target.value) || 50 }))} className="h-8 text-xs mt-1" />
                 </div>
                 <div>
                   <Label className="text-[10px]">{isZh ? "个税起征点(¥)" : "Tax Threshold(¥)"}</Label>
