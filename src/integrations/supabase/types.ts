@@ -201,6 +201,69 @@ export type Database = {
           },
         ]
       }
+      bgm_library: {
+        Row: {
+          artist: string | null
+          bpm: number | null
+          category: string
+          cover_url: string | null
+          created_at: string
+          duration_seconds: number | null
+          file_url: string
+          id: string
+          is_preset: boolean | null
+          mood: string | null
+          name: string
+          name_en: string
+          play_count: number | null
+          store_id: string | null
+          style: string | null
+          tags: string[] | null
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          artist?: string | null
+          bpm?: number | null
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_url: string
+          id?: string
+          is_preset?: boolean | null
+          mood?: string | null
+          name: string
+          name_en?: string
+          play_count?: number | null
+          store_id?: string | null
+          style?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          artist?: string | null
+          bpm?: number | null
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          file_url?: string
+          id?: string
+          is_preset?: boolean | null
+          mood?: string | null
+          name?: string
+          name_en?: string
+          play_count?: number | null
+          store_id?: string | null
+          style?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       daily_procurement_suggestions: {
         Row: {
           created_at: string
