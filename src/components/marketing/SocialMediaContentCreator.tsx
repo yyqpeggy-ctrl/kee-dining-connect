@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { trimAndMerge, autoTrimSegments, extractBestFrame, getVideoDuration, type TrimSegment, type VideoSubtitle, type SubtitleStyle, type TransitionType, type BGMOptions } from "@/lib/videoEditor";
 import BGMLibrary from "@/components/marketing/BGMLibrary";
+import VideoEditorWorkspace from "@/components/marketing/VideoEditorWorkspace";
 
 // Default fallback subtitles when AI generation fails
 const defaultSubtitles: VideoSubtitle[] = [
