@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { trimAndMerge, autoTrimSegments, extractBestFrame, getVideoDuration, type TrimSegment, type VideoSubtitle, type SubtitleStyle, type TransitionType, type BGMOptions } from "@/lib/videoEditor";
+import BGMLibrary from "@/components/marketing/BGMLibrary";
 
 // Default fallback subtitles when AI generation fails
 const defaultSubtitles: VideoSubtitle[] = [
@@ -2927,12 +2928,22 @@ const SocialMediaContentCreator = () => {
 
               {!bgmUrl ? (
                 <div className="space-y-1.5">
+                  {/* BGM Library Browser */}
+                  <BGMLibrary
+                    isZh={isZh}
+                    onSelect={(url, name) => {
+                      setBgmUrl(url);
+                      setBgmName(name);
+                      setBgmFile(null);
+                    }}
+                  />
+                  {/* Direct Upload */}
                   <button
                     onClick={() => bgmInputRef.current?.click()}
                     className="w-full h-10 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center gap-2 text-xs text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    {isZh ? "上传 BGM 音频文件 (MP3/WAV/OGG)" : "Upload BGM audio (MP3/WAV/OGG)"}
+                    {isZh ? "或直接上传音频 (MP3/WAV/OGG)" : "Or upload audio directly (MP3/WAV/OGG)"}
                   </button>
                   <input
                     ref={bgmInputRef}
