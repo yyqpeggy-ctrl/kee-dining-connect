@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, requireUser } from "../_shared/auth.ts";
 
 interface AutomationStep {
   stepId: string;
@@ -17,6 +13,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Require authenticated user (finance operations)
+    const authResult = await requireUser(req);
+    if (authResult instanceof Response) return authResult;
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -196,9 +196,29 @@ serve(async (req) => {
         if (!bankEntries || !Array.isArray(bankEntries)) {
           throw new Error("Missing bankEntries array");
         }
+        if (bankEntries.length > 500) {
+          throw new Error("Too many entries (max 500 per call)");
+        }
+
+        // Strict validation of every entry to prevent ledger fabrication
+        const validated: Array<{ amount: number; counterparty: string; date: string; type: "inflow" | "outflow"; reference: string }> = [];
+        for (const e of bankEntries) {
+          const amount = Number(e?.amount);
+          const counterparty = String(e?.counterparty ?? "").trim().slice(0, 200);
+          const reference = String(e?.reference ?? "").trim().slice(0, 200);
+          const date = String(e?.date ?? "").trim().slice(0, 32);
+          const type = e?.type === "outflow" ? "outflow" : e?.type === "inflow" ? "inflow" : null;
+          if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
+            throw new Error("Invalid amount in bankEntries");
+          }
+          if (!counterparty) throw new Error("Missing counterparty in bankEntries");
+          if (!type) throw new Error("Invalid type in bankEntries (must be inflow|outflow)");
+          if (!/^\d{4}-\d{2}-\d{2}/.test(date)) throw new Error("Invalid date in bankEntries (YYYY-MM-DD)");
+          validated.push({ amount, counterparty, date, type, reference });
+        }
 
         const createdVouchers: string[] = [];
-        for (const entry of bankEntries) {
+        for (const entry of validated) {
           const { amount, counterparty, date, type, reference } = entry;
 
           // Try to match with procurement orders
