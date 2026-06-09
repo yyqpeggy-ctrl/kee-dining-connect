@@ -102,7 +102,7 @@ Preserve the original poster's composition, proportions and professional marketi
       const images = message?.images || [];
       const textContent = typeof message?.content === "string" ? message.content : "";
 
-      console.log(`Attempt ${attempt} - images: ${images.length}`);
+      console.log(`Attempt ${attempt} - images: ${images.length}, text: ${textContent.slice(0, 200)}`);
 
       if (images.length > 0 && images[0]?.image_url?.url) {
         resultImage = images[0].image_url.url;
@@ -120,15 +120,17 @@ Preserve the original poster's composition, proportions and professional marketi
         }
       }
 
-      console.warn(`Attempt ${attempt} returned no image, retrying...`);
+      lastError = textContent || "No image returned";
+      console.warn(`Attempt ${attempt} returned no image. Model text: ${textContent.slice(0, 300)}`);
       if (attempt < maxAttempts) {
         await new Promise((r) => setTimeout(r, 1500 * attempt));
       }
     }
 
     if (!resultImage) {
+      const detail = lastError ? ` (${lastError.slice(0, 200)})` : "";
       return new Response(
-        JSON.stringify({ error: isZh ? "AI 未能编辑图片，请重试" : "AI failed to edit image, please retry", details: lastError }),
+        JSON.stringify({ error: (isZh ? "AI 未能编辑图片，请换个指令重试" : "AI failed to edit image, try a different instruction") + detail, details: lastError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
