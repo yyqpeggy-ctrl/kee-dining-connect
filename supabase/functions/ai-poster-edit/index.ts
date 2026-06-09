@@ -49,68 +49,98 @@ Requirements:
 - Modified image should remain clear and readable
 - Keep the overall composition and proportions`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: image_url } },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
-      }),
-    });
+    const maxAttempts = 5;
+    let lastError = "";
+    let resultImage = "";
+    let resultText = "";
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: isZh ? "请求过于频繁，请稍后再试" : "Rate limited, please try again later" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`Edit attempt ${attempt}/${maxAttempts}`);
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: image_url } },
+              ],
+            },
+          ],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: isZh ? "请求过于频繁，请稍后再试" : "Rate limited, please try again later" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: isZh ? "AI 额度不足，请充值" : "AI credits exhausted, please top up" }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const errText = await response.text();
+        console.error(`Attempt ${attempt} gateway error:`, response.status, errText);
+        lastError = errText;
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 1500 * attempt));
+          continue;
+        }
+        break;
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: isZh ? "AI 额度不足，请充值" : "AI credits exhausted, please top up" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+
+      const data = await response.json();
+      const message = data.choices?.[0]?.message;
+      const images = message?.images || [];
+      const textContent = typeof message?.content === "string" ? message.content : "";
+
+      console.log(`Attempt ${attempt} - images: ${images.length}`);
+
+      if (images.length > 0 && images[0]?.image_url?.url) {
+        resultImage = images[0].image_url.url;
+        resultText = textContent;
+        break;
       }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+
+      // Try to extract base64 from content as fallback
+      if (typeof message?.content === "string") {
+        const match = message.content.match(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/);
+        if (match) {
+          resultImage = match[0];
+          resultText = textContent;
+          break;
+        }
+      }
+
+      console.warn(`Attempt ${attempt} returned no image, retrying...`);
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+      }
     }
 
-    const data = await response.json();
-    const message = data.choices?.[0]?.message;
-    const images = message?.images || [];
-    const textContent = message?.content || "";
-
-    if (images.length === 0) {
+    if (!resultImage) {
       return new Response(
-        JSON.stringify({ error: isZh ? "AI 未能编辑图片，请重试" : "AI failed to edit image, please retry" }),
+        JSON.stringify({ error: isZh ? "AI 未能编辑图片，请重试" : "AI failed to edit image, please retry", details: lastError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({
-        image_url: images[0].image_url.url,
-        description: textContent,
-      }),
+      JSON.stringify({ image_url: resultImage, description: resultText }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (e) {
+
     console.error("ai-poster-edit error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
