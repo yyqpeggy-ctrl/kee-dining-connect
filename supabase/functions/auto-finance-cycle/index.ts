@@ -196,9 +196,29 @@ serve(async (req) => {
         if (!bankEntries || !Array.isArray(bankEntries)) {
           throw new Error("Missing bankEntries array");
         }
+        if (bankEntries.length > 500) {
+          throw new Error("Too many entries (max 500 per call)");
+        }
+
+        // Strict validation of every entry to prevent ledger fabrication
+        const validated: Array<{ amount: number; counterparty: string; date: string; type: "inflow" | "outflow"; reference: string }> = [];
+        for (const e of bankEntries) {
+          const amount = Number(e?.amount);
+          const counterparty = String(e?.counterparty ?? "").trim().slice(0, 200);
+          const reference = String(e?.reference ?? "").trim().slice(0, 200);
+          const date = String(e?.date ?? "").trim().slice(0, 32);
+          const type = e?.type === "outflow" ? "outflow" : e?.type === "inflow" ? "inflow" : null;
+          if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
+            throw new Error("Invalid amount in bankEntries");
+          }
+          if (!counterparty) throw new Error("Missing counterparty in bankEntries");
+          if (!type) throw new Error("Invalid type in bankEntries (must be inflow|outflow)");
+          if (!/^\d{4}-\d{2}-\d{2}/.test(date)) throw new Error("Invalid date in bankEntries (YYYY-MM-DD)");
+          validated.push({ amount, counterparty, date, type, reference });
+        }
 
         const createdVouchers: string[] = [];
-        for (const entry of bankEntries) {
+        for (const entry of validated) {
           const { amount, counterparty, date, type, reference } = entry;
 
           // Try to match with procurement orders
