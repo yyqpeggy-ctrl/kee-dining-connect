@@ -149,7 +149,7 @@ const SupplierContractDialog = ({ supplierId, onClose, onBankInfoExtracted }: Pr
       return;
     }
 
-    const { error } = await supabase.from("suppliers").update(updates).eq("id", supplierId);
+    const { error } = await supabase.from("suppliers").update(updates as any).eq("id", supplierId);
     if (error) toast.error(error.message);
     else {
       toast.success(isZh ? "银行和开票信息已同步到供应商主档" : "Bank & invoice info synced to supplier");

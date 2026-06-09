@@ -94,7 +94,7 @@ const ProcurementPaymentTab = ({ orders, onRefresh }: Props) => {
             if (parts.length > 1) updates.bank_branch = parts.slice(1).join(" ");
           }
           if (row.supplierAccount) updates.bank_account = row.supplierAccount;
-          await supabase.from("suppliers").update(updates).eq("name", row.supplierName);
+          await supabase.from("suppliers").update(updates as any).eq("name", row.supplierName);
         }
       }
     }
