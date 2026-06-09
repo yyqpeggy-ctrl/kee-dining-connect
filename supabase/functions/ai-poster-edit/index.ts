@@ -37,21 +37,14 @@ serve(async (req) => {
 
     const isZh = language === "zh";
 
+    // Direct, imperative prompt - the image-gen model needs an unambiguous "output an image" instruction
     const prompt = isZh
-      ? `请根据以下指令修改这张营销海报图片：
-${edit_instruction}
-
-要求：
-- 保持海报的专业品质和营销效果
-- 修改后的图片应保持清晰可读
-- 保持原有的整体构图和比例`
-      : `Please modify this marketing poster image based on the following instructions:
-${edit_instruction}
-
-Requirements:
-- Maintain professional quality and marketing effectiveness
-- Modified image should remain clear and readable
-- Keep the overall composition and proportions`;
+      ? `编辑这张图片并输出新的图片（必须返回图片，不要只用文字回复）。
+编辑指令：${edit_instruction}
+保持原有海报的整体构图、比例和专业营销品质。`
+      : `Edit this image and output the new image (you MUST return an image, do not reply with text only).
+Edit instruction: ${edit_instruction}
+Preserve the original poster's composition, proportions and professional marketing quality.`;
 
     const maxAttempts = 5;
     let lastError = "";
