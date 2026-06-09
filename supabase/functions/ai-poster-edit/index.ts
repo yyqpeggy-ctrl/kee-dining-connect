@@ -100,12 +100,36 @@ Preserve the original poster's composition, proportions and professional marketi
       const data = await response.json();
       const message = data.choices?.[0]?.message;
       const images = message?.images || [];
-      const textContent = typeof message?.content === "string" ? message.content : "";
+      let textContent = "";
+
+      if (typeof message?.content === "string") {
+        textContent = message.content;
+      } else if (Array.isArray(message?.content)) {
+        for (const part of message.content) {
+          if (part?.type === "image_url" && part?.image_url?.url) {
+            resultImage = part.image_url.url;
+            break;
+          }
+          if (typeof part === "string" && part.startsWith("data:image")) {
+            resultImage = part;
+            break;
+          }
+        }
+        textContent = message.content
+          .filter((part: any) => typeof part === "string" || part?.type === "text")
+          .map((part: any) => (typeof part === "string" ? part : part?.text || ""))
+          .join("");
+      }
 
       console.log(`Attempt ${attempt} - images: ${images.length}, text: ${textContent.slice(0, 200)}`);
 
-      if (images.length > 0 && images[0]?.image_url?.url) {
-        resultImage = images[0].image_url.url;
+      if (resultImage) {
+        resultText = textContent;
+        break;
+      }
+
+      if (images.length > 0 && (images[0]?.image_url?.url || images[0]?.url)) {
+        resultImage = images[0]?.image_url?.url || images[0]?.url;
         resultText = textContent;
         break;
       }
@@ -139,7 +163,7 @@ Preserve the original poster's composition, proportions and professional marketi
       JSON.stringify({ image_url: resultImage, description: resultText }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
+  } catch (e) {
     console.error("ai-poster-edit error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
